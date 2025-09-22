@@ -1,5 +1,5 @@
 {
-  "name": "@your-org/project-release",
+  "name": "project-release",
   "version": "1.0.0",
   "description": "Nx plugin for releasing projects using project.json and conventional commits",
   "keywords": ["nx", "plugin", "release", "semver", "conventional-commits"],

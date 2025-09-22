@@ -17,6 +17,7 @@ export interface ReleaseExecutorSchema {
   includeProjects?: string[];
   excludeProjects?: string[];
   projectFilter?: string;
+  releaseAll?: boolean;
   releaseConfig?: Record<string, {
     skip?: boolean;
     registryType?: 'npm' | 'nexus' | 'custom';

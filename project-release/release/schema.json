@@ -95,6 +95,11 @@
       "type": "string",
       "description": "Filter expression for projects (e.g., 'libs/*', 'apps/web-*')"
     },
+    "releaseAll": {
+      "type": "boolean",
+      "description": "Release all projects in the workspace when true",
+      "default": false
+    },
     "releaseConfig": {
       "type": "object",
       "description": "Per-project release configuration overrides",
