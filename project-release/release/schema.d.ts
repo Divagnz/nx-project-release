@@ -5,8 +5,6 @@ export interface ReleaseExecutorSchema {
   releaseAs?: 'major' | 'minor' | 'patch' | 'prerelease';
   skipCommit?: boolean;
   skipTag?: boolean;
-  preset?: 'angular' | 'atom' | 'codemirror' | 'conventionalcommits' | 'ember' | 'eslint' | 'express' | 'jquery';
-  tagPrefix?: string;
   publish?: boolean;
   registry?: string;
   registryType?: 'npm' | 'nexus' | 'custom';

@@ -33,16 +33,6 @@
       "description": "Skip creating a git tag",
       "default": false
     },
-    "preset": {
-      "type": "string",
-      "description": "Conventional commits preset to use for analysis",
-      "default": "angular",
-      "enum": ["angular", "atom", "codemirror", "conventionalcommits", "ember", "eslint", "express", "jquery"]
-    },
-    "tagPrefix": {
-      "type": "string",
-      "description": "Prefix for git tags (defaults to project name)"
-    },
     "publish": {
       "type": "boolean",
       "description": "Whether to publish the package after release",
