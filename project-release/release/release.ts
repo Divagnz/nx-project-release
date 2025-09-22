@@ -5,6 +5,141 @@ import * as fs from 'fs';
 import * as semver from 'semver';
 import { ReleaseExecutorSchema } from './schema';
 
+interface NxReleaseConfig {
+  defaultRegistry?: {
+    type?: string;
+    url?: string;
+    access?: string;
+    distTag?: string;
+  };
+  versionFiles?: string[];
+  versionPath?: string;
+  projects?: {
+    include?: string[];
+    exclude?: string[];
+    skip?: string[];
+  };
+  projectConfigs?: Record<string, {
+    registry?: {
+      type?: string;
+      url?: string;
+      access?: string;
+      distTag?: string;
+    };
+    versionFiles?: string[];
+    versionPath?: string;
+    buildTarget?: string;
+    publishDir?: string;
+    skip?: boolean;
+  }>;
+}
+
+function getNxReleaseConfig(context: ExecutorContext): NxReleaseConfig {
+  const nxJsonPath = path.join(context.root, 'nx.json');
+  if (!fs.existsSync(nxJsonPath)) {
+    return {};
+  }
+
+  try {
+    const nxJson = JSON.parse(fs.readFileSync(nxJsonPath, 'utf8'));
+    return (nxJson?.release as Record<string, unknown>)?.projectRelease as NxReleaseConfig || {};
+  } catch {
+    return {};
+  }
+}
+
+function mergeConfigWithNxJson(options: ReleaseExecutorSchema, context: ExecutorContext, projectName?: string): ReleaseExecutorSchema {
+  const nxConfig = getNxReleaseConfig(context);
+  const nxProjectConfig = projectName ? nxConfig.projectConfigs?.[projectName] : undefined;
+
+  // Read project.json configuration (highest priority)
+  let projectJsonConfig: Record<string, unknown> = {};
+  if (projectName && context.projectsConfigurations?.projects[projectName]) {
+    const projectRoot = context.projectsConfigurations.projects[projectName].root;
+    const projectJsonPath = path.join(context.root, projectRoot, 'project.json');
+
+    if (fs.existsSync(projectJsonPath)) {
+      try {
+        const projectJson = JSON.parse(fs.readFileSync(projectJsonPath, 'utf8'));
+        projectJsonConfig = projectJson.release || {};
+      } catch (error) {
+        logger.warn(`Could not read project.json release config for ${projectName}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+  }
+
+  const merged = { ...options };
+
+  // Priority order: executor options > project.json > nx.json project config > nx.json global config
+
+  // Registry configuration
+  if (!merged.registryType && !merged.registry) {
+    // Try project.json first
+    if (projectJsonConfig.registry && typeof projectJsonConfig.registry === 'object' && projectJsonConfig.registry !== null) {
+      const registry = projectJsonConfig.registry as Record<string, unknown>;
+      merged.registryType = registry.type as 'npm' | 'nexus' | 'custom';
+      merged.registry = registry.url as string;
+      merged.access = registry.access as 'public' | 'restricted';
+      merged.distTag = registry.distTag as string;
+    }
+    // Then nx.json project config
+    else if (nxProjectConfig?.registry) {
+      merged.registryType = nxProjectConfig.registry.type as 'npm' | 'nexus' | 'custom';
+      merged.registry = nxProjectConfig.registry.url;
+      merged.access = nxProjectConfig.registry.access as 'public' | 'restricted';
+      merged.distTag = nxProjectConfig.registry.distTag;
+    }
+    // Finally nx.json global config
+    else if (nxConfig.defaultRegistry) {
+      merged.registryType = nxConfig.defaultRegistry.type as 'npm' | 'nexus' | 'custom';
+      merged.registry = nxConfig.defaultRegistry.url;
+      merged.access = nxConfig.defaultRegistry.access as 'public' | 'restricted';
+      merged.distTag = nxConfig.defaultRegistry.distTag;
+    }
+  }
+
+  // Version files configuration
+  if (!merged.versionFile && !merged.versionFiles) {
+    if (Array.isArray(projectJsonConfig.versionFiles)) {
+      merged.versionFiles = projectJsonConfig.versionFiles as string[];
+    } else if (nxProjectConfig?.versionFiles) {
+      merged.versionFiles = nxProjectConfig.versionFiles;
+    } else if (nxConfig.versionFiles) {
+      merged.versionFiles = nxConfig.versionFiles;
+    }
+  }
+
+  // Version path configuration
+  if (!merged.versionPath) {
+    merged.versionPath = (projectJsonConfig.versionPath as string) ||
+                        nxProjectConfig?.versionPath ||
+                        nxConfig.versionPath ||
+                        'version';
+  }
+
+  // Build target configuration
+  if (!merged.buildTarget) {
+    merged.buildTarget = (projectJsonConfig.buildTarget as string) ||
+                        nxProjectConfig?.buildTarget;
+  }
+
+  // Publish directory configuration
+  if (!merged.publishDir) {
+    merged.publishDir = (projectJsonConfig.publishDir as string) ||
+                       nxProjectConfig?.publishDir;
+  }
+
+  // Project lists (only from nx.json global config, not project-specific)
+  if (nxConfig.projects?.include && !options.includeProjects) {
+    merged.includeProjects = nxConfig.projects.include;
+  }
+  if (nxConfig.projects?.exclude && !options.excludeProjects) {
+    merged.excludeProjects = nxConfig.projects.exclude;
+  }
+
+  return merged;
+}
+
 const runExecutor: PromiseExecutor<ReleaseExecutorSchema> = async (options, context: ExecutorContext) => {
   logger.info('Running project-release executor');
 
@@ -19,9 +154,12 @@ const runExecutor: PromiseExecutor<ReleaseExecutorSchema> = async (options, cont
       throw new Error('Project name is required');
     }
 
+    // Merge nx.json configuration with executor options
+    const mergedOptions = mergeConfigWithNxJson(options, context, context.projectName);
+
     // Check if we should only process affected projects
-    if (options.onlyChanged) {
-      const isAffected = await isProjectAffected(context, options);
+    if (mergedOptions.onlyChanged) {
+      const isAffected = await isProjectAffected(context, mergedOptions);
       if (!isAffected) {
         logger.info(`⏭️ Project ${context.projectName} is not affected, skipping release`);
         return { success: true, skipped: true };
@@ -29,7 +167,7 @@ const runExecutor: PromiseExecutor<ReleaseExecutorSchema> = async (options, cont
     }
 
     // Check if project should be skipped based on configuration
-    if (await shouldSkipProject(context.projectName, options)) {
+    if (await shouldSkipProject(context.projectName, mergedOptions, context)) {
       logger.info(`⏭️ Project ${context.projectName} is configured to be skipped`);
       return { success: true, skipped: true };
     }
@@ -39,7 +177,7 @@ const runExecutor: PromiseExecutor<ReleaseExecutorSchema> = async (options, cont
     logger.info(`Project root: ${projectRoot}`);
 
     // Read current version from specified file
-    const versionInfo = await readVersionFromFile(context, projectRoot, options);
+    const versionInfo = await readVersionFromFile(context, projectRoot, mergedOptions);
     const currentVersion = versionInfo.version || '0.0.0';
     const isFirstRelease = !versionInfo.version || versionInfo.version === '0.0.0';
 
@@ -50,20 +188,20 @@ const runExecutor: PromiseExecutor<ReleaseExecutorSchema> = async (options, cont
 
     // Calculate new version
     let newVersion: string;
-    if (options.version) {
+    if (mergedOptions.version) {
       // Validate semver format
-      if (!semver.valid(options.version)) {
-        throw new Error(`Invalid semver version: ${options.version}`);
+      if (!semver.valid(mergedOptions.version)) {
+        throw new Error(`Invalid semver version: ${mergedOptions.version}`);
       }
-      newVersion = options.version;
-    } else if (options.releaseAs) {
+      newVersion = mergedOptions.version;
+    } else if (mergedOptions.releaseAs) {
       // Manual release type specified
-      if (isFirstRelease && options.releaseAs === 'prerelease') {
+      if (isFirstRelease && mergedOptions.releaseAs === 'prerelease') {
         newVersion = '1.0.0-0';
       } else if (isFirstRelease) {
         newVersion = '1.0.0';
       } else {
-        newVersion = semver.inc(currentVersion, options.releaseAs) || currentVersion;
+        newVersion = semver.inc(currentVersion, mergedOptions.releaseAs) || currentVersion;
       }
     } else {
       // Analyze conventional commits to determine version bump
@@ -93,21 +231,21 @@ const runExecutor: PromiseExecutor<ReleaseExecutorSchema> = async (options, cont
 
     logger.info(`New version: ${newVersion}`);
 
-    if (options.dryRun) {
+    if (mergedOptions.dryRun) {
       logger.info('DRY RUN - No changes will be made');
       logger.info(`Would update version from ${currentVersion} to ${newVersion}`);
-      if (!options.skipTag) {
-        const tag = options.tag || generateTagName(context.projectName, newVersion, options);
+      if (!mergedOptions.skipTag) {
+        const tag = mergedOptions.tag || generateTagName(context.projectName, newVersion, mergedOptions);
         logger.info(`Would create git tag: ${tag}`);
       }
       return { success: true };
     }
 
     // Update version file with new version
-    await writeVersionToFile(context, projectRoot, options, newVersion, versionInfo.filePath);
+    await writeVersionToFile(context, projectRoot, mergedOptions, newVersion, versionInfo.filePath);
 
     // Create git commit if not skipped
-    if (!options.skipCommit) {
+    if (!mergedOptions.skipCommit) {
       const commitMessage = generateConventionalCommitMessage(context.projectName, newVersion, isFirstRelease);
       execSync(`git add ${versionInfo.filePath}`, { cwd: context.root });
       execSync(`git commit -m "${commitMessage}"`, { cwd: context.root });
@@ -115,17 +253,17 @@ const runExecutor: PromiseExecutor<ReleaseExecutorSchema> = async (options, cont
     }
 
     // Create git tag if not skipped
-    if (!options.skipTag) {
-      const tag = options.tag || generateTagName(context.projectName, newVersion, options);
+    if (!mergedOptions.skipTag) {
+      const tag = mergedOptions.tag || generateTagName(context.projectName, newVersion, mergedOptions);
       execSync(`git tag ${tag}`, { cwd: context.root });
       logger.info(`Created git tag: ${tag}`);
     }
 
     // Publish package if requested
-    if (options.publish && !options.dryRun) {
+    if (mergedOptions.publish && !mergedOptions.dryRun) {
       logger.info('📦 Publishing package...');
-      await publishPackage(options, context, projectRoot, newVersion);
-    } else if (options.publish && options.dryRun) {
+      await publishPackage(mergedOptions, context, projectRoot, newVersion);
+    } else if (mergedOptions.publish && mergedOptions.dryRun) {
       logger.info('DRY RUN - Would publish package to registry');
     }
 
@@ -270,22 +408,53 @@ async function isProjectAffected(context: ExecutorContext, options: ReleaseExecu
   }
 }
 
-async function shouldSkipProject(projectName: string, options: ReleaseExecutorSchema): Promise<boolean> {
-  // Check per-project configuration
+async function shouldSkipProject(projectName: string, options: ReleaseExecutorSchema, context: ExecutorContext): Promise<boolean> {
+  const nxConfig = getNxReleaseConfig(context);
+
+  // Check project.json skip configuration (highest priority)
+  const projectRoot = context.projectsConfigurations?.projects[projectName]?.root;
+  if (projectRoot) {
+    const projectJsonPath = path.join(context.root, projectRoot, 'project.json');
+    if (fs.existsSync(projectJsonPath)) {
+      try {
+        const projectJson = JSON.parse(fs.readFileSync(projectJsonPath, 'utf8'));
+        if (projectJson.release?.skip === true) {
+          return true;
+        }
+      } catch {
+        // Ignore parsing errors
+      }
+    }
+  }
+
+  // Check nx.json project-specific configuration
+  if (nxConfig.projectConfigs?.[projectName]?.skip) {
+    return true;
+  }
+
+  // Check nx.json global skip list
+  if (nxConfig.projects?.skip?.includes(projectName)) {
+    return true;
+  }
+
+  // Check per-project configuration from executor options
   if (options.releaseConfig?.[projectName]?.skip) {
     return true;
   }
 
-  // Check include/exclude patterns
-  if (options.includeProjects?.length) {
-    const isIncluded = options.includeProjects.some(pattern =>
+  // Check include/exclude patterns from options or nx.json
+  const includeProjects = options.includeProjects || nxConfig.projects?.include;
+  const excludeProjects = options.excludeProjects || nxConfig.projects?.exclude;
+
+  if (includeProjects?.length) {
+    const isIncluded = includeProjects.some(pattern =>
       projectName.match(new RegExp(pattern.replace('*', '.*')))
     );
     if (!isIncluded) return true;
   }
 
-  if (options.excludeProjects?.length) {
-    const isExcluded = options.excludeProjects.some(pattern =>
+  if (excludeProjects?.length) {
+    const isExcluded = excludeProjects.some(pattern =>
       projectName.match(new RegExp(pattern.replace('*', '.*')))
     );
     if (isExcluded) return true;
@@ -305,27 +474,59 @@ async function readVersionFromFile(
   projectRoot: string,
   options: ReleaseExecutorSchema
 ): Promise<{ version: string; filePath: string }> {
-  const versionFile = options.versionFile || 'project.json';
   const versionPath = options.versionPath || 'version';
-  const filePath = path.join(context.root, projectRoot, versionFile);
 
-  if (!fs.existsSync(filePath)) {
-    throw new Error(`Version file not found: ${filePath}`);
+  // Get list of version files to try (fallback order)
+  let versionFiles: string[] = [];
+  if (options.versionFile) {
+    versionFiles = [options.versionFile];
+  } else if (options.versionFiles) {
+    versionFiles = options.versionFiles;
+  } else {
+    versionFiles = ['project.json']; // Default fallback
   }
 
-  try {
-    if (versionFile.endsWith('.json')) {
-      const content = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-      const version = getNestedProperty(content, versionPath);
-      return { version: version || '0.0.0', filePath };
-    } else {
-      // For non-JSON files like version.txt, read the entire content as version
-      const version = fs.readFileSync(filePath, 'utf8').trim();
-      return { version: version || '0.0.0', filePath };
+  let lastError: Error | undefined;
+
+  // Try each version file in order until one is found and readable
+  for (const versionFile of versionFiles) {
+    const filePath = path.join(context.root, projectRoot, versionFile);
+
+    if (!fs.existsSync(filePath)) {
+      lastError = new Error(`Version file not found: ${filePath}`);
+      continue;
     }
-  } catch (error: unknown) {
-    throw new Error(`Could not read version from ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
+
+    try {
+      if (versionFile.endsWith('.json')) {
+        const content = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        const version = getNestedProperty(content, versionPath);
+        if (version) {
+          logger.info(`Found version ${version} in ${filePath}`);
+          return { version, filePath };
+        } else {
+          lastError = new Error(`Version field '${versionPath}' not found in ${filePath}`);
+          continue;
+        }
+      } else {
+        // For non-JSON files like version.txt, read the entire content as version
+        const version = fs.readFileSync(filePath, 'utf8').trim();
+        if (version) {
+          logger.info(`Found version ${version} in ${filePath}`);
+          return { version, filePath };
+        } else {
+          lastError = new Error(`Version file is empty: ${filePath}`);
+          continue;
+        }
+      }
+    } catch (error: unknown) {
+      lastError = new Error(`Could not read version from ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
+      continue;
+    }
   }
+
+  // If no version file worked, throw the last error or a generic one
+  throw lastError || new Error(`No version files found in ${versionFiles.join(', ')}`);
 }
 
 async function writeVersionToFile(
@@ -431,7 +632,7 @@ async function releaseAllProjects(options: ReleaseExecutorSchema, context: Execu
       }
 
       // Check if project should be skipped
-      if (await shouldSkipProject(projectName, options)) {
+      if (await shouldSkipProject(projectName, options, context)) {
         logger.info(`⏭️ Skipping ${projectName} - configured to be skipped`);
         results.push({ project: projectName, success: true, skipped: true });
         continue;
@@ -566,9 +767,17 @@ async function analyzeConventionalCommits(context: ExecutorContext, projectRoot:
 
 async function releaseSingleProject(options: ReleaseExecutorSchema, context: ExecutorContext): Promise<{ success: boolean; error?: string; skipped?: boolean }> {
   try {
+    // Ensure we have a project name
+    if (!context.projectName) {
+      throw new Error('Project name is required');
+    }
+
+    // Merge nx.json configuration with executor options
+    const mergedOptions = mergeConfigWithNxJson(options, context, context.projectName);
+
     // Check if we should only process affected projects
-    if (options.onlyChanged) {
-      const isAffected = await isProjectAffected(context, options);
+    if (mergedOptions.onlyChanged) {
+      const isAffected = await isProjectAffected(context, mergedOptions);
       if (!isAffected) {
         logger.info(`⏭️ Project ${context.projectName} is not affected, skipping release`);
         return { success: true, skipped: true };
@@ -576,11 +785,7 @@ async function releaseSingleProject(options: ReleaseExecutorSchema, context: Exe
     }
 
     // Check if project should be skipped based on configuration
-    if (!context.projectName) {
-      throw new Error('Project name is required');
-    }
-
-    if (await shouldSkipProject(context.projectName, options)) {
+    if (await shouldSkipProject(context.projectName, mergedOptions, context)) {
       logger.info(`⏭️ Project ${context.projectName} is configured to be skipped`);
       return { success: true, skipped: true };
     }
@@ -590,7 +795,7 @@ async function releaseSingleProject(options: ReleaseExecutorSchema, context: Exe
     logger.info(`Project root: ${projectRoot}`);
 
     // Read current version from specified file
-    const versionInfo = await readVersionFromFile(context, projectRoot, options);
+    const versionInfo = await readVersionFromFile(context, projectRoot, mergedOptions);
     const currentVersion = versionInfo.version || '0.0.0';
     const isFirstRelease = !versionInfo.version || versionInfo.version === '0.0.0';
 
@@ -601,20 +806,20 @@ async function releaseSingleProject(options: ReleaseExecutorSchema, context: Exe
 
     // Calculate new version
     let newVersion: string;
-    if (options.version) {
+    if (mergedOptions.version) {
       // Validate semver format
-      if (!semver.valid(options.version)) {
-        throw new Error(`Invalid semver version: ${options.version}`);
+      if (!semver.valid(mergedOptions.version)) {
+        throw new Error(`Invalid semver version: ${mergedOptions.version}`);
       }
-      newVersion = options.version;
-    } else if (options.releaseAs) {
+      newVersion = mergedOptions.version;
+    } else if (mergedOptions.releaseAs) {
       // Manual release type specified
-      if (isFirstRelease && options.releaseAs === 'prerelease') {
+      if (isFirstRelease && mergedOptions.releaseAs === 'prerelease') {
         newVersion = '1.0.0-0';
       } else if (isFirstRelease) {
         newVersion = '1.0.0';
       } else {
-        newVersion = semver.inc(currentVersion, options.releaseAs) || currentVersion;
+        newVersion = semver.inc(currentVersion, mergedOptions.releaseAs) || currentVersion;
       }
     } else {
       // Analyze conventional commits to determine version bump
@@ -644,21 +849,21 @@ async function releaseSingleProject(options: ReleaseExecutorSchema, context: Exe
 
     logger.info(`New version: ${newVersion}`);
 
-    if (options.dryRun) {
+    if (mergedOptions.dryRun) {
       logger.info('DRY RUN - No changes will be made');
       logger.info(`Would update version from ${currentVersion} to ${newVersion}`);
-      if (!options.skipTag) {
-        const tag = options.tag || generateTagName(context.projectName, newVersion, options);
+      if (!mergedOptions.skipTag) {
+        const tag = mergedOptions.tag || generateTagName(context.projectName, newVersion, mergedOptions);
         logger.info(`Would create git tag: ${tag}`);
       }
       return { success: true };
     }
 
     // Update version file with new version
-    await writeVersionToFile(context, projectRoot, options, newVersion, versionInfo.filePath);
+    await writeVersionToFile(context, projectRoot, mergedOptions, newVersion, versionInfo.filePath);
 
     // Create git commit if not skipped
-    if (!options.skipCommit) {
+    if (!mergedOptions.skipCommit) {
       const commitMessage = generateConventionalCommitMessage(context.projectName, newVersion, isFirstRelease);
       execSync(`git add ${versionInfo.filePath}`, { cwd: context.root });
       execSync(`git commit -m "${commitMessage}"`, { cwd: context.root });
@@ -666,17 +871,17 @@ async function releaseSingleProject(options: ReleaseExecutorSchema, context: Exe
     }
 
     // Create git tag if not skipped
-    if (!options.skipTag) {
-      const tag = options.tag || generateTagName(context.projectName, newVersion, options);
+    if (!mergedOptions.skipTag) {
+      const tag = mergedOptions.tag || generateTagName(context.projectName, newVersion, mergedOptions);
       execSync(`git tag ${tag}`, { cwd: context.root });
       logger.info(`Created git tag: ${tag}`);
     }
 
     // Publish package if requested
-    if (options.publish && !options.dryRun) {
+    if (mergedOptions.publish && !mergedOptions.dryRun) {
       logger.info('📦 Publishing package...');
-      await publishPackage(options, context, projectRoot, newVersion);
-    } else if (options.publish && options.dryRun) {
+      await publishPackage(mergedOptions, context, projectRoot, newVersion);
+    } else if (mergedOptions.publish && mergedOptions.dryRun) {
       logger.info('DRY RUN - Would publish package to registry');
     }
 

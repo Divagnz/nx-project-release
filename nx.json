@@ -46,6 +46,38 @@
   "release": {
     "version": {
       "preVersionCommand": "npx nx run-many -t build"
+    },
+    "projectRelease": {
+      "defaultRegistry": {
+        "type": "npm",
+        "url": "https://registry.npmjs.org",
+        "access": "public",
+        "distTag": "latest"
+      },
+      "versionFiles": [
+        "project.json",
+        "package.json",
+        "version.txt"
+      ],
+      "versionPath": "version",
+      "projects": {
+        "include": ["libs/*", "apps/*"],
+        "exclude": ["*-e2e"],
+        "skip": ["tools", "docs"]
+      },
+      "projectConfigs": {
+        "project-release": {
+          "registry": {
+            "type": "npm",
+            "url": "https://registry.npmjs.org",
+            "access": "public",
+            "distTag": "latest"
+          },
+          "versionFiles": ["package.json", "project.json"],
+          "buildTarget": "build",
+          "publishDir": "dist/project-release"
+        }
+      }
     }
   }
 }

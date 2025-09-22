@@ -26,6 +26,7 @@ export interface ReleaseExecutorSchema {
     access?: 'public' | 'restricted';
   }>;
   versionFile?: string;
+  versionFiles?: string[];
   versionPath?: string;
   onlyChanged?: boolean;
   baseBranch?: string;

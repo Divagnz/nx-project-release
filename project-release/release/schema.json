@@ -131,6 +131,13 @@
       "type": "string",
       "description": "File to read/write version from (defaults to project.json). Can be package.json, version.txt, etc."
     },
+    "versionFiles": {
+      "type": "array",
+      "description": "Array of version files to try in order (fallback). First existing file with version will be used.",
+      "items": {
+        "type": "string"
+      }
+    },
     "versionPath": {
       "type": "string",
       "description": "JSON path to version field in version file (e.g., 'version', 'app.version')",
