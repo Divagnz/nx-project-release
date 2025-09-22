@@ -1,95 +1,212 @@
-# ProjectRelease
+# Project Release Plugin
 
 <a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
+An Nx plugin for releasing projects using project.json and conventional commits, supporting multiple registries and flexible configuration.
 
-Run `npx nx graph` to visually explore what got created. Now, let's get you up to speed!
+## Features
 
-## Run tasks
+- ✅ **Project.json Integration** - Works without package.json dependency
+- ✅ **Multiple Registries** - npm, Nexus, custom registries
+- ✅ **Selective Releases** - Only affected projects, include/exclude patterns
+- ✅ **Custom Version Files** - project.json, package.json, version.txt, etc.
+- ✅ **Flexible Tag Naming** - Custom prefixes, formats, project names
+- ✅ **Semver Compliance** - Full semantic versioning support
+- ✅ **Git Integration** - Conventional commits and tags
+- ✅ **Dry-run Support** - Preview changes before execution
 
-To run tasks with Nx use:
+## Quick Start
 
-```sh
-npx nx <target> <project-name>
+```bash
+# Install dependencies
+npm install
+
+# Build the plugin
+npx nx build project-release
+
+# Test the plugin
+npx nx test project-release
+
+# Local installation in another workspace
+npm install --save-dev /path/to/project-release/dist/project-release
 ```
 
-For example:
+## Development
 
-```sh
-npx nx build myproject
+### Project Structure
+
+```
+project-release/
+├── project-release/          # Main plugin project
+│   ├── src/                  # Plugin entry point
+│   ├── release/              # Release executor implementation
+│   │   ├── release.ts        # Main executor logic
+│   │   ├── schema.json       # Configuration schema
+│   │   └── schema.d.ts       # TypeScript definitions
+│   ├── executors.json        # Executor registration
+│   └── project.json          # Project configuration
+├── project-release-e2e/      # End-to-end tests
+└── dist/                     # Built output
 ```
 
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
+### Development Workflow
 
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+1. **Make Changes**: Edit files in `project-release/`
+2. **Build**: `npx nx build project-release`
+3. **Test**: `npx nx test project-release`
+4. **E2E Test**: `npx nx e2e project-release-e2e`
 
-## Add new projects
+### Building the Plugin
 
-While you could add new projects to your workspace manually, you might want to leverage [Nx plugins](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) and their [code generation](https://nx.dev/features/generate-code?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) feature.
+```bash
+# Clean build
+npx nx reset
+npx nx build project-release
 
-To install a new plugin you can use the `nx add` command. Here's an example of adding the React plugin:
-```sh
-npx nx add @nx/react
+# Watch mode for development
+npx nx build project-release --watch
 ```
 
-Use the plugin's generator to create new projects. For example, to create a new React app or library:
+### Testing
 
-```sh
-# Generate an app
-npx nx g @nx/react:app demo
+```bash
+# Unit tests
+npx nx test project-release
 
-# Generate a library
-npx nx g @nx/react:lib some-lib
+# E2E tests
+npx nx e2e project-release-e2e
+
+# Test with coverage
+npx nx test project-release --coverage
 ```
 
-You can use `npx nx list` to get a list of installed plugins. Then, run `npx nx list <plugin-name>` to learn about more specific capabilities of a particular plugin. Alternatively, [install Nx Console](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) to browse plugins and generators in your IDE.
+### Local Development & Testing
 
-[Learn more about Nx plugins &raquo;](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) | [Browse the plugin registry &raquo;](https://nx.dev/plugin-registry?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+To test the plugin in another workspace:
 
-## Set up CI!
+```bash
+# 1. Build the plugin
+npx nx build project-release
 
-### Step 1
+# 2. Navigate to your test workspace
+cd /path/to/test-workspace
 
-To connect to Nx Cloud, run the following command:
+# 3. Install the local plugin
+npm install --save-dev /path/to/project-release/dist/project-release
 
-```sh
-npx nx connect
+# 4. Configure a project to use the plugin
+# Add to project.json:
+{
+  "targets": {
+    "release": {
+      "executor": "project-release:release",
+      "options": {
+        "dryRun": true
+      }
+    }
+  }
+}
+
+# 5. Test the executor
+npx nx run my-project:release --dryRun
 ```
 
-Connecting to Nx Cloud ensures a [fast and scalable CI](https://nx.dev/ci/intro/why-nx-cloud?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) pipeline. It includes features such as:
+### Contributing
 
-- [Remote caching](https://nx.dev/ci/features/remote-cache?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task distribution across multiple machines](https://nx.dev/ci/features/distribute-task-execution?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Automated e2e test splitting](https://nx.dev/ci/features/split-e2e-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task flakiness detection and rerunning](https://nx.dev/ci/features/flaky-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+1. **Fork** the repository
+2. **Create** a feature branch: `git checkout -b feature/amazing-feature`
+3. **Make** your changes
+4. **Test** your changes: `npx nx test project-release`
+5. **Build** successfully: `npx nx build project-release`
+6. **Commit** your changes: `git commit -m 'Add amazing feature'`
+7. **Push** to the branch: `git push origin feature/amazing-feature`
+8. **Open** a Pull Request
 
-### Step 2
+### Plugin Development Tips
 
-Use the following command to configure a CI workflow for your workspace:
+#### Adding New Options
 
-```sh
-npx nx g ci-workflow
+1. Update `release/schema.json` with new property
+2. Update `release/schema.d.ts` interface
+3. Implement logic in `release/release.ts`
+4. Rebuild: `npx nx build project-release`
+
+#### Debugging
+
+```bash
+# Add console.log statements in release.ts
+console.log('Debug info:', { options, context });
+
+# Rebuild and test
+npx nx build project-release
+npx nx run test-project:release --dryRun
 ```
 
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+#### Testing with Different Nx Versions
 
-## Install Nx Console
+```bash
+# Test compatibility
+npm install nx@latest
+npx nx build project-release
+npx nx test project-release
+```
 
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
+## Architecture
 
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+### Executor Implementation
 
-## Useful links
+- **Entry Point**: `release/release.ts`
+- **Schema**: `release/schema.json` defines all configuration options
+- **Type Safety**: `release/schema.d.ts` provides TypeScript definitions
 
-Learn more:
+### Key Functions
 
-- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+- `runExecutor()` - Main executor entry point
+- `readVersionFromFile()` - Handles custom version files
+- `writeVersionToFile()` - Updates version in files
+- `publishPackage()` - Multi-registry publishing
+- `generateTagName()` - Flexible tag naming
+- `isProjectAffected()` - Affected project detection
 
-And join the Nx community:
-- [Discord](https://go.nx.dev/community)
-- [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [Our Youtube channel](https://www.youtube.com/@nxdevtools)
-- [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## Scripts
+
+```bash
+# Development
+npm run build         # Build the plugin
+npm run test          # Run tests
+npm run lint          # Lint code
+npm run e2e           # E2E tests
+
+# Nx commands
+npx nx graph          # View project dependencies
+npx nx build project-release
+npx nx test project-release
+npx nx e2e project-release-e2e
+```
+
+## Publishing
+
+```bash
+# Build for distribution
+npx nx build project-release
+
+# Publish to npm (when ready)
+cd dist/project-release
+npm publish
+```
+
+## Documentation
+
+- **Plugin Documentation**: See `project-release/README.md` for usage instructions
+- **API Reference**: Generated from schema.json and TypeScript definitions
+- **Examples**: Multiple usage examples in the plugin README
+
+## Links
+
+- [Nx Plugin Development Guide](https://nx.dev/extending-nx/intro/getting-started)
+- [Nx Executor Documentation](https://nx.dev/extending-nx/recipes/local-executors)
+- [Nx Schema Documentation](https://nx.dev/extending-nx/recipes/local-executors#executor-schema)
+
+---
+
+Built with ❤️ using [Nx](https://nx.dev)
