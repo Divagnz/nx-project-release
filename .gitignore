@@ -1,5 +1,12 @@
 # See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
 
+# Claude workspace
+.claude/
+
+# MCP configuration
+.mcp/
+.mcp.json.local
+
 # compiled output
 dist
 tmp
@@ -42,3 +49,34 @@ Thumbs.db
 .nx/workspace-data
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
+
+# Plugin development
+*.tgz
+local-registry/
+verdaccio.log
+.local-registry/
+
+# Environment files
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Local configuration
+.claude/settings.local.json
+
+# OS generated files
+.DS_Store?
+ehthumbs.db
+Icon?
+*.swp
+*.swo
+*~
+
+# Logs
+logs
+*.log
+
+# Lock files (keep package-lock.json but ignore others)
+yarn.lock
+pnpm-lock.yaml
