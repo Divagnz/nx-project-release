@@ -1,10 +1,30 @@
 {
   "name": "project-release",
-  "version": "0.0.1",
+  "version": "1.0.0",
+  "description": "Nx plugin for releasing projects using project.json and conventional commits",
+  "keywords": ["nx", "plugin", "release", "semver", "conventional-commits"],
+  "author": "Your Name",
+  "license": "MIT",
   "type": "commonjs",
   "main": "./src/index.js",
   "types": "./src/index.d.ts",
+  "executors": "./executors.json",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/project-release.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/project-release/issues"
+  },
+  "homepage": "https://github.com/your-org/project-release#readme",
+  "peerDependencies": {
+    "@nx/devkit": ">=21.0.0",
+    "nx": ">=21.0.0"
+  },
   "dependencies": {
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "semver": "^7.7.2",
+    "conventional-commits-parser": "^6.2.0",
+    "conventional-recommended-bump": "^11.2.0"
   }
 }

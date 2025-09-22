@@ -5,7 +5,10 @@
   "scripts": {},
   "private": true,
   "dependencies": {
-    "@nx/devkit": "21.5.3"
+    "@nx/devkit": "21.5.3",
+    "conventional-commits-parser": "^6.2.0",
+    "conventional-recommended-bump": "^11.2.0",
+    "semver": "^7.7.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.8.0",
@@ -13,13 +16,17 @@
     "@nx/eslint-plugin": "21.5.3",
     "@nx/jest": "21.5.3",
     "@nx/js": "21.5.3",
+    "@nx/plugin": "21.5.3",
     "@nx/workspace": "21.5.3",
     "@swc-node/register": "~1.9.1",
     "@swc/cli": "~0.6.0",
     "@swc/core": "~1.5.7",
     "@swc/helpers": "~0.5.11",
+    "@types/conventional-commits-parser": "^5.0.1",
+    "@types/conventional-recommended-bump": "^10.0.3",
     "@types/jest": "^30.0.0",
     "@types/node": "20.19.9",
+    "@types/semver": "^7.7.1",
     "eslint": "^9.8.0",
     "eslint-config-prettier": "^10.0.0",
     "jest": "^30.0.2",
@@ -34,10 +41,10 @@
     "tslib": "^2.3.0",
     "typescript": "~5.9.2",
     "typescript-eslint": "^8.40.0",
-    "verdaccio": "^6.0.5",
-    "@nx/plugin": "21.5.3"
+    "verdaccio": "^6.0.5"
   },
   "nx": {
     "includedScripts": []
-  }
+  },
+  "executors": "./executors.json"
 }

@@ -6,14 +6,14 @@ export default [
     // Override or add rules here
     rules: {},
     languageOptions: {
-      parser: await import('jsonc-eslint-parser')
-    }
+      parser: await import('jsonc-eslint-parser'),
+    },
   },
   ...nx.configs['flat/base'],
   ...nx.configs['flat/typescript'],
   ...nx.configs['flat/javascript'],
   {
-    ignores: ['**/dist']
+    ignores: ['**/dist'],
   },
   {
     files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx'],
@@ -26,12 +26,12 @@ export default [
           depConstraints: [
             {
               sourceTag: '*',
-              onlyDependOnLibsWithTags: ['*']
-            }
-          ]
-        }
-      ]
-    }
+              onlyDependOnLibsWithTags: ['*'],
+            },
+          ],
+        },
+      ],
+    },
   },
   {
     files: [
@@ -42,9 +42,18 @@ export default [
       '**/*.js',
       '**/*.jsx',
       '**/*.cjs',
-      '**/*.mjs'
+      '**/*.mjs',
     ],
     // Override or add rules here
-    rules: {}
-  }
+    rules: {},
+  },
+  {
+    files: ['**/package.json', '**/executors.json'],
+    rules: {
+      '@nx/nx-plugin-checks': 'error',
+    },
+    languageOptions: {
+      parser: await import('jsonc-eslint-parser'),
+    },
+  },
 ];

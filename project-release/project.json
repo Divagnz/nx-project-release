@@ -40,6 +40,11 @@
             "input": "./project-release",
             "glob": "executors.json",
             "output": "."
+          },
+          {
+            "input": "./project-release/release",
+            "glob": "schema.json",
+            "output": "./release"
           }
         ]
       }

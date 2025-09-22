@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "version": 2,
+  "title": "Release executor",
+  "description": "Release executor that works with project.json and nx.json configuration instead of package.json",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Version to release (e.g. '1.0.0', 'patch', 'minor', 'major')"
+    },
+    "dryRun": {
+      "type": "boolean",
+      "description": "Preview the release without making any changes",
+      "default": false
+    },
+    "tag": {
+      "type": "string",
+      "description": "Git tag to create for the release"
+    },
+    "releaseAs": {
+      "type": "string",
+      "description": "Release as a specific version type",
+      "enum": ["major", "minor", "patch", "prerelease"]
+    },
+    "skipCommit": {
+      "type": "boolean",
+      "description": "Skip creating a git commit",
+      "default": false
+    },
+    "skipTag": {
+      "type": "boolean",
+      "description": "Skip creating a git tag",
+      "default": false
+    },
+    "preset": {
+      "type": "string",
+      "description": "Conventional commits preset to use for analysis",
+      "default": "angular",
+      "enum": ["angular", "atom", "codemirror", "conventionalcommits", "ember", "eslint", "express", "jquery"]
+    },
+    "tagPrefix": {
+      "type": "string",
+      "description": "Prefix for git tags (defaults to project name)"
+    },
+    "publish": {
+      "type": "boolean",
+      "description": "Whether to publish the package after release",
+      "default": false
+    },
+    "registry": {
+      "type": "string",
+      "description": "Registry URL to publish to (npm, nexus, or custom registry)"
+    },
+    "registryType": {
+      "type": "string",
+      "description": "Type of registry to publish to",
+      "enum": ["npm", "nexus", "custom"],
+      "default": "npm"
+    },
+    "distTag": {
+      "type": "string",
+      "description": "Distribution tag for npm publish (e.g., 'latest', 'beta', 'alpha')",
+      "default": "latest"
+    },
+    "access": {
+      "type": "string",
+      "description": "Package access level for npm publish",
+      "enum": ["public", "restricted"],
+      "default": "public"
+    },
+    "buildTarget": {
+      "type": "string",
+      "description": "Build target to run before publishing (e.g., 'build')"
+    },
+    "publishDir": {
+      "type": "string",
+      "description": "Directory to publish from (defaults to dist/{projectName})"
+    },
+    "includeProjects": {
+      "type": "array",
+      "description": "Array of project names or patterns to include in release",
+      "items": {
+        "type": "string"
+      }
+    },
+    "excludeProjects": {
+      "type": "array",
+      "description": "Array of project names or patterns to exclude from release",
+      "items": {
+        "type": "string"
+      }
+    },
+    "projectFilter": {
+      "type": "string",
+      "description": "Filter expression for projects (e.g., 'libs/*', 'apps/web-*')"
+    },
+    "releaseAll": {
+      "type": "boolean",
+      "description": "Release all projects in the workspace when true",
+      "default": false
+    },
+    "releaseConfig": {
+      "type": "object",
+      "description": "Per-project release configuration overrides",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "skip": {
+            "type": "boolean",
+            "description": "Skip this project in release"
+          },
+          "registryType": {
+            "type": "string",
+            "enum": ["npm", "nexus", "custom"]
+          },
+          "registry": {
+            "type": "string"
+          },
+          "distTag": {
+            "type": "string"
+          },
+          "access": {
+            "type": "string",
+            "enum": ["public", "restricted"]
+          }
+        }
+      }
+    },
+    "versionFile": {
+      "type": "string",
+      "description": "File to read/write version from (defaults to project.json). Can be package.json, version.txt, etc."
+    },
+    "versionPath": {
+      "type": "string",
+      "description": "JSON path to version field in version file (e.g., 'version', 'app.version')",
+      "default": "version"
+    },
+    "onlyChanged": {
+      "type": "boolean",
+      "description": "Only release projects that have been affected by changes (using Nx affected)",
+      "default": false
+    },
+    "baseBranch": {
+      "type": "string",
+      "description": "Base branch for detecting affected projects (used with onlyChanged)",
+      "default": "main"
+    },
+    "sinceSha": {
+      "type": "string",
+      "description": "Git SHA to compare against for detecting affected projects"
+    },
+    "tagNaming": {
+      "type": "object",
+      "description": "Git tag naming configuration",
+      "properties": {
+        "prefix": {
+          "type": "string",
+          "description": "Prefix for git tags (e.g., 'v', 'release-', '{projectName}-')",
+          "default": "{projectName}-v"
+        },
+        "suffix": {
+          "type": "string",
+          "description": "Suffix for git tags (e.g., '-beta', '-snapshot')"
+        },
+        "format": {
+          "type": "string",
+          "description": "Custom tag format template (e.g., '{prefix}{version}{suffix}', '{projectName}-{version}')",
+          "default": "{prefix}{version}{suffix}"
+        },
+        "includeProjectName": {
+          "type": "boolean",
+          "description": "Whether to include project name in tag",
+          "default": true
+        }
+      }
+    }
+  },
+  "required": []
+}
