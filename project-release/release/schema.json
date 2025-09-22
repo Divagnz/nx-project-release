@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/schema",
   "version": 2,
-  "title": "Release executor",
-  "description": "Release executor that works with project.json and nx.json configuration instead of package.json",
+  "title": "Project Release executor",
+  "description": "Project release executor with conventional commits support, custom registry publishing, and configuration via nx.json/project.json",
   "type": "object",
   "properties": {
     "version": {
@@ -32,16 +32,6 @@
       "type": "boolean",
       "description": "Skip creating a git tag",
       "default": false
-    },
-    "preset": {
-      "type": "string",
-      "description": "Conventional commits preset to use for analysis",
-      "default": "angular",
-      "enum": ["angular", "atom", "codemirror", "conventionalcommits", "ember", "eslint", "express", "jquery"]
-    },
-    "tagPrefix": {
-      "type": "string",
-      "description": "Prefix for git tags (defaults to project name)"
     },
     "publish": {
       "type": "boolean",
@@ -130,6 +120,13 @@
     "versionFile": {
       "type": "string",
       "description": "File to read/write version from (defaults to project.json). Can be package.json, version.txt, etc."
+    },
+    "versionFiles": {
+      "type": "array",
+      "description": "Array of version files to try in order (fallback). First existing file with version will be used.",
+      "items": {
+        "type": "string"
+      }
     },
     "versionPath": {
       "type": "string",

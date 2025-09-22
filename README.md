@@ -98,8 +98,8 @@ npm install --save-dev /path/to/project-release/dist/project-release
 # Add to project.json:
 {
   "targets": {
-    "release": {
-      "executor": "project-release:release",
+    "project-release": {
+      "executor": "project-release:project-release",
       "options": {
         "dryRun": true
       }
@@ -108,7 +108,7 @@ npm install --save-dev /path/to/project-release/dist/project-release
 }
 
 # 5. Test the executor
-npx nx run my-project:release --dryRun
+npx nx run my-project:project-release --dryRun
 ```
 
 ### Contributing

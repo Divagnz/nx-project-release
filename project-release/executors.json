@@ -1,14 +1,9 @@
 {
   "executors": {
-    "release": {
+    "project-release": {
       "implementation": "./release/release",
       "schema": "./release/schema.json",
-      "description": "release executor"
-    },
-    "release-all": {
-      "implementation": "./release-all/release-all",
-      "schema": "./release-all/schema.json",
-      "description": "release all projects in workspace"
+      "description": "Project release executor with conventional commits support and custom registry publishing"
     }
   }
 }

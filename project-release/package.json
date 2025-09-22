@@ -1,6 +1,6 @@
 {
   "name": "@divagnz/project-release",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Nx plugin for releasing projects using project.json and conventional commits",
   "keywords": ["nx", "plugin", "release", "semver", "conventional-commits"],
   "author": "Your Name",
@@ -18,13 +18,10 @@
   },
   "homepage": "https://github.com/your-org/project-release#readme",
   "peerDependencies": {
-    "@nx/devkit": ">=21.0.0",
-    "nx": ">=21.0.0"
+    "@nx/devkit": ">=21.0.0"
   },
   "dependencies": {
     "tslib": "^2.3.0",
-    "semver": "^7.7.2",
-    "conventional-commits-parser": "^6.2.0",
-    "conventional-recommended-bump": "^11.2.0"
+    "semver": "^7.7.2"
   }
 }

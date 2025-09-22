@@ -10,6 +10,12 @@
         "config": ".verdaccio/config.yml",
         "storage": "tmp/local-registry/storage"
       }
+    },
+    "project-release": {
+      "executor": "project-release:project-release",
+      "options": {
+        "releaseAll": true
+      }
     }
   }
 }
