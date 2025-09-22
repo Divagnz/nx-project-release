@@ -42,7 +42,7 @@ function getNxReleaseConfig(context: ExecutorContext): NxReleaseConfig {
 
   try {
     const nxJson = JSON.parse(fs.readFileSync(nxJsonPath, 'utf8'));
-    return (nxJson?.release as Record<string, unknown>)?.projectRelease as NxReleaseConfig || {};
+    return (nxJson?.projectRelease as NxReleaseConfig) || {};
   } catch {
     return {};
   }
@@ -61,7 +61,7 @@ function mergeConfigWithNxJson(options: ReleaseExecutorSchema, context: Executor
     if (fs.existsSync(projectJsonPath)) {
       try {
         const projectJson = JSON.parse(fs.readFileSync(projectJsonPath, 'utf8'));
-        projectJsonConfig = projectJson.release || {};
+        projectJsonConfig = projectJson.projectRelease || projectJson.release || {};
       } catch (error) {
         logger.warn(`Could not read project.json release config for ${projectName}: ${error instanceof Error ? error.message : String(error)}`);
       }
@@ -418,7 +418,7 @@ async function shouldSkipProject(projectName: string, options: ReleaseExecutorSc
     if (fs.existsSync(projectJsonPath)) {
       try {
         const projectJson = JSON.parse(fs.readFileSync(projectJsonPath, 'utf8'));
-        if (projectJson.release?.skip === true) {
+        if (projectJson.projectRelease?.skip === true || projectJson.release?.skip === true) {
           return true;
         }
       } catch {
