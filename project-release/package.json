@@ -1,6 +1,6 @@
 {
   "name": "@divagnz/project-release",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Nx plugin for releasing projects using project.json and conventional commits",
   "keywords": ["nx", "plugin", "release", "semver", "conventional-commits"],
   "author": "Your Name",
