@@ -3,12 +3,7 @@
     "release": {
       "implementation": "./release/release",
       "schema": "./release/schema.json",
-      "description": "release executor"
-    },
-    "release-all": {
-      "implementation": "./release-all/release-all",
-      "schema": "./release-all/schema.json",
-      "description": "release all projects in workspace"
+      "description": "Release executor with support for single project or all projects (use releaseAll: true)"
     }
   }
 }
