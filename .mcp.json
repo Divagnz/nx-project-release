@@ -1,0 +1,57 @@
+{
+  "mcpServers": {
+    "memory": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ]
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/mnt/raid_0_drive/mcp_projs"
+      ]
+    },
+    "fetch": {
+      "command": "/home/diva/.local/bin/mcp-server-fetch",
+      "args": [
+        "--ignore-robots-txt"
+      ]
+    },
+    "desktop-commander": {
+      "command": "npx",
+      "args": [
+        "@wonderwhy-er/desktop-commander@latest"
+      ]
+    },
+    "puppeteer": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-puppeteer"
+      ],
+      "env": {
+        "DISPLAY": ":0"
+      }
+    },
+    "mcp-engineer-flow": {
+      "command": "/mnt/raid_0_drive/git/mcp_engineer_flow/.venv/bin/mcp-engineer-flow",
+      "args": []
+    },
+    "goalpath-mcp": {
+      "command": "/mnt/raid_0_drive/mcp_projs/goal-path/.venv/bin/python",
+      "args": ["/mnt/raid_0_drive/mcp_projs/goal-path/mcp_server.py"]
+    },
+    "mcp-champi": {
+      "command": "champi"
+    },
+    "nx-mcp": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["nx-mcp@latest"]
+    }
+  }
+}

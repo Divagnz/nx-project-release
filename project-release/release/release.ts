@@ -14,6 +14,11 @@ const runExecutor: PromiseExecutor<ReleaseExecutorSchema> = async (options, cont
       return await releaseAllProjects(options, context);
     }
 
+    // Ensure we have a project name
+    if (!context.projectName) {
+      throw new Error('Project name is required');
+    }
+
     // Check if we should only process affected projects
     if (options.onlyChanged) {
       const isAffected = await isProjectAffected(context, options);
@@ -24,13 +29,13 @@ const runExecutor: PromiseExecutor<ReleaseExecutorSchema> = async (options, cont
     }
 
     // Check if project should be skipped based on configuration
-    if (await shouldSkipProject(context.projectName!, options)) {
+    if (await shouldSkipProject(context.projectName, options)) {
       logger.info(`⏭️ Project ${context.projectName} is configured to be skipped`);
       return { success: true, skipped: true };
     }
 
     // Simple project configuration - read from workspace
-    const projectRoot = context.projectsConfigurations?.projects[context.projectName!]?.root || context.projectName!;
+    const projectRoot = context.projectsConfigurations?.projects[context.projectName]?.root || context.projectName;
     logger.info(`Project root: ${projectRoot}`);
 
     // Read current version from specified file
@@ -62,7 +67,7 @@ const runExecutor: PromiseExecutor<ReleaseExecutorSchema> = async (options, cont
       }
     } else {
       // Analyze conventional commits to determine version bump
-      const recommendedReleaseType = await analyzeConventionalCommits(context, projectRoot, currentVersion);
+      const recommendedReleaseType = await analyzeConventionalCommits(context, projectRoot);
       if (recommendedReleaseType) {
         if (isFirstRelease) {
           // For first release, use conventional commits to determine starting version
@@ -92,7 +97,7 @@ const runExecutor: PromiseExecutor<ReleaseExecutorSchema> = async (options, cont
       logger.info('DRY RUN - No changes will be made');
       logger.info(`Would update version from ${currentVersion} to ${newVersion}`);
       if (!options.skipTag) {
-        const tag = options.tag || generateTagName(context.projectName!, newVersion, options);
+        const tag = options.tag || generateTagName(context.projectName, newVersion, options);
         logger.info(`Would create git tag: ${tag}`);
       }
       return { success: true };
@@ -103,7 +108,7 @@ const runExecutor: PromiseExecutor<ReleaseExecutorSchema> = async (options, cont
 
     // Create git commit if not skipped
     if (!options.skipCommit) {
-      const commitMessage = generateConventionalCommitMessage(context.projectName!, newVersion, isFirstRelease);
+      const commitMessage = generateConventionalCommitMessage(context.projectName, newVersion, isFirstRelease);
       execSync(`git add ${versionInfo.filePath}`, { cwd: context.root });
       execSync(`git commit -m "${commitMessage}"`, { cwd: context.root });
       logger.info(`Created conventional commit for release ${newVersion}`);
@@ -111,7 +116,7 @@ const runExecutor: PromiseExecutor<ReleaseExecutorSchema> = async (options, cont
 
     // Create git tag if not skipped
     if (!options.skipTag) {
-      const tag = options.tag || generateTagName(context.projectName!, newVersion, options);
+      const tag = options.tag || generateTagName(context.projectName, newVersion, options);
       execSync(`git tag ${tag}`, { cwd: context.root });
       logger.info(`Created git tag: ${tag}`);
     }
@@ -127,15 +132,14 @@ const runExecutor: PromiseExecutor<ReleaseExecutorSchema> = async (options, cont
     logger.info(`✅ Successfully released ${context.projectName} version ${newVersion}`);
     return { success: true };
 
-  } catch (error: any) {
-    logger.error(`❌ Release failed: ${error.message}`);
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    logger.error(`❌ Release failed: ${error instanceof Error ? error.message : String(error)}`);
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 };
 
 function generateConventionalCommitMessage(projectName: string, version: string, isFirstRelease?: boolean): string {
   const prefix = isFirstRelease ? 'feat(release)' : 'chore(release)';
-  const description = isFirstRelease ? 'initial release' : 'release';
 
   return `${prefix}: ${projectName} v${version}
 
@@ -160,13 +164,13 @@ async function publishPackage(
 
     try {
       await nxRunExecutor(
-        { project: context.projectName!, target: options.buildTarget },
+        { project: context.projectName, target: options.buildTarget },
         {},
         context
       );
       logger.info('✅ Build completed successfully');
-    } catch (error: any) {
-      throw new Error(`Build failed: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`Build failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -191,7 +195,7 @@ async function publishPackage(
       await publishToNpm(fullPublishDir, registry, distTag, access);
       break;
     case 'nexus':
-      await publishToNexus(fullPublishDir, registry, context.projectName!);
+      await publishToNexus(fullPublishDir, registry);
       break;
     case 'custom':
       await publishToCustomRegistry(fullPublishDir, registry, distTag, access);
@@ -217,7 +221,7 @@ async function publishToNpm(publishDir: string, registry?: string, distTag = 'la
   execSync(publishCmd.join(' '), { cwd: publishDir, stdio: 'inherit' });
 }
 
-async function publishToNexus(publishDir: string, registry: string, projectName: string): Promise<void> {
+async function publishToNexus(publishDir: string, registry: string): Promise<void> {
   if (!registry) {
     throw new Error('Registry URL is required for Nexus publishing');
   }
@@ -259,9 +263,9 @@ async function isProjectAffected(context: ExecutorContext, options: ReleaseExecu
     });
 
     const affectedProjects = result.trim().split('\n').filter(p => p.trim());
-    return affectedProjects.includes(context.projectName!);
-  } catch (error: any) {
-    logger.warn(`Could not determine affected projects: ${error.message}`);
+    return context.projectName ? affectedProjects.includes(context.projectName) : false;
+  } catch (error: unknown) {
+    logger.warn(`Could not determine affected projects: ${error instanceof Error ? error.message : String(error)}`);
     return true; // Default to including project if we can't determine
   }
 }
@@ -319,8 +323,8 @@ async function readVersionFromFile(
       const version = fs.readFileSync(filePath, 'utf8').trim();
       return { version: version || '0.0.0', filePath };
     }
-  } catch (error: any) {
-    throw new Error(`Could not read version from ${filePath}: ${error.message}`);
+  } catch (error: unknown) {
+    throw new Error(`Could not read version from ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -344,21 +348,24 @@ async function writeVersionToFile(
       fs.writeFileSync(filePath, newVersion);
     }
     logger.info(`Updated ${filePath} with version ${newVersion}`);
-  } catch (error: any) {
-    throw new Error(`Could not write version to ${filePath}: ${error.message}`);
+  } catch (error: unknown) {
+    throw new Error(`Could not write version to ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
-function getNestedProperty(obj: any, path: string): string {
-  return path.split('.').reduce((current, key) => current?.[key], obj);
+function getNestedProperty(obj: Record<string, unknown>, path: string): string {
+  return path.split('.').reduce((current, key) => current?.[key], obj) as string;
 }
 
-function setNestedProperty(obj: any, path: string, value: string): void {
+function setNestedProperty(obj: Record<string, unknown>, path: string, value: string): void {
   const keys = path.split('.');
-  const lastKey = keys.pop()!;
+  const lastKey = keys.pop();
+  if (!lastKey) {
+    throw new Error('Invalid version path');
+  }
   const target = keys.reduce((current, key) => {
     if (!current[key]) current[key] = {};
-    return current[key];
+    return current[key] as Record<string, unknown>;
   }, obj);
   target[lastKey] = value;
 }
@@ -447,12 +454,12 @@ async function releaseAllProjects(options: ReleaseExecutorSchema, context: Execu
         skipped: result.skipped
       });
 
-    } catch (error: any) {
-      logger.error(`❌ Failed to release ${projectName}: ${error.message}`);
+    } catch (error: unknown) {
+      logger.error(`❌ Failed to release ${projectName}: ${error instanceof Error ? error.message : String(error)}`);
       results.push({
         project: projectName,
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       });
     }
   }
@@ -477,7 +484,7 @@ async function releaseAllProjects(options: ReleaseExecutorSchema, context: Execu
   return { success: failed === 0 };
 }
 
-async function analyzeConventionalCommits(context: ExecutorContext, projectRoot: string, currentVersion: string): Promise<semver.ReleaseType | null> {
+async function analyzeConventionalCommits(context: ExecutorContext, projectRoot: string): Promise<semver.ReleaseType | null> {
   try {
     // Get commits since the last tag or from the beginning
     let gitCommand = 'git log --format="%s" --no-merges';
@@ -496,7 +503,7 @@ async function analyzeConventionalCommits(context: ExecutorContext, projectRoot:
       } else {
         logger.info('No previous tags found, analyzing all commits');
       }
-    } catch (error) {
+    } catch {
       logger.info('No previous tags found, analyzing all commits');
     }
 
@@ -551,8 +558,8 @@ async function analyzeConventionalCommits(context: ExecutorContext, projectRoot:
     }
 
     return null;
-  } catch (error: any) {
-    logger.warn(`Could not analyze conventional commits: ${error.message}`);
+  } catch (error: unknown) {
+    logger.warn(`Could not analyze conventional commits: ${error instanceof Error ? error.message : String(error)}`);
     return null;
   }
 }
@@ -569,13 +576,17 @@ async function releaseSingleProject(options: ReleaseExecutorSchema, context: Exe
     }
 
     // Check if project should be skipped based on configuration
-    if (await shouldSkipProject(context.projectName!, options)) {
+    if (!context.projectName) {
+      throw new Error('Project name is required');
+    }
+
+    if (await shouldSkipProject(context.projectName, options)) {
       logger.info(`⏭️ Project ${context.projectName} is configured to be skipped`);
       return { success: true, skipped: true };
     }
 
     // Simple project configuration - read from workspace
-    const projectRoot = context.projectsConfigurations?.projects[context.projectName!]?.root || context.projectName!;
+    const projectRoot = context.projectsConfigurations?.projects[context.projectName]?.root || context.projectName;
     logger.info(`Project root: ${projectRoot}`);
 
     // Read current version from specified file
@@ -607,7 +618,7 @@ async function releaseSingleProject(options: ReleaseExecutorSchema, context: Exe
       }
     } else {
       // Analyze conventional commits to determine version bump
-      const recommendedReleaseType = await analyzeConventionalCommits(context, projectRoot, currentVersion);
+      const recommendedReleaseType = await analyzeConventionalCommits(context, projectRoot);
       if (recommendedReleaseType) {
         if (isFirstRelease) {
           // For first release, use conventional commits to determine starting version
@@ -637,7 +648,7 @@ async function releaseSingleProject(options: ReleaseExecutorSchema, context: Exe
       logger.info('DRY RUN - No changes will be made');
       logger.info(`Would update version from ${currentVersion} to ${newVersion}`);
       if (!options.skipTag) {
-        const tag = options.tag || generateTagName(context.projectName!, newVersion, options);
+        const tag = options.tag || generateTagName(context.projectName, newVersion, options);
         logger.info(`Would create git tag: ${tag}`);
       }
       return { success: true };
@@ -648,7 +659,7 @@ async function releaseSingleProject(options: ReleaseExecutorSchema, context: Exe
 
     // Create git commit if not skipped
     if (!options.skipCommit) {
-      const commitMessage = generateConventionalCommitMessage(context.projectName!, newVersion, isFirstRelease);
+      const commitMessage = generateConventionalCommitMessage(context.projectName, newVersion, isFirstRelease);
       execSync(`git add ${versionInfo.filePath}`, { cwd: context.root });
       execSync(`git commit -m "${commitMessage}"`, { cwd: context.root });
       logger.info(`Created conventional commit for release ${newVersion}`);
@@ -656,7 +667,7 @@ async function releaseSingleProject(options: ReleaseExecutorSchema, context: Exe
 
     // Create git tag if not skipped
     if (!options.skipTag) {
-      const tag = options.tag || generateTagName(context.projectName!, newVersion, options);
+      const tag = options.tag || generateTagName(context.projectName, newVersion, options);
       execSync(`git tag ${tag}`, { cwd: context.root });
       logger.info(`Created git tag: ${tag}`);
     }
@@ -672,9 +683,9 @@ async function releaseSingleProject(options: ReleaseExecutorSchema, context: Exe
     logger.info(`✅ Successfully released ${context.projectName} version ${newVersion}`);
     return { success: true };
 
-  } catch (error: any) {
-    logger.error(`❌ Release failed: ${error.message}`);
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    logger.error(`❌ Release failed: ${error instanceof Error ? error.message : String(error)}`);
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
 

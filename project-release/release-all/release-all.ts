@@ -1,5 +1,4 @@
 import { PromiseExecutor, logger, ExecutorContext, runExecutor as nxRunExecutor } from '@nx/devkit';
-import { execSync } from 'child_process';
 import { ReleaseExecutorSchema } from '../release/schema';
 
 interface ReleaseAllExecutorSchema extends ReleaseExecutorSchema {
@@ -51,12 +50,13 @@ const runExecutor: PromiseExecutor<ReleaseAllExecutorSchema> = async (options, c
           logger.error(`❌ Failed to release ${projectName}`);
         }
 
-      } catch (error: any) {
-        logger.error(`❌ Failed to release ${projectName}: ${error.message}`);
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error(`❌ Failed to release ${projectName}: ${errorMessage}`);
         results.push({
           project: projectName,
           success: false,
-          error: error.message
+          error: errorMessage
         });
       }
     }
@@ -80,9 +80,10 @@ const runExecutor: PromiseExecutor<ReleaseAllExecutorSchema> = async (options, c
 
     return { success: failed === 0 };
 
-  } catch (error: any) {
-    logger.error(`❌ Release-all failed: ${error.message}`);
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`❌ Release-all failed: ${errorMessage}`);
+    return { success: false, error: errorMessage };
   }
 };
 
