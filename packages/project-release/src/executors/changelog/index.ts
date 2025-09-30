@@ -2,7 +2,7 @@ import { PromiseExecutor, logger, ExecutorContext } from '@nx/devkit';
 import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
-import * as conventionalChangelog from 'conventional-changelog';
+import { ConventionalChangelog } from 'conventional-changelog';
 
 export interface ChangelogExecutorSchema {
   dryRun?: boolean;
@@ -217,25 +217,16 @@ async function generateWorkspaceChangelogContent(
     context: Record<string, unknown>;
   }
 ): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const changelogStream = conventionalChangelog({
-      preset: options.preset,
-      context: options.context
-    } as any);
+  const generator = new ConventionalChangelog()
+    .loadPreset(options.preset)
+    .context(options.context);
 
-    let changelogContent = '';
-    changelogStream.on('data', (chunk) => {
-      changelogContent += chunk.toString();
-    });
+  let changelogContent = '';
+  for await (const chunk of generator.write()) {
+    changelogContent += chunk;
+  }
 
-    changelogStream.on('end', () => {
-      resolve(changelogContent);
-    });
-
-    changelogStream.on('error', (error) => {
-      reject(error);
-    });
-  });
+  return changelogContent;
 }
 
 async function generateChangelog(
@@ -244,24 +235,15 @@ async function generateChangelog(
     skipUnstable: boolean;
   }
 ): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const changelogStream = conventionalChangelog({
-      preset: options.preset
-    } as any);
+  const generator = new ConventionalChangelog()
+    .loadPreset(options.preset);
 
-    let changelogContent = '';
-    changelogStream.on('data', (chunk) => {
-      changelogContent += chunk.toString();
-    });
+  let changelogContent = '';
+  for await (const chunk of generator.write()) {
+    changelogContent += chunk;
+  }
 
-    changelogStream.on('end', () => {
-      resolve(changelogContent);
-    });
-
-    changelogStream.on('error', (error) => {
-      reject(error);
-    });
-  });
+  return changelogContent;
 }
 
 async function getCurrentVersion(context: ExecutorContext, projectRoot: string): Promise<string> {

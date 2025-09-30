@@ -17,7 +17,7 @@
   "executors": "./executors.json",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Divagnz/nx-project-release.git"
+    "url": "git+https://github.com/Divagnz/nx-project-release.git"
   },
   "bugs": {
     "url": "https://github.com/Divagnz/nx-project-release/issues"
