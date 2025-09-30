@@ -1,0 +1,24 @@
+{
+  "executors": {
+    "version": {
+      "implementation": "./src/executors/version/index",
+      "schema": "./src/executors/version/schema.json",
+      "description": "Polyglot semantic versioning with conventional commits support for any project type"
+    },
+    "changelog": {
+      "implementation": "./src/executors/changelog/index",
+      "schema": "./src/executors/changelog/schema.json",
+      "description": "Polyglot CHANGELOG.md generation from conventional commits for any project type"
+    },
+    "publish": {
+      "implementation": "./src/executors/publish/index",
+      "schema": "./src/executors/publish/schema.json",
+      "description": "Polyglot package publishing to npm, Nexus, or custom registries for any project type"
+    },
+    "project-release": {
+      "implementation": "./src/executors/project-release/index",
+      "schema": "./src/executors/project-release/schema.json",
+      "description": "Complete polyglot release workflow (version + changelog + publish) for any project type"
+    }
+  }
+}

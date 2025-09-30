@@ -1,4 +1,8 @@
 {
+  "workspaceLayout": {
+    "libsDir": "packages"
+  },
+  "defaultProject": "project-release",
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
   "namedInputs": {
     "default": ["{projectRoot}/**/*", "sharedGlobals"],
@@ -15,6 +19,15 @@
     "sharedGlobals": []
   },
   "targetDefaults": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": ["production", "^production"],
+      "cache": true
+    },
+    "project-release": {
+      "dependsOn": ["build"],
+      "cache": false
+    },
     "@nx/js:tsc": {
       "cache": true,
       "dependsOn": ["^build"],
@@ -46,6 +59,38 @@
   "release": {
     "version": {
       "preVersionCommand": "npx nx run-many -t build"
+    }
+  },
+  "projectRelease": {
+    "defaultRegistry": {
+      "type": "npm",
+      "url": "https://registry.npmjs.org",
+      "access": "public",
+      "distTag": "latest"
+    },
+    "versionFiles": [
+      "project.json",
+      "package.json",
+      "version.txt"
+    ],
+    "versionPath": "version",
+    "projects": {
+      "include": ["libs/*", "apps/*"],
+      "exclude": ["*-e2e"],
+      "skip": ["tools", "docs"]
+    },
+    "projectConfigs": {
+      "project-release": {
+        "registry": {
+          "type": "npm",
+          "url": "https://registry.npmjs.org",
+          "access": "public",
+          "distTag": "latest"
+        },
+        "versionFiles": ["package.json", "project.json"],
+        "buildTarget": "build",
+        "publishDir": "dist/project-release"
+      }
     }
   }
 }

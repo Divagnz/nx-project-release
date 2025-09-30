@@ -2,9 +2,11 @@
 
 # Claude workspace
 .claude/
-
+.claude*
 # MCP configuration
 .mcp/
+·mcp*
+.mcp.json
 .mcp.json.local
 
 # compiled output
@@ -80,3 +82,6 @@ logs
 # Lock files (keep package-lock.json but ignore others)
 yarn.lock
 pnpm-lock.yaml
+
+# Documentation work files
+FEATURE_COMPARISON.md

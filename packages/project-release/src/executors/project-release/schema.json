@@ -1,0 +1,292 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "title": "Project Release Executor",
+  "description": "Complete polyglot release workflow (version + changelog + publish) for any project type",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Explicit version to release (overrides automatic detection)"
+    },
+    "releaseAs": {
+      "type": "string",
+      "enum": ["major", "minor", "patch", "prerelease"],
+      "description": "Type of version bump to perform"
+    },
+    "preid": {
+      "type": "string",
+      "description": "Prerelease identifier to use with prerelease version bumps (e.g., 'alpha', 'beta', 'rc'). Results in versions like 1.0.0-alpha.0, 1.0.0-beta.1"
+    },
+    "firstRelease": {
+      "type": "boolean",
+      "default": false,
+      "description": "Indicates this is the first release. Uses git tags or registry to determine current version if version cannot be found in files. Useful when version sources are only available after first release."
+    },
+    "dryRun": {
+      "type": "boolean",
+      "default": false,
+      "description": "Preview changes without making modifications"
+    },
+    "show": {
+      "type": "boolean",
+      "default": false,
+      "description": "Show detailed information about what would change across all workflow steps"
+    },
+    "gitCommit": {
+      "type": "boolean",
+      "default": false,
+      "description": "Create a git commit with the version changes"
+    },
+    "gitCommitMessage": {
+      "type": "string",
+      "description": "Custom git commit message. Supports {version}, {projectName}, {releaseGroupName} placeholders"
+    },
+    "gitCommitArgs": {
+      "type": "string",
+      "description": "Additional arguments to pass to the git commit command"
+    },
+    "gitTag": {
+      "type": "boolean",
+      "default": false,
+      "description": "Create a git tag for the release"
+    },
+    "gitTagMessage": {
+      "type": "string",
+      "description": "Custom git tag message. Supports {version}, {projectName}, {releaseGroupName}, {tag} placeholders"
+    },
+    "gitTagArgs": {
+      "type": "string",
+      "description": "Additional arguments to pass to the git tag command"
+    },
+    "ciOnly": {
+      "type": "boolean",
+      "default": false,
+      "description": "Only allow git operations (commit, tag, push, GitHub release) in CI/CD environments. Checks for CI environment variable. Prevents accidental releases from local development."
+    },
+    "gitPush": {
+      "type": "boolean",
+      "default": false,
+      "description": "Push commits and tags to the remote repository"
+    },
+    "gitPushArgs": {
+      "type": "string",
+      "description": "Additional arguments to pass to the git push command"
+    },
+    "gitRemote": {
+      "type": "string",
+      "default": "origin",
+      "description": "Git remote to push to"
+    },
+    "githubRelease": {
+      "type": "boolean",
+      "default": false,
+      "description": "Create a GitHub release for the tag"
+    },
+    "githubReleaseNotes": {
+      "type": "string",
+      "description": "Custom release notes for GitHub release"
+    },
+    "githubReleaseDraft": {
+      "type": "boolean",
+      "default": false,
+      "description": "Create the GitHub release as a draft"
+    },
+    "githubReleasePrerelease": {
+      "type": "boolean",
+      "default": false,
+      "description": "Mark the GitHub release as a prerelease"
+    },
+    "stageChanges": {
+      "type": "boolean",
+      "description": "Stage changes without committing"
+    },
+    "skipCommit": {
+      "type": "boolean",
+      "default": false,
+      "description": "DEPRECATED: Use gitCommit instead. Skip creating git commit"
+    },
+    "skipTag": {
+      "type": "boolean",
+      "default": false,
+      "description": "DEPRECATED: Use gitTag instead. Skip creating git tag"
+    },
+    "skipChangelog": {
+      "type": "boolean",
+      "default": false,
+      "description": "Skip changelog generation"
+    },
+    "skipPublish": {
+      "type": "boolean",
+      "default": false,
+      "description": "Skip publishing"
+    },
+    "publish": {
+      "type": "boolean",
+      "default": false,
+      "description": "Publish after versioning"
+    },
+    "versionFile": {
+      "type": "string",
+      "description": "File containing version information",
+      "default": "project.json"
+    },
+    "versionFiles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Fallback version files (tried in order)"
+    },
+    "versionPath": {
+      "type": "string",
+      "description": "JSON path to version field",
+      "default": "version"
+    },
+    "preset": {
+      "type": "string",
+      "description": "Conventional commits preset for changelog",
+      "default": "angular",
+      "enum": ["angular", "atom", "codemirror", "conventionalcommits", "ember", "eslint", "express", "jquery", "jshint"]
+    },
+    "changelogFile": {
+      "type": "string",
+      "description": "Path to changelog file",
+      "default": "CHANGELOG.md"
+    },
+    "workspaceChangelog": {
+      "type": "boolean",
+      "default": false,
+      "description": "Generate a workspace-level CHANGELOG.md at the root"
+    },
+    "projectChangelogs": {
+      "type": "boolean",
+      "default": false,
+      "description": "When generating workspace changelog, also generate individual project changelogs"
+    },
+    "interactive": {
+      "oneOf": [
+        { "type": "boolean" },
+        { "type": "string", "enum": ["all", "workspace", "projects"] }
+      ],
+      "description": "Open changelog in editor for manual editing before saving"
+    },
+    "registry": {
+      "type": "string",
+      "description": "Registry URL to publish to"
+    },
+    "registryType": {
+      "type": "string",
+      "enum": ["npm", "nexus", "custom"],
+      "default": "npm",
+      "description": "Type of registry"
+    },
+    "distTag": {
+      "type": "string",
+      "description": "Distribution tag for npm",
+      "default": "latest"
+    },
+    "access": {
+      "type": "string",
+      "enum": ["public", "restricted"],
+      "default": "public",
+      "description": "Package access level"
+    },
+    "buildTarget": {
+      "type": "string",
+      "description": "Build target to run before publishing"
+    },
+    "publishDir": {
+      "type": "string",
+      "description": "Directory to publish from"
+    },
+    "tagNaming": {
+      "type": "object",
+      "properties": {
+        "prefix": {
+          "type": "string",
+          "description": "Tag prefix"
+        },
+        "suffix": {
+          "type": "string",
+          "description": "Tag suffix"
+        },
+        "format": {
+          "type": "string",
+          "description": "Tag format string",
+          "default": "{prefix}{version}{suffix}"
+        },
+        "includeProjectName": {
+          "type": "boolean",
+          "description": "Include project name in tag",
+          "default": true
+        }
+      }
+    },
+    "releaseAll": {
+      "type": "boolean",
+      "default": false,
+      "description": "Release all projects in the workspace"
+    },
+    "includeProjects": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Project patterns to include"
+    },
+    "excludeProjects": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Project patterns to exclude"
+    },
+    "onlyChanged": {
+      "type": "boolean",
+      "default": false,
+      "description": "Only release affected projects"
+    },
+    "trackDeps": {
+      "type": "boolean",
+      "default": false,
+      "description": "Track workspace dependencies and automatically version dependent projects when their dependencies change"
+    },
+    "syncVersions": {
+      "type": "boolean",
+      "default": false,
+      "description": "Synchronize versions across multiple projects in the workspace"
+    },
+    "syncProjects": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Specific projects to synchronize versions with (if not specified, syncs with all projects when syncVersions is true)"
+    },
+    "syncStrategy": {
+      "type": "string",
+      "enum": ["highest", "bump"],
+      "default": "bump",
+      "description": "Strategy for sync versioning: 'highest' uses the highest existing version, 'bump' calculates new version from the main project"
+    },
+    "releaseGroup": {
+      "type": "string",
+      "description": "Release group name to use for this project. Release groups allow different versioning strategies and configurations for different sets of projects."
+    },
+    "projectsRelationship": {
+      "type": "string",
+      "enum": ["independent", "fixed"],
+      "description": "How projects in this release group should be versioned: 'independent' (each project has its own version) or 'fixed' (all projects share the same version)"
+    },
+    "skipLockFileUpdate": {
+      "type": "boolean",
+      "default": false,
+      "description": "Skip updating lock files (package-lock.json, yarn.lock, pnpm-lock.yaml) after version changes. By default, lock files are automatically updated if they exist."
+    },
+    "updateLockFile": {
+      "type": "boolean",
+      "default": true,
+      "description": "Explicitly control whether to update lock files. Set to false to skip lock file updates (same as skipLockFileUpdate). By default, lock files are automatically updated if they exist."
+    }
+  }
+}
