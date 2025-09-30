@@ -1,0 +1,68 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "title": "Changelog Executor",
+  "description": "Polyglot CHANGELOG.md generation from conventional commits for any project type",
+  "type": "object",
+  "properties": {
+    "dryRun": {
+      "type": "boolean",
+      "default": false,
+      "description": "Preview changelog without writing to file"
+    },
+    "preset": {
+      "type": "string",
+      "description": "Conventional commits preset to use",
+      "default": "angular",
+      "enum": ["angular", "atom", "codemirror", "conventionalcommits", "ember", "eslint", "express", "jquery", "jshint"]
+    },
+    "changelogFile": {
+      "type": "string",
+      "description": "Path to changelog file",
+      "default": "CHANGELOG.md"
+    },
+    "from": {
+      "type": "string",
+      "description": "Generate changelog from this version/tag"
+    },
+    "to": {
+      "type": "string",
+      "description": "Generate changelog to this version/tag"
+    },
+    "releaseCount": {
+      "type": "number",
+      "description": "Number of releases to include",
+      "default": 1
+    },
+    "skipUnstable": {
+      "type": "boolean",
+      "default": true,
+      "description": "Skip unstable/prerelease versions"
+    },
+    "append": {
+      "type": "boolean",
+      "default": true,
+      "description": "Append to existing changelog instead of replacing"
+    },
+    "context": {
+      "type": "object",
+      "description": "Additional context for changelog generation"
+    },
+    "workspaceChangelog": {
+      "type": "boolean",
+      "default": false,
+      "description": "Generate a workspace-level CHANGELOG.md at the root containing all changes across all projects"
+    },
+    "projectChangelogs": {
+      "type": "boolean",
+      "default": false,
+      "description": "When generating workspace changelog, also generate individual project changelogs"
+    },
+    "interactive": {
+      "oneOf": [
+        { "type": "boolean" },
+        { "type": "string", "enum": ["all", "workspace", "projects"] }
+      ],
+      "description": "Open changelog in editor for manual editing before saving. Options: true (all), 'workspace', 'projects', or 'all'"
+    }
+  }
+}
