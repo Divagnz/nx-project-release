@@ -2,6 +2,8 @@ import { PromiseExecutor, logger, ExecutorContext } from '@nx/devkit';
 import versionExecutor from '../version/index';
 import changelogExecutor from '../changelog/index';
 import publishExecutor from '../publish/index';
+import * as fs from 'fs';
+import * as path from 'path';
 
 interface ExecutorResult {
   success: boolean;
@@ -308,8 +310,6 @@ async function showWorkflowChanges(options: ProjectReleaseExecutorSchema, contex
     logger.info(`  Preset: ${options.preset || 'angular'}`);
 
     const changelogPath = `${projectRoot}/${options.changelogFile || 'CHANGELOG.md'}`;
-    const fs = require('fs');
-    const path = require('path');
     const fullChangelogPath = path.join(context.root, changelogPath);
 
     if (fs.existsSync(fullChangelogPath)) {
@@ -335,8 +335,6 @@ async function showWorkflowChanges(options: ProjectReleaseExecutorSchema, contex
     const publishDir = options.publishDir || `dist/${context.projectName}`;
     logger.info(`  Publish Directory: ${publishDir}`);
 
-    const fs = require('fs');
-    const path = require('path');
     const fullPublishDir = path.join(context.root, publishDir);
 
     if (fs.existsSync(fullPublishDir)) {

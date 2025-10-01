@@ -2,7 +2,17 @@ import { PromiseExecutor, logger, ExecutorContext } from '@nx/devkit';
 import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
-import { ConventionalChangelog } from 'conventional-changelog';
+import {
+  getCommitsFromGit,
+  parseCommits,
+  filterCommitsByScope
+} from './commit-parser';
+import {
+  generateChangelogMarkdown,
+  generateWorkspaceChangelog,
+  getRepositoryUrl,
+  ChangelogOptions
+} from './markdown-generator';
 
 export interface ChangelogExecutorSchema {
   dryRun?: boolean;
@@ -23,7 +33,7 @@ export interface ChangelogExecutorSchema {
 const runExecutor: PromiseExecutor<ChangelogExecutorSchema> = async (options, context: ExecutorContext) => {
   // Handle workspace changelog
   if (options.workspaceChangelog) {
-    return await generateWorkspaceChangelog(options, context);
+    return await generateWorkspaceChangelogExecutor(options, context);
   }
 
   // Handle project changelog
@@ -37,18 +47,35 @@ const runExecutor: PromiseExecutor<ChangelogExecutorSchema> = async (options, co
 
   logger.info(`🔖 Generating changelog for ${context.projectName}`);
 
-  const changelogOptions = {
-    preset: options.preset || 'angular',
-    releaseCount: options.releaseCount || 1,
-    skipUnstable: options.skipUnstable !== false,
-    context: options.context || {
-      version: await getCurrentVersion(context, projectRoot),
-      ...options.context
-    }
-  };
-
   try {
-    let changelog = await generateChangelog(changelogOptions);
+    const version = await getCurrentVersion(context, projectRoot);
+    const repositoryUrl = getRepositoryUrl(context.root);
+
+    // Get and parse commits
+    const commitBlocks = getCommitsFromGit(
+      context.root,
+      options.from,
+      options.to,
+      context.projectName
+    );
+    const allCommits = parseCommits(commitBlocks);
+    const projectCommits = filterCommitsByScope(allCommits, context.projectName);
+
+    if (projectCommits.length === 0) {
+      logger.warn(`⚠️ No commits found for ${context.projectName}`);
+      return { success: true };
+    }
+
+    // Generate changelog markdown
+    const changelogOptions: ChangelogOptions = {
+      version,
+      date: new Date().toISOString().split('T')[0],
+      projectName: context.projectName,
+      repositoryUrl,
+      ...(options.context as ChangelogOptions)
+    };
+
+    let changelog = generateChangelogMarkdown(projectCommits, changelogOptions);
 
     // Interactive editing if requested
     const shouldEdit = shouldShowInteractiveEditor(options.interactive, 'projects');
@@ -79,7 +106,7 @@ const runExecutor: PromiseExecutor<ChangelogExecutorSchema> = async (options, co
   }
 };
 
-async function generateWorkspaceChangelog(
+async function generateWorkspaceChangelogExecutor(
   options: ChangelogExecutorSchema,
   context: ExecutorContext
 ): Promise<{ success: boolean; error?: string }> {
@@ -91,22 +118,36 @@ async function generateWorkspaceChangelog(
   try {
     // Get all projects
     const projects = Object.keys(context.projectsConfigurations?.projects || {});
+    const repositoryUrl = getRepositoryUrl(context.root);
 
-    // Collect changes from all projects
-    const workspaceContext = {
-      ...options.context,
-      workspace: true,
-      projects: projects
+    // Get all commits
+    const commitBlocks = getCommitsFromGit(context.root, options.from, options.to);
+    const allCommits = parseCommits(commitBlocks);
+
+    // Group commits by project
+    const commitsByProject = new Map<string, typeof allCommits>();
+
+    for (const project of projects) {
+      const projectCommits = filterCommitsByScope(allCommits, project);
+      if (projectCommits.length > 0) {
+        commitsByProject.set(project, projectCommits);
+      }
+    }
+
+    if (commitsByProject.size === 0 && allCommits.length === 0) {
+      logger.warn(`⚠️ No commits found`);
+      return { success: true };
+    }
+
+    // Generate workspace changelog
+    const changelogOptions: ChangelogOptions = {
+      version: options.context?.version as string,
+      date: new Date().toISOString().split('T')[0],
+      repositoryUrl,
+      ...(options.context as ChangelogOptions)
     };
 
-    const changelogOptions = {
-      preset: options.preset || 'angular',
-      releaseCount: options.releaseCount || 1,
-      skipUnstable: options.skipUnstable !== false,
-      context: workspaceContext
-    };
-
-    let changelog = await generateWorkspaceChangelogContent(changelogOptions);
+    let changelog = generateWorkspaceChangelog(commitsByProject, changelogOptions);
 
     // Interactive editing if requested
     const shouldEdit = shouldShowInteractiveEditor(options.interactive, 'workspace');
@@ -208,42 +249,6 @@ async function editChangelogInteractively(
       // Ignore cleanup errors
     }
   }
-}
-
-async function generateWorkspaceChangelogContent(
-  options: {
-    preset: string;
-    skipUnstable: boolean;
-    context: Record<string, unknown>;
-  }
-): Promise<string> {
-  const generator = new ConventionalChangelog()
-    .loadPreset(options.preset)
-    .context(options.context);
-
-  let changelogContent = '';
-  for await (const chunk of generator.write()) {
-    changelogContent += chunk;
-  }
-
-  return changelogContent;
-}
-
-async function generateChangelog(
-  options: {
-    preset: string;
-    skipUnstable: boolean;
-  }
-): Promise<string> {
-  const generator = new ConventionalChangelog()
-    .loadPreset(options.preset);
-
-  let changelogContent = '';
-  for await (const chunk of generator.write()) {
-    changelogContent += chunk;
-  }
-
-  return changelogContent;
 }
 
 async function getCurrentVersion(context: ExecutorContext, projectRoot: string): Promise<string> {

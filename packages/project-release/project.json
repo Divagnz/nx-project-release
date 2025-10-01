@@ -1,5 +1,5 @@
 {
-  "name": "project-release",
+  "name": "@nx-project-release",
   "$schema": "../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages/project-release/src",
   "projectType": "library",
@@ -49,7 +49,7 @@
         ]
       }
     },
-    "nx-release-publish": {
+    "project-release": {
       "options": {
         "packageRoot": "dist/{projectRoot}"
       }
