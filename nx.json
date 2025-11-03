@@ -68,11 +68,7 @@
       "access": "public",
       "distTag": "latest"
     },
-    "versionFiles": [
-      "project.json",
-      "package.json",
-      "version.txt"
-    ],
+    "versionFiles": ["project.json", "package.json", "version.txt"],
     "versionPath": "version",
     "projects": {
       "include": ["libs/*", "apps/*"],

@@ -1,6 +1,6 @@
 {
-  "name": "@nx-project-release/source",
-  "version": "0.0.0",
+  "name": "project-release",
+  "version": "1.1.1",
   "license": "MIT",
   "scripts": {},
   "private": true,
@@ -37,6 +37,7 @@
     "semver": "^7.7.2",
     "ts-jest": "^29.4.0",
     "ts-node": "10.9.1",
+    "tsc-esm-fix": "^3.1.2",
     "tslib": "^2.3.0",
     "typescript": "~5.9.2",
     "typescript-eslint": "^8.40.0",
