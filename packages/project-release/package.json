@@ -9,7 +9,7 @@
     "semver",
     "conventional-commits"
   ],
-  "author": "Your Name",
+  "author": "Divagnz",
   "license": "MIT",
   "type": "module",
   "main": "./src/index.js",
