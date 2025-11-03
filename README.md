@@ -2,6 +2,9 @@
 
 <a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
 
+[![npm version](https://badge.fury.io/js/@divagnz%2Fnx-project-release.svg)](https://www.npmjs.com/package/@divagnz/nx-project-release)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A polyglot Nx plugin for releasing any project type using project.json and conventional commits, supporting multiple registries and flexible configuration.
 
 ## Features
