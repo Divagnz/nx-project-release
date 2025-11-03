@@ -1,0 +1,129 @@
+name: Manual Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.2.0) or leave empty for auto-detect'
+        required: false
+        type: string
+      releaseAs:
+        description: 'Release type (major, minor, patch, prerelease)'
+        required: false
+        type: choice
+        options:
+          - ''
+          - major
+          - minor
+          - patch
+          - prerelease
+        default: ''
+      preid:
+        description: 'Prerelease identifier (alpha, beta, rc) - only for prerelease'
+        required: false
+        type: string
+      dryRun:
+        description: 'Dry run (preview without publishing)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  manual-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Build
+        run: npx nx build @nx-project-release
+
+      - name: Build release command
+        id: cmd
+        run: |
+          CMD="npx nx run @nx-project-release:project-release"
+
+          # Add version or releaseAs
+          if [ -n "${{ inputs.version }}" ]; then
+            CMD="$CMD --version=${{ inputs.version }}"
+          elif [ -n "${{ inputs.releaseAs }}" ]; then
+            CMD="$CMD --releaseAs=${{ inputs.releaseAs }}"
+          fi
+
+          # Add preid if specified
+          if [ -n "${{ inputs.preid }}" ]; then
+            CMD="$CMD --preid=${{ inputs.preid }}"
+          fi
+
+          # Add git operations
+          if [ "${{ inputs.dryRun }}" == "false" ]; then
+            CMD="$CMD --gitCommit --gitTag --publish"
+            CMD="$CMD --gitCommitMessage='chore(release): @nx-project-release version {version} [skip ci]'"
+            CMD="$CMD --gitTagMessage='Release v{version}'"
+          else
+            CMD="$CMD --dryRun"
+          fi
+
+          echo "command=$CMD" >> $GITHUB_OUTPUT
+          echo "Running: $CMD"
+
+      - name: Run release
+        run: ${{ steps.cmd.outputs.command }}
+
+      - name: Push changes
+        if: inputs.dryRun == false
+        run: |
+          git push origin main --follow-tags
+
+      - name: Get new version
+        if: inputs.dryRun == false
+        id: version
+        run: |
+          VERSION=$(node -p "require('./packages/project-release/package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Released version: $VERSION"
+
+      - name: Create GitHub Release
+        if: inputs.dryRun == false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # Extract changelog for this version
+          if [ -f "packages/project-release/CHANGELOG.md" ]; then
+            CHANGELOG=$(sed -n "/^## \[$VERSION\]/,/^## \[/p" packages/project-release/CHANGELOG.md | sed '1d;$d')
+            if [ -z "$CHANGELOG" ]; then
+              CHANGELOG="Release v$VERSION"
+            fi
+          else
+            CHANGELOG="Release v$VERSION"
+          fi
+
+          gh release create "v$VERSION" \
+            --title "Release v$VERSION" \
+            --notes "$CHANGELOG" \
+            --target main

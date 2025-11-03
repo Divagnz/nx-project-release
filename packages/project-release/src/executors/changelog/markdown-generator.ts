@@ -1,4 +1,4 @@
-import { ParsedCommit, getCommitTypeTitle, COMMIT_TYPE_ORDER } from './commit-parser';
+import { ParsedCommit, getCommitTypeTitle, COMMIT_TYPE_ORDER } from './commit-parser.js';
 
 export interface ChangelogOptions {
   version?: string;

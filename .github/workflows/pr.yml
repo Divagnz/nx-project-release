@@ -4,6 +4,10 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   lint-and-build:
     runs-on: ubuntu-latest
@@ -11,6 +15,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -19,7 +25,13 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          # Remove local file dependency temporarily for CI
+          if grep -q '"@divagnz/nx-project-release": "file:' package.json; then
+            echo "Removing local file dependency for CI..."
+            npm pkg delete devDependencies.@divagnz/nx-project-release
+          fi
+          npm ci
 
       - name: Lint
         run: npx nx lint @nx-project-release
@@ -29,3 +41,143 @@ jobs:
 
       - name: Test
         run: npx nx test @nx-project-release
+
+      - name: Install plugin for dry-run checks
+        run: |
+          echo "Installing built plugin for dry-run validation..."
+          npm install --save-dev ./dist/project-release
+
+      - name: Release Dry Run - Show Analysis
+        id: release-preview
+        run: |
+          echo "## 🔍 Release Preview - What Would Happen" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "This shows what the release process would do if this PR is merged:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Capture the show output
+          OUTPUT=$(npx nx run @nx-project-release:version --show 2>&1 || true)
+
+          # Check if there would be a version change
+          if echo "$OUTPUT" | grep -q "New version:"; then
+            CURRENT_VERSION=$(echo "$OUTPUT" | grep "Current version:" | awk '{print $3}')
+            NEW_VERSION=$(echo "$OUTPUT" | grep "New version:" | awk '{print $3}')
+            CHANGE_TYPE=$(echo "$OUTPUT" | grep "Detected:" | awk '{print $2}')
+
+            echo "### ✅ Version Change Detected" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- **Current Version**: \`$CURRENT_VERSION\`" >> $GITHUB_STEP_SUMMARY
+            echo "- **New Version**: \`$NEW_VERSION\`" >> $GITHUB_STEP_SUMMARY
+            echo "- **Change Type**: \`$CHANGE_TYPE\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            echo "### 📝 Release Actions" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "When merged to main, the automated release will:" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "1. 🔢 Bump version from \`$CURRENT_VERSION\` → \`$NEW_VERSION\`" >> $GITHUB_STEP_SUMMARY
+            echo "2. 📝 Generate CHANGELOG.md from conventional commits" >> $GITHUB_STEP_SUMMARY
+            echo "3. 💾 Create git commit: \`chore(release): @nx-project-release version $NEW_VERSION [skip ci]\`" >> $GITHUB_STEP_SUMMARY
+            echo "4. 🏷️ Create git tag: \`v$NEW_VERSION\`" >> $GITHUB_STEP_SUMMARY
+            echo "5. 📤 Push commit and tag to main" >> $GITHUB_STEP_SUMMARY
+            echo "6. 🎉 Create GitHub Release for \`v$NEW_VERSION\`" >> $GITHUB_STEP_SUMMARY
+            echo "7. 📦 Publish \`@divagnz/nx-project-release@$NEW_VERSION\` to npm" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "### ℹ️ No Version Change" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "No release will be triggered - no conventional commits detected since last release." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Add full analysis details
+          echo "### 📊 Detailed Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "$OUTPUT" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Dry Run - Version Check
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🔢 DRY RUN: Version Executor"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "Validating version configuration and checking what would change..."
+          echo ""
+
+          npx nx run @nx-project-release:version --dryRun
+
+          echo ""
+          echo "✅ Version executor validated successfully"
+          echo ""
+
+      - name: Dry Run - Changelog Check
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📝 DRY RUN: Changelog Executor"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "Validating changelog configuration and preview generation..."
+          echo ""
+
+          npx nx run @nx-project-release:changelog --dryRun
+
+          echo ""
+          echo "✅ Changelog executor validated successfully"
+          echo ""
+
+      - name: Dry Run - Publish Check
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📦 DRY RUN: Publish Executor"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "Validating publish configuration and npm package..."
+          echo ""
+
+          npx nx run @nx-project-release:publish --dryRun
+
+          echo ""
+          echo "✅ Publish executor validated successfully"
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "✅ ALL DRY RUN CHECKS PASSED"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+      - name: Comment on PR
+        if: steps.release-preview.outputs.has_changes == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const newVersion = '${{ steps.release-preview.outputs.new_version }}';
+            const body = `## 🚀 Release Preview
+
+            This PR will trigger a **release** when merged to main.
+
+            ### Version Change
+            - **New Version**: \`${newVersion}\`
+            - **Package**: \`@divagnz/nx-project-release@${newVersion}\`
+
+            ### What will happen:
+            1. ✅ Version bump
+            2. ✅ Changelog generation
+            3. ✅ Git tag creation
+            4. ✅ GitHub Release
+            5. ✅ npm publish
+
+            See the [job summary](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for detailed analysis.
+
+            ---
+            *🤖 This is an automated release preview*`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
