@@ -6,13 +6,13 @@ import {
   getCommitsFromGit,
   parseCommits,
   filterCommitsByScope
-} from './commit-parser';
+} from './commit-parser.js';
 import {
   generateChangelogMarkdown,
   generateWorkspaceChangelog,
   getRepositoryUrl,
   ChangelogOptions
-} from './markdown-generator';
+} from './markdown-generator.js';
 
 export interface ChangelogExecutorSchema {
   dryRun?: boolean;
