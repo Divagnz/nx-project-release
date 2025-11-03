@@ -1,0 +1,122 @@
+name: Publish Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    # Only run if PR was merged and it's a release PR
+    if: |
+      github.event.pull_request.merged == true &&
+      startsWith(github.event.pull_request.head.ref, 'release/v') &&
+      contains(github.event.pull_request.title, 'chore(release)')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: |
+          # Remove local file dependency temporarily for CI
+          if grep -q '"@divagnz/nx-project-release": "file:' package.json; then
+            echo "Removing local file dependency for CI..."
+            npm pkg delete devDependencies.@divagnz/nx-project-release
+          fi
+          npm ci
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Build
+        run: npx nx build @nx-project-release
+
+      - name: Get version from package.json
+        id: version
+        run: |
+          VERSION=$(node -p "require('./packages/project-release/package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Publishing version: $VERSION"
+
+      - name: Create and push git tag
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="v$VERSION"
+
+          # Check if tag already exists locally
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists locally, deleting..."
+            git tag -d "$TAG"
+          fi
+
+          # Create new tag
+          git tag -a "$TAG" -m "Release v$VERSION"
+
+          # Force push tag (in case it exists remotely from failed run)
+          git push origin "$TAG" --force
+
+          echo "Created and pushed tag: $TAG"
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # Extract changelog for this version
+          if [ -f "packages/project-release/CHANGELOG.md" ]; then
+            CHANGELOG=$(sed -n "/^## \[$VERSION\]/,/^## \[/p" packages/project-release/CHANGELOG.md | sed '1d;$d')
+            if [ -z "$CHANGELOG" ]; then
+              CHANGELOG="Release v$VERSION"
+            fi
+          else
+            CHANGELOG="Release v$VERSION"
+          fi
+
+          # Delete release if it exists (from failed run)
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            echo "Release v$VERSION already exists, deleting..."
+            gh release delete "v$VERSION" --yes
+          fi
+
+          # Create new release
+          gh release create "v$VERSION" \
+            --title "Release v$VERSION" \
+            --notes "$CHANGELOG" \
+            --target main
+
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          # Create .npmrc with authentication
+          echo "//registry.npmjs.org/:_authToken=\${NPM_TOKEN}" > ~/.npmrc
+          npx nx run @nx-project-release:publish
+
+      - name: Delete release branch
+        if: always()
+        continue-on-error: true
+        run: |
+          BRANCH="${{ github.event.pull_request.head.ref }}"
+          echo "Deleting release branch: $BRANCH"
+          git push origin --delete "$BRANCH" || echo "Branch already deleted"
