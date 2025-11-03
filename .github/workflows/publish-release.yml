@@ -1,8 +1,7 @@
 name: Publish Release
 
 on:
-  pull_request:
-    types: [closed]
+  push:
     branches: [main]
 
 permissions:
@@ -12,11 +11,8 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    # Only run if PR was merged and it's a release PR
-    if: |
-      github.event.pull_request.merged == true &&
-      startsWith(github.event.pull_request.head.ref, 'release/v') &&
-      contains(github.event.pull_request.title, 'chore(release)')
+    # Only run if this is a release commit
+    if: contains(github.event.head_commit.message, 'chore(release)') && contains(github.event.head_commit.message, '[skip ci]')
 
     steps:
       - name: Checkout code
@@ -117,6 +113,7 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
-          BRANCH="${{ github.event.pull_request.head.ref }}"
+          VERSION="${{ steps.version.outputs.version }}"
+          BRANCH="release/v${VERSION}-automated"
           echo "Deleting release branch: $BRANCH"
           git push origin --delete "$BRANCH" || echo "Branch already deleted"
