@@ -114,27 +114,33 @@ jobs:
             CHANGELOG="Release v$VERSION"
           fi
 
+          # Create PR body
+          PR_BODY=$(cat <<EOF
+          ## Automated Release v$VERSION
+
+          This PR was automatically created by the release workflow.
+
+          ### Changes
+
+          $CHANGELOG
+
+          ### Actions Required
+
+          - Review the version bump and changelog
+          - Merge this PR to trigger tag creation and npm publish
+
+          ### Post-Merge Actions
+
+          The following will happen automatically after merge:
+          - Git tag v$VERSION will be created
+          - GitHub release will be created
+          - Package will be published to npm
+          EOF
+          )
+
           # Create PR
           gh pr create \
             --title "chore(release): v$VERSION" \
-            --body "## Automated Release v$VERSION
-
-This PR was automatically created by the release workflow.
-
-### Changes
-
-$CHANGELOG
-
-### Actions Required
-
-- Review the version bump and changelog
-- Merge this PR to trigger tag creation and npm publish
-
-### Post-Merge Actions
-
-The following will happen automatically after merge:
-- Git tag v$VERSION will be created
-- GitHub release will be created
-- Package will be published to npm" \
+            --body "$PR_BODY" \
             --base main \
             --head "$BRANCH"
