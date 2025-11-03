@@ -49,9 +49,39 @@
         ]
       }
     },
-    "project-release": {
+    "version": {
+      "executor": "@divagnz/nx-project-release:version",
       "options": {
-        "packageRoot": "dist/{projectRoot}"
+        "versionFiles": ["package.json"],
+        "versionPath": "version"
+      }
+    },
+    "changelog": {
+      "executor": "@divagnz/nx-project-release:changelog",
+      "options": {
+        "preset": "angular"
+      }
+    },
+    "publish": {
+      "executor": "@divagnz/nx-project-release:publish",
+      "dependsOn": ["build"],
+      "options": {
+        "publishDir": "dist/project-release",
+        "buildTarget": "build",
+        "registryType": "npm",
+        "registry": "https://registry.npmjs.org",
+        "access": "public",
+        "distTag": "latest"
+      }
+    },
+    "project-release": {
+      "executor": "@divagnz/nx-project-release:project-release",
+      "dependsOn": ["build"],
+      "options": {
+        "packageRoot": "dist/project-release",
+        "buildTarget": "build",
+        "versionFiles": ["package.json"],
+        "versionPath": "version"
       }
     },
     "lint": {
