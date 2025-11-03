@@ -34,13 +34,7 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
-        run: |
-          # Remove local file dependency temporarily for CI
-          if grep -q '"@divagnz/nx-project-release": "file:' package.json; then
-            echo "Removing local file dependency for CI..."
-            npm pkg delete devDependencies.@divagnz/nx-project-release
-          fi
-          npm ci
+        run: npm ci
 
       - name: Configure Git
         run: |
@@ -49,11 +43,6 @@ jobs:
 
       - name: Build
         run: npx nx build @nx-project-release
-
-      - name: Install plugin for release operations
-        run: |
-          echo "Installing built plugin for release operations..."
-          npm install --save-dev ./dist/project-release
 
       - name: Check for changes
         id: check
@@ -86,55 +75,25 @@ jobs:
           npx nx run @nx-project-release:changelog \
             --projectChangelogs
 
-      - name: Create release branch and push
+      - name: Push changes
         if: steps.check.outputs.has_changes == 'true'
-        id: release_branch
+        run: |
+          git push origin main --follow-tags
+
+      - name: Get new version
+        if: steps.check.outputs.has_changes == 'true'
+        id: version
         run: |
           VERSION=$(node -p "require('./packages/project-release/package.json').version")
-          BRANCH="release/v$VERSION-automated"
-
-          echo "Creating release branch: $BRANCH"
-          git checkout -b "$BRANCH"
-          git push origin "$BRANCH" --follow-tags
-
-          echo "branch_name=$BRANCH" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Create Pull Request
-        if: steps.check.outputs.has_changes == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          VERSION="${{ steps.release_branch.outputs.version }}"
-          BRANCH="${{ steps.release_branch.outputs.branch_name }}"
-
-          gh pr create \
-            --title "chore(release): version $VERSION [skip ci]" \
-            --body "## Automated Release
-
-            This PR was automatically created by the release workflow.
-
-            ### Changes
-            - Version bumped to \`$VERSION\`
-            - CHANGELOG.md updated
-            - Git tag \`v$VERSION\` created
-
-            ### Action Required
-            - Review the changes
-            - Merge this PR to complete the release
-            - After merge, the publish workflow will run
-
-            ---
-            *🤖 This is an automated release PR*" \
-            --base main \
-            --head "$BRANCH"
+          echo "New version: $VERSION"
 
       - name: Create GitHub Release
         if: steps.check.outputs.has_changes == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION="${{ steps.release_branch.outputs.version }}"
+          VERSION="${{ steps.version.outputs.version }}"
 
           # Extract changelog for this version
           if [ -f "packages/project-release/CHANGELOG.md" ]; then
@@ -152,5 +111,8 @@ jobs:
         if: steps.check.outputs.has_changes == 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
+          # Create .npmrc with authentication
+          echo "//registry.npmjs.org/:_authToken=\${NPM_TOKEN}" > ~/.npmrc
           npx nx run @nx-project-release:publish
