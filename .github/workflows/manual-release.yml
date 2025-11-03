@@ -51,13 +51,7 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
-        run: |
-          # Remove local file dependency temporarily for CI
-          if grep -q '"@divagnz/nx-project-release": "file:' package.json; then
-            echo "Removing local file dependency for CI..."
-            npm pkg delete devDependencies.@divagnz/nx-project-release
-          fi
-          npm ci
+        run: npm ci
 
       - name: Configure Git
         run: |
@@ -66,11 +60,6 @@ jobs:
 
       - name: Build
         run: npx nx build @nx-project-release
-
-      - name: Install plugin for release operations
-        run: |
-          echo "Installing built plugin for release operations..."
-          npm install --save-dev ./dist/project-release
 
       - name: Build release command
         id: cmd
@@ -102,7 +91,15 @@ jobs:
           echo "Running: $CMD"
 
       - name: Run release
-        run: ${{ steps.cmd.outputs.command }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          # Create .npmrc with authentication if not dry-run
+          if [ "${{ inputs.dryRun }}" == "false" ]; then
+            echo "//registry.npmjs.org/:_authToken=\${NPM_TOKEN}" > ~/.npmrc
+          fi
+          ${{ steps.cmd.outputs.command }}
 
       - name: Push changes
         if: inputs.dryRun == false
