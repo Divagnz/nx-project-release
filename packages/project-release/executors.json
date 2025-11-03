@@ -18,7 +18,7 @@
     "project-release": {
       "implementation": "./src/executors/project-release/index",
       "schema": "./src/executors/project-release/schema.json",
-      "description": "Complete polyglot release workflow (version + changelog + publish) for any project type"
+      "description": "Complete polyglot release workflow (version+changelog+publish) for any project type"
     }
   }
 }
