@@ -25,7 +25,13 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          # Remove local file dependency temporarily for CI
+          if grep -q '"@divagnz/nx-project-release": "file:' package.json; then
+            echo "Removing local file dependency for CI..."
+            npm pkg delete devDependencies.@divagnz/nx-project-release
+          fi
+          npm ci
 
       - name: Lint
         run: npx nx lint @nx-project-release
@@ -35,6 +41,11 @@ jobs:
 
       - name: Test
         run: npx nx test @nx-project-release
+
+      - name: Install plugin for dry-run checks
+        run: |
+          echo "Installing built plugin for dry-run validation..."
+          npm install --save-dev ./dist/project-release
 
       - name: Release Dry Run - Show Analysis
         id: release-preview
