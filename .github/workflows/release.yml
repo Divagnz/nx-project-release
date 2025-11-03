@@ -100,6 +100,9 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           BRANCH="release/v${VERSION}-automated"
 
+          # Delete existing release branch if it exists
+          git push origin --delete "$BRANCH" 2>/dev/null || echo "No existing branch to delete"
+
           # Create and push release branch
           git checkout -b "$BRANCH"
           git push origin "$BRANCH"
