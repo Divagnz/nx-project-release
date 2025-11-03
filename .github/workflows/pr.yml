@@ -92,18 +92,51 @@ jobs:
 
       - name: Dry Run - Version Check
         run: |
-          echo "Running version dry-run to validate configuration..."
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🔢 DRY RUN: Version Executor"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "Validating version configuration and checking what would change..."
+          echo ""
+
           npx nx run @nx-project-release:version --dryRun
+
+          echo ""
+          echo "✅ Version executor validated successfully"
+          echo ""
 
       - name: Dry Run - Changelog Check
         run: |
-          echo "Running changelog dry-run to validate configuration..."
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📝 DRY RUN: Changelog Executor"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "Validating changelog configuration and preview generation..."
+          echo ""
+
           npx nx run @nx-project-release:changelog --dryRun
+
+          echo ""
+          echo "✅ Changelog executor validated successfully"
+          echo ""
 
       - name: Dry Run - Publish Check
         run: |
-          echo "Running publish dry-run to validate configuration..."
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📦 DRY RUN: Publish Executor"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "Validating publish configuration and npm package..."
+          echo ""
+
           npx nx run @nx-project-release:publish --dryRun
+
+          echo ""
+          echo "✅ Publish executor validated successfully"
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "✅ ALL DRY RUN CHECKS PASSED"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
       - name: Comment on PR
         if: steps.release-preview.outputs.has_changes == 'true'
