@@ -34,7 +34,13 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          # Remove local file dependency temporarily for CI
+          if grep -q '"@divagnz/nx-project-release": "file:' package.json; then
+            echo "Removing local file dependency for CI..."
+            npm pkg delete devDependencies.@divagnz/nx-project-release
+          fi
+          npm ci
 
       - name: Configure Git
         run: |
@@ -43,6 +49,11 @@ jobs:
 
       - name: Build
         run: npx nx build @nx-project-release
+
+      - name: Install plugin for release operations
+        run: |
+          echo "Installing built plugin for release operations..."
+          npm install --save-dev ./dist/project-release
 
       - name: Check for changes
         id: check
