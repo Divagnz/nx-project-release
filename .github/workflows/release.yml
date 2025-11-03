@@ -86,25 +86,55 @@ jobs:
           npx nx run @nx-project-release:changelog \
             --projectChangelogs
 
-      - name: Push changes
+      - name: Create release branch and push
         if: steps.check.outputs.has_changes == 'true'
-        run: |
-          git push origin main --follow-tags
-
-      - name: Get new version
-        if: steps.check.outputs.has_changes == 'true'
-        id: version
+        id: release_branch
         run: |
           VERSION=$(node -p "require('./packages/project-release/package.json').version")
+          BRANCH="release/v$VERSION-automated"
+
+          echo "Creating release branch: $BRANCH"
+          git checkout -b "$BRANCH"
+          git push origin "$BRANCH" --follow-tags
+
+          echo "branch_name=$BRANCH" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "New version: $VERSION"
+
+      - name: Create Pull Request
+        if: steps.check.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.release_branch.outputs.version }}"
+          BRANCH="${{ steps.release_branch.outputs.branch_name }}"
+
+          gh pr create \
+            --title "chore(release): version $VERSION [skip ci]" \
+            --body "## Automated Release
+
+            This PR was automatically created by the release workflow.
+
+            ### Changes
+            - Version bumped to \`$VERSION\`
+            - CHANGELOG.md updated
+            - Git tag \`v$VERSION\` created
+
+            ### Action Required
+            - Review the changes
+            - Merge this PR to complete the release
+            - After merge, the publish workflow will run
+
+            ---
+            *🤖 This is an automated release PR*" \
+            --base main \
+            --head "$BRANCH"
 
       - name: Create GitHub Release
         if: steps.check.outputs.has_changes == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
+          VERSION="${{ steps.release_branch.outputs.version }}"
 
           # Extract changelog for this version
           if [ -f "packages/project-release/CHANGELOG.md" ]; then
