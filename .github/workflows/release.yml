@@ -1,0 +1,115 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/**'
+      - '!.github/workflows/release.yml'
+
+permissions:
+  contents: write
+  packages: write
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, 'chore(release)')"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Build
+        run: npx nx build @nx-project-release
+
+      - name: Check for changes
+        id: check
+        run: |
+          # Check if there are any commits since last tag
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$LAST_TAG" ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "No previous tag found, will create first release"
+          else
+            CHANGES=$(git log $LAST_TAG..HEAD --oneline -- packages/project-release/ | grep -v "chore(release)" | wc -l)
+            if [ "$CHANGES" -gt 0 ]; then
+              echo "has_changes=true" >> $GITHUB_OUTPUT
+              echo "Found $CHANGES commits since $LAST_TAG"
+            else
+              echo "has_changes=false" >> $GITHUB_OUTPUT
+              echo "No changes since $LAST_TAG"
+            fi
+          fi
+
+      - name: Version, Changelog, and Tag
+        if: steps.check.outputs.has_changes == 'true'
+        run: |
+          npx nx run @nx-project-release:version \
+            --gitCommit \
+            --gitTag \
+            --gitCommitMessage="chore(release): @nx-project-release version {version} [skip ci]" \
+            --gitTagMessage="Release v{version}"
+
+          npx nx run @nx-project-release:changelog \
+            --projectChangelogs
+
+      - name: Push changes
+        if: steps.check.outputs.has_changes == 'true'
+        run: |
+          git push origin main --follow-tags
+
+      - name: Get new version
+        if: steps.check.outputs.has_changes == 'true'
+        id: version
+        run: |
+          VERSION=$(node -p "require('./packages/project-release/package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "New version: $VERSION"
+
+      - name: Create GitHub Release
+        if: steps.check.outputs.has_changes == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # Extract changelog for this version
+          if [ -f "packages/project-release/CHANGELOG.md" ]; then
+            CHANGELOG=$(sed -n "/^## \[$VERSION\]/,/^## \[/p" packages/project-release/CHANGELOG.md | sed '1d;$d')
+          else
+            CHANGELOG="Release v$VERSION"
+          fi
+
+          gh release create "v$VERSION" \
+            --title "Release v$VERSION" \
+            --notes "$CHANGELOG" \
+            --target main
+
+      - name: Publish to npm
+        if: steps.check.outputs.has_changes == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          npx nx run @nx-project-release:publish

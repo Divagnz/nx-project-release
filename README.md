@@ -20,25 +20,87 @@ A polyglot Nx plugin for releasing any project type using project.json and conve
 - ✅ **Dependency Tracking** - Automatically version dependent projects when dependencies change
 - ✅ **Sync Versioning** - Synchronize versions across multiple projects in the workspace
 
-## Installation
+## 🚀 Quick Start
 
-### In an existing Nx workspace:
+### Installation
 
 ```bash
-npm install --save-dev @divagnz/project-release
+npm install --save-dev @divagnz/nx-project-release
 ```
 
-### From source:
+### Basic Setup
+
+1. **Add executor to your project** (`project.json`):
+
+```json
+{
+  "targets": {
+    "version": {
+      "executor": "@divagnz/nx-project-release:version"
+    },
+    "changelog": {
+      "executor": "@divagnz/nx-project-release:changelog"
+    },
+    "publish": {
+      "executor": "@divagnz/nx-project-release:publish",
+      "options": {
+        "buildTarget": "build"
+      }
+    },
+    "project-release": {
+      "executor": "@divagnz/nx-project-release:project-release",
+      "options": {
+        "buildTarget": "build"
+      }
+    }
+  }
+}
+```
+
+2. **Configure workspace defaults** (optional, in `nx.json`):
+
+```json
+{
+  "projectRelease": {
+    "defaultRegistry": {
+      "type": "npm",
+      "url": "https://registry.npmjs.org",
+      "access": "public",
+      "distTag": "latest"
+    },
+    "versionFiles": ["package.json", "project.json"],
+    "versionPath": "version"
+  }
+}
+```
+
+3. **Release your project**:
 
 ```bash
-# Clone and build
-git clone <repository-url>
-cd nx-project-release
-npm install
-npx nx build project-release
+# Preview what would change
+npx nx run my-project:project-release --show
 
-# Install in your workspace
-npm install --save-dev /path/to/nx-project-release/dist/packages/project-release
+# Create a release with git operations
+npx nx run my-project:project-release --gitCommit --gitTag
+
+# Full release with publish to npm
+npx nx run my-project:project-release --gitCommit --gitTag --publish
+```
+
+### First Release
+
+For your first release, specify an initial version:
+
+```bash
+npx nx run my-project:version --version=1.0.0 --gitCommit --gitTag
+npx nx run my-project:changelog
+npx nx run my-project:publish
+```
+
+Or use the complete workflow:
+
+```bash
+npx nx run my-project:project-release --version=1.0.0 --gitCommit --gitTag --publish
 ```
 
 ## Usage
@@ -503,11 +565,120 @@ npx nx run my-lib:project-release --versionFile=VERSION.txt
 
 ### GitHub Actions
 
+#### Automated Release on Push to Main
+
+Create `.github/workflows/release.yml`:
+
 ```yaml
 name: Release
+
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    # Skip if commit message contains [skip ci] or is a release commit
+    if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, 'chore(release)')"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Build
+        run: npx nx build my-project
+
+      - name: Version and Tag
+        run: |
+          npx nx run my-project:version \
+            --gitCommit \
+            --gitTag \
+            --gitCommitMessage="chore(release): my-project version {version} [skip ci]" \
+            --gitTagMessage="Release v{version}"
+
+      - name: Generate Changelog
+        run: npx nx run my-project:changelog
+
+      - name: Push changes
+        run: git push origin main --follow-tags
+
+      - name: Get version
+        id: version
+        run: |
+          VERSION=$(node -p "require('./packages/my-project/package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "v${{ steps.version.outputs.version }}" \
+            --title "Release v${{ steps.version.outputs.version }}" \
+            --notes-file CHANGELOG.md \
+            --target main
+
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npx nx run my-project:publish
+```
+
+#### Manual Release Workflow
+
+Create `.github/workflows/manual-release.yml` for on-demand releases:
+
+```yaml
+name: Manual Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (e.g., 1.2.0) or leave empty for auto-detect'
+        required: false
+      releaseAs:
+        description: 'Release type'
+        required: false
+        type: choice
+        options:
+          - ''
+          - major
+          - minor
+          - patch
+          - prerelease
+      dryRun:
+        description: 'Dry run (preview only)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
 
 jobs:
   release:
@@ -516,15 +687,58 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '22'
           cache: 'npm'
 
       - run: npm ci
-      - run: npm install --save-dev @divagnz/project-release
+
+      - name: Configure Git
+        if: ${{ !inputs.dryRun }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Release
+        run: |
+          CMD="npx nx run my-project:project-release"
+          ${{ inputs.version && format('CMD="$CMD --version={0}"', inputs.version) || '' }}
+          ${{ inputs.releaseAs && format('CMD="$CMD --releaseAs={0}"', inputs.releaseAs) || '' }}
+          ${{ inputs.dryRun && 'CMD="$CMD --dryRun"' || 'CMD="$CMD --gitCommit --gitTag --publish"' }}
+          eval $CMD
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Push changes
+        if: ${{ !inputs.dryRun }}
+        run: git push origin main --follow-tags
+```
+
+#### Release Affected Projects Only
+
+```yaml
+name: Release Affected
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  release-affected:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - run: npm ci
 
       - name: Configure Git
         run: |
@@ -533,12 +747,103 @@ jobs:
 
       - name: Release affected projects
         run: |
-          npx nx run-many --target=project-release --projects=affected \
-            --onlyChanged --base=origin/main~1 \
-            --publish --registryType=npm
+          npx nx run-many \
+            --target=project-release \
+            --projects=affected \
+            --base=origin/main~1 \
+            --gitCommit \
+            --gitTag \
+            --publish
         env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 ```
+
+### Required Secrets
+
+Add these secrets to your GitHub repository (`Settings` → `Secrets and variables` → `Actions`):
+
+- **`NPM_TOKEN`**: npm authentication token for publishing
+  - Get from https://www.npmjs.com/settings/YOUR_USERNAME/tokens
+  - Use "Automation" type token
+  - Granular access token recommended for better security
+
+### GitLab CI/CD
+
+Create `.gitlab-ci.yml`:
+
+```yaml
+stages:
+  - build
+  - release
+
+release:
+  stage: release
+  image: node:22
+  only:
+    - main
+  except:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /\[skip ci\]/
+  script:
+    - npm ci
+    - git config user.name "${GITLAB_USER_NAME}"
+    - git config user.email "${GITLAB_USER_EMAIL}"
+    - npx nx run my-project:project-release --gitCommit --gitTag --publish
+    - git push origin main --follow-tags
+  variables:
+    NODE_AUTH_TOKEN: $NPM_TOKEN
+```
+
+### CircleCI
+
+Create `.circleci/config.yml`:
+
+```yaml
+version: 2.1
+
+jobs:
+  release:
+    docker:
+      - image: cimg/node:22.0
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-deps-{{ checksum "package-lock.json" }}
+      - run: npm ci
+      - save_cache:
+          paths:
+            - node_modules
+          key: v1-deps-{{ checksum "package-lock.json" }}
+      - run:
+          name: Configure Git
+          command: |
+            git config user.name "CircleCI"
+            git config user.email "ci@circleci.com"
+      - run:
+          name: Release
+          command: npx nx run my-project:project-release --gitCommit --gitTag --publish
+      - run:
+          name: Push changes
+          command: git push origin main --follow-tags
+
+workflows:
+  release:
+    jobs:
+      - release:
+          filters:
+            branches:
+              only: main
+```
+
+### Tips for CI/CD
+
+1. **Always use `fetch-depth: 0`** for accurate conventional commits analysis
+2. **Configure git user** before running version/changelog executors
+3. **Use `[skip ci]`** in commit messages to prevent release loops
+4. **Store npm tokens** as encrypted secrets
+5. **Test with `--dryRun`** first to validate your workflow
+6. **Use `--show`** locally to preview changes before pushing
 
 ## Contributing
 
