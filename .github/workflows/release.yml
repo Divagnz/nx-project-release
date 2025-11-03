@@ -74,22 +74,15 @@ jobs:
             fi
           fi
 
-      - name: Version, Changelog, and Tag
+      - name: Version and Changelog (without tag)
         if: steps.check.outputs.has_changes == 'true'
         run: |
           npx nx run @nx-project-release:version \
             --gitCommit \
-            --gitTag \
-            --gitCommitMessage="chore(release): @nx-project-release version {version} [skip ci]" \
-            --gitTagMessage="Release v{version}"
+            --gitCommitMessage="chore(release): @nx-project-release version {version} [skip ci]"
 
           npx nx run @nx-project-release:changelog \
             --projectChangelogs
-
-      - name: Push changes
-        if: steps.check.outputs.has_changes == 'true'
-        run: |
-          git push origin main --follow-tags
 
       - name: Get new version
         if: steps.check.outputs.has_changes == 'true'
@@ -99,31 +92,49 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "New version: $VERSION"
 
-      - name: Create GitHub Release
+      - name: Create release branch and PR
         if: steps.check.outputs.has_changes == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${{ steps.version.outputs.version }}"
+          BRANCH="release/v${VERSION}-automated"
 
-          # Extract changelog for this version
+          # Create and push release branch
+          git checkout -b "$BRANCH"
+          git push origin "$BRANCH"
+
+          # Extract changelog for PR body
           if [ -f "packages/project-release/CHANGELOG.md" ]; then
             CHANGELOG=$(sed -n "/^## \[$VERSION\]/,/^## \[/p" packages/project-release/CHANGELOG.md | sed '1d;$d')
+            if [ -z "$CHANGELOG" ]; then
+              CHANGELOG="Release v$VERSION"
+            fi
           else
             CHANGELOG="Release v$VERSION"
           fi
 
-          gh release create "v$VERSION" \
-            --title "Release v$VERSION" \
-            --notes "$CHANGELOG" \
-            --target main
+          # Create PR
+          gh pr create \
+            --title "chore(release): v$VERSION" \
+            --body "## Automated Release v$VERSION
 
-      - name: Publish to npm
-        if: steps.check.outputs.has_changes == 'true'
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          # Create .npmrc with authentication
-          echo "//registry.npmjs.org/:_authToken=\${NPM_TOKEN}" > ~/.npmrc
-          npx nx run @nx-project-release:publish
+This PR was automatically created by the release workflow.
+
+### Changes
+
+$CHANGELOG
+
+### Actions Required
+
+- Review the version bump and changelog
+- Merge this PR to trigger tag creation and npm publish
+
+### Post-Merge Actions
+
+The following will happen automatically after merge:
+- Git tag v$VERSION will be created
+- GitHub release will be created
+- Package will be published to npm" \
+            --base main \
+            --head "$BRANCH"
