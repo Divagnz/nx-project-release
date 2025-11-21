@@ -150,7 +150,7 @@ jobs:
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
       - name: Comment on PR
-        if: steps.release-preview.outputs.has_changes == 'true'
+        if: steps.release-preview.outputs.has_changes == 'true' && !contains(github.event.pull_request.title, '[skip ci]') && !contains(github.event.pull_request.title, 'chore(release)')
         uses: actions/github-script@v7
         with:
           script: |
