@@ -49,6 +49,13 @@
         ]
       }
     },
+    "fix-esm": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "command": "tsc-esm-fix --target=dist/project-release --ext=.js"
+      }
+    },
     "version": {
       "executor": "@divagnz/nx-project-release:version",
       "options": {
@@ -64,7 +71,7 @@
     },
     "publish": {
       "executor": "@divagnz/nx-project-release:publish",
-      "dependsOn": ["build"],
+      "dependsOn": ["fix-esm"],
       "options": {
         "publishDir": "dist/project-release",
         "buildTarget": "build",
@@ -76,7 +83,7 @@
     },
     "project-release": {
       "executor": "@divagnz/nx-project-release:project-release",
-      "dependsOn": ["build"],
+      "dependsOn": ["fix-esm"],
       "options": {
         "packageRoot": "dist/project-release",
         "buildTarget": "build",
