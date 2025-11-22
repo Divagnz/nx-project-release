@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "$id": "Init",
+  "title": "nx-project-release Init Generator",
+  "description": "Initialize nx-project-release in your workspace with interactive configuration",
+  "type": "object",
+  "properties": {
+    "skipPrompts": {
+      "type": "boolean",
+      "default": false,
+      "description": "Skip interactive prompts and use defaults"
+    },
+    "skipFormat": {
+      "type": "boolean",
+      "default": false,
+      "description": "Skip formatting files after generation"
+    }
+  },
+  "required": []
+}

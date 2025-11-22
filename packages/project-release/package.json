@@ -15,6 +15,7 @@
   "main": "./src/index.js",
   "types": "./src/index.d.ts",
   "executors": "./executors.json",
+  "generators": "./generators.json",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Divagnz/nx-project-release.git"
@@ -30,6 +31,7 @@
     "@nx/devkit": ">=21.0.0"
   },
   "dependencies": {
+    "enquirer": "^2.4.1",
     "rxjs": "^7.8.1",
     "semver": "^7.7.2",
     "tslib": "^2.8.1"

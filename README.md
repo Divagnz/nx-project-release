@@ -25,15 +25,34 @@ A polyglot Nx plugin for releasing any project type using project.json and conve
 
 ## 🚀 Quick Start
 
-### Installation
+### Installation & Setup
+
+The easiest way to get started is using the `init` generator, which will interactively configure your workspace:
 
 ```bash
+# Install and automatically run the init generator
+nx add nx-project-release
+
+# Or install manually and run init separately
 npm install --save-dev nx-project-release
+nx g nx-project-release:init
 ```
 
-### Basic Setup
+The init generator will:
+- ✅ Guide you through interactive prompts for all configuration options
+- ✅ Configure workspace defaults in `nx.json`
+- ✅ Add release targets to selected projects
+- ✅ Set up version, changelog, and publish executors
+- ✅ Configure git operations, registries, and more
 
-1. **Add executor to your project** (`project.json`):
+For non-interactive setup with defaults:
+```bash
+nx g nx-project-release:init --skipPrompts
+```
+
+### Manual Setup
+
+Alternatively, you can configure manually by adding executors to your project (`project.json`):
 
 ```json
 {
