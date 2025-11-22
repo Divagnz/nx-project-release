@@ -1,2 +1,2 @@
 // Placeholder for public API exports
-// Version 0.0.1 - Initial unscoped package release
+// Version 0.0.0 - Initial unscoped package (awaiting first release)
