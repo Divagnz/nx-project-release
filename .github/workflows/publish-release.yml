@@ -103,11 +103,11 @@ jobs:
       - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          # Create .npmrc with authentication
-          echo "//registry.npmjs.org/:_authToken=\${NPM_TOKEN}" > ~/.npmrc
-          npx nx run @nx-project-release:publish
+          # setup-node with registry-url automatically configures npm auth via NODE_AUTH_TOKEN
+          # No need to manually create .npmrc - this prevents token exposure in logs
+          cd dist/project-release
+          npm publish --access public
 
       - name: Delete release branch
         if: always()
