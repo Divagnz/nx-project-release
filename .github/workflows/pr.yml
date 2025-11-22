@@ -27,9 +27,9 @@ jobs:
       - name: Install dependencies
         run: |
           # Remove local file dependency temporarily for CI
-          if grep -q '"@divagnz/nx-project-release": "file:' package.json; then
+          if grep -q '"nx-project-release": "file:' package.json; then
             echo "Removing local file dependency for CI..."
-            npm pkg delete devDependencies.@divagnz/nx-project-release
+            npm pkg delete devDependencies.nx-project-release
           fi
           npm ci
 
@@ -81,7 +81,7 @@ jobs:
             echo "4. 🏷️ Create git tag: \`v$NEW_VERSION\`" >> $GITHUB_STEP_SUMMARY
             echo "5. 📤 Push commit and tag to main" >> $GITHUB_STEP_SUMMARY
             echo "6. 🎉 Create GitHub Release for \`v$NEW_VERSION\`" >> $GITHUB_STEP_SUMMARY
-            echo "7. 📦 Publish \`@divagnz/nx-project-release@$NEW_VERSION\` to npm" >> $GITHUB_STEP_SUMMARY
+            echo "7. 📦 Publish \`nx-project-release@$NEW_VERSION\` to npm" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
 
             echo "has_changes=true" >> $GITHUB_OUTPUT
@@ -161,7 +161,7 @@ jobs:
 
             ### Version Change
             - **New Version**: \`${newVersion}\`
-            - **Package**: \`@divagnz/nx-project-release@${newVersion}\`
+            - **Package**: \`nx-project-release@${newVersion}\`
 
             ### What will happen:
             1. ✅ Version bump

@@ -2,7 +2,7 @@
 
 <a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
 
-[![npm version](https://badge.fury.io/js/@divagnz%2Fnx-project-release.svg)](https://www.npmjs.com/package/@divagnz/nx-project-release)
+[![npm version](https://badge.fury.io/js/@divagnz%2Fnx-project-release.svg)](https://www.npmjs.com/package/nx-project-release)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A polyglot Nx plugin for releasing any project type using project.json and conventional commits, supporting multiple registries and flexible configuration.
@@ -28,7 +28,7 @@ A polyglot Nx plugin for releasing any project type using project.json and conve
 ### Installation
 
 ```bash
-npm install --save-dev @divagnz/nx-project-release
+npm install --save-dev nx-project-release
 ```
 
 ### Basic Setup
@@ -39,19 +39,19 @@ npm install --save-dev @divagnz/nx-project-release
 {
   "targets": {
     "version": {
-      "executor": "@divagnz/nx-project-release:version"
+      "executor": "nx-project-release:version"
     },
     "changelog": {
-      "executor": "@divagnz/nx-project-release:changelog"
+      "executor": "nx-project-release:changelog"
     },
     "publish": {
-      "executor": "@divagnz/nx-project-release:publish",
+      "executor": "nx-project-release:publish",
       "options": {
         "buildTarget": "build"
       }
     },
     "project-release": {
-      "executor": "@divagnz/nx-project-release:project-release",
+      "executor": "nx-project-release:project-release",
       "options": {
         "buildTarget": "build"
       }

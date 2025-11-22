@@ -9,7 +9,7 @@
   },
   "private": true,
   "devDependencies": {
-    "@divagnz/nx-project-release": "file:dist/project-release",
+    "nx-project-release": "file:dist/project-release",
     "@eslint/js": "^9.8.0",
     "@nx/devkit": "21.5.3",
     "@nx/eslint": "21.5.3",
