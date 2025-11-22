@@ -1,0 +1,9 @@
+{
+  "generators": {
+    "init": {
+      "factory": "./src/generators/init/generator",
+      "schema": "./src/generators/init/schema.json",
+      "description": "Initialize nx-project-release in your workspace with interactive configuration"
+    }
+  }
+}

@@ -57,20 +57,20 @@
       }
     },
     "version": {
-      "executor": "@divagnz/nx-project-release:version",
+      "executor": "nx-project-release:version",
       "options": {
         "versionFiles": ["package.json"],
         "versionPath": "version"
       }
     },
     "changelog": {
-      "executor": "@divagnz/nx-project-release:changelog",
+      "executor": "nx-project-release:changelog",
       "options": {
         "preset": "angular"
       }
     },
     "publish": {
-      "executor": "@divagnz/nx-project-release:publish",
+      "executor": "nx-project-release:publish",
       "dependsOn": ["fix-esm"],
       "options": {
         "publishDir": "dist/project-release",
@@ -82,7 +82,7 @@
       }
     },
     "project-release": {
-      "executor": "@divagnz/nx-project-release:project-release",
+      "executor": "nx-project-release:project-release",
       "dependsOn": ["fix-esm"],
       "options": {
         "packageRoot": "dist/project-release",

@@ -2,7 +2,7 @@
 
 <a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
 
-[![npm version](https://badge.fury.io/js/@divagnz%2Fnx-project-release.svg)](https://www.npmjs.com/package/@divagnz/nx-project-release)
+[![npm version](https://badge.fury.io/js/@divagnz%2Fnx-project-release.svg)](https://www.npmjs.com/package/nx-project-release)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A polyglot Nx plugin for releasing any project type using project.json and conventional commits, supporting multiple registries and flexible configuration.
@@ -25,33 +25,52 @@ A polyglot Nx plugin for releasing any project type using project.json and conve
 
 ## 🚀 Quick Start
 
-### Installation
+### Installation & Setup
+
+The easiest way to get started is using the `init` generator, which will interactively configure your workspace:
 
 ```bash
-npm install --save-dev @divagnz/nx-project-release
+# Install and automatically run the init generator
+nx add nx-project-release
+
+# Or install manually and run init separately
+npm install --save-dev nx-project-release
+nx g nx-project-release:init
 ```
 
-### Basic Setup
+The init generator will:
+- ✅ Guide you through interactive prompts for all configuration options
+- ✅ Configure workspace defaults in `nx.json`
+- ✅ Add release targets to selected projects
+- ✅ Set up version, changelog, and publish executors
+- ✅ Configure git operations, registries, and more
 
-1. **Add executor to your project** (`project.json`):
+For non-interactive setup with defaults:
+```bash
+nx g nx-project-release:init --skipPrompts
+```
+
+### Manual Setup
+
+Alternatively, you can configure manually by adding executors to your project (`project.json`):
 
 ```json
 {
   "targets": {
     "version": {
-      "executor": "@divagnz/nx-project-release:version"
+      "executor": "nx-project-release:version"
     },
     "changelog": {
-      "executor": "@divagnz/nx-project-release:changelog"
+      "executor": "nx-project-release:changelog"
     },
     "publish": {
-      "executor": "@divagnz/nx-project-release:publish",
+      "executor": "nx-project-release:publish",
       "options": {
         "buildTarget": "build"
       }
     },
     "project-release": {
-      "executor": "@divagnz/nx-project-release:project-release",
+      "executor": "nx-project-release:project-release",
       "options": {
         "buildTarget": "build"
       }
