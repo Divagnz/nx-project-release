@@ -79,7 +79,7 @@ jobs:
         run: |
           npx nx run @nx-project-release:version \
             --gitCommit \
-            --gitCommitMessage="chore(release): @nx-project-release version {version} [skip ci]"
+            --gitCommitMessage="chore(release): nx-project-release version {version} [skip ci]"
 
           npx nx run @nx-project-release:changelog \
             --projectChangelogs
