@@ -14,6 +14,9 @@ export interface ConfigAnswers {
   gitCommit: boolean;
   gitTag: boolean;
   gitPush: boolean;
+  mergeAfterRelease: boolean;
+  mergeToBranches: string[];
+  mergeStrategy: 'merge' | 'squash' | 'rebase';
   commitMessage: string;
   trackDeps: boolean;
   syncVersions: boolean;
@@ -148,6 +151,44 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     initial: false
   });
 
+  const { mergeAfterRelease } = await prompt<{ mergeAfterRelease: boolean }>({
+    type: 'confirm',
+    name: 'mergeAfterRelease',
+    message: 'Sync version bumps and changelog to other branches after release?',
+    initial: false
+  });
+
+  let mergeToBranches: string[] = [];
+  let mergeStrategy: 'merge' | 'squash' | 'rebase' = 'merge';
+
+  if (mergeAfterRelease) {
+    logger.info('');
+    logger.info('This will merge the release commit (version bumps + changelog) to keep branches in sync.');
+    logger.info('Example: Release on main → merge to develop to sync version numbers');
+    logger.info('');
+
+    const { branches } = await prompt<{ branches: string }>({
+      type: 'input',
+      name: 'branches',
+      message: 'Branches to sync release metadata to (comma-separated):',
+      initial: 'develop',
+      validate: (value: string) => value.trim().length > 0 || 'At least one branch is required'
+    });
+    mergeToBranches = branches.split(',').map(b => b.trim());
+
+    const { strategy } = await prompt<{ strategy: 'merge' | 'squash' | 'rebase' }>({
+      type: 'select',
+      name: 'strategy',
+      message: 'Merge strategy:',
+      choices: [
+        { name: 'merge', message: 'merge (standard git merge)', hint: 'Preserves release commit as-is' },
+        { name: 'squash', message: 'squash (squash and merge)', hint: 'Combines into single commit' },
+        { name: 'rebase', message: 'rebase (rebase and merge)', hint: 'Linear history' }
+      ]
+    });
+    mergeStrategy = strategy;
+  }
+
   let commitMessage = 'chore(release): {projectName} version {version}';
   if (gitCommit) {
     const response = await prompt<{ commitMessage: string }>({
@@ -262,10 +303,16 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
   });
 
   const { distTag } = await prompt<{ distTag: string }>({
-    type: 'input',
+    type: 'select',
     name: 'distTag',
-    message: 'Dist tag for published packages (for NPM):',
-    initial: 'latest'
+    message: 'Dist tag strategy for NPM packages:',
+    choices: [
+      { name: 'latest', message: 'latest (recommended for stable releases)', hint: 'npm install package gets this version' },
+      { name: 'version', message: 'Use version number (e.g., v1.2.3)', hint: 'Explicit version tags for better control' },
+      { name: 'beta', message: 'beta (for beta releases)', hint: 'npm install package@beta' },
+      { name: 'next', message: 'next (for preview releases)', hint: 'npm install package@next' },
+      { name: 'canary', message: 'canary (for daily/bleeding edge)', hint: 'npm install package@canary' }
+    ]
   });
 
   const { buildTarget } = await prompt<{ buildTarget: string }>({
@@ -522,6 +569,9 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     gitCommit,
     gitTag,
     gitPush,
+    mergeAfterRelease,
+    mergeToBranches,
+    mergeStrategy,
     commitMessage,
     trackDeps,
     syncVersions,

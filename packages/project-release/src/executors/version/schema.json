@@ -131,6 +131,24 @@
       "type": "string",
       "description": "Comma-separated list of labels to add to the PR (e.g., 'release,automated')"
     },
+    "mergeAfterRelease": {
+      "type": "boolean",
+      "default": false,
+      "description": "Automatically merge version bumps and changelog to target branches after successful release. Keeps version numbers synchronized across branches (e.g., release on main → merge to develop)"
+    },
+    "mergeToBranches": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of branches to merge version bump and changelog to (e.g., ['develop', 'staging']). Syncs release metadata across branches. Only applies when mergeAfterRelease is true"
+    },
+    "mergeStrategy": {
+      "type": "string",
+      "enum": ["merge", "squash", "rebase"],
+      "default": "merge",
+      "description": "Git merge strategy to use when merging to target branches"
+    },
     "stageChanges": {
       "type": "boolean",
       "description": "Stage changes without committing. If not set, files are staged automatically when gitCommit is true"
