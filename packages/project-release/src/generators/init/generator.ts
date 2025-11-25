@@ -3,6 +3,7 @@ import { InitGeneratorSchema } from './schema';
 import { promptForConfig } from './lib/prompts';
 import { updateNxJsonConfiguration, addTargetsToProjects } from './lib/config-builder';
 import { detectExistingConfiguration, getDefaultAnswers, getPublishableProjects } from './lib/utils';
+import { setupGitHooks } from './lib/hooks-setup';
 
 export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
   logger.info('');
@@ -10,6 +11,10 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
   logger.info('   nx-project-release Interactive Setup');
   logger.info('═══════════════════════════════════════════════════════');
   logger.info('');
+
+  // Track hooks setup for final instructions
+  let hooksSetup = false;
+  const hasHusky = tree.exists('.husky');
 
   // Detect existing configuration
   const existingConfig = detectExistingConfiguration(tree);
@@ -57,6 +62,13 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     // Add targets to projects if requested
     if (answers.configLocation === 'project-json' || answers.configLocation === 'both') {
       addTargetsToProjects(tree, answers);
+    }
+
+    // Set up git hooks if requested
+    if (answers.setupHooks) {
+      logger.info('');
+      await setupGitHooks(tree, answers.hookOptions);
+      hooksSetup = true;
     }
 
     logger.info('');
@@ -119,6 +131,13 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
 
   return () => {
     logger.info('');
+
+    // Remind about npm install for simple-git-hooks
+    if (hooksSetup && !hasHusky) {
+      logger.warn('⚠️  Important: Run `npm install` to activate git hooks');
+      logger.info('');
+    }
+
     logger.info('📚 Documentation: https://github.com/Divagnz/nx-project-release');
     logger.info('');
   };

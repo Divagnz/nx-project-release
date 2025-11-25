@@ -27,6 +27,13 @@ export interface ConfigAnswers {
   access: 'public' | 'restricted';
   distTag: string;
   buildTarget: string;
+
+  // Git hooks options
+  setupHooks: boolean;
+  hookOptions: {
+    enablePreCommit: boolean;
+    enablePrePush: boolean;
+  };
 }
 
 export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
@@ -92,10 +99,11 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     type: 'multiselect',
     name: 'versionFiles',
     message: 'Which files should be updated with the new version?',
+    // @ts-expect-error - enquirer types are incomplete
     choices: ['package.json', 'project.json', 'version.txt'],
     initial: [0], // Select package.json by default
-    validate: (value: any) => value.length > 0 || 'Please select at least one file'
-  } as any);
+    validate: (value: string[]) => value.length > 0 || 'Please select at least one file'
+  });
 
   const { gitCommit } = await prompt<{ gitCommit: boolean }>({
     type: 'confirm',
@@ -125,7 +133,7 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
       name: 'commitMessage',
       message: 'Commit message template (use {version}, {projectName} placeholders):',
       initial: 'chore(release): {projectName} version {version}'
-    } as any);
+    });
     commitMessage = response.commitMessage;
   }
 
@@ -255,6 +263,58 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     ]
   });
 
+  // 7. Git Hooks Setup
+  logger.info('');
+  logger.info('🪝 Git Hooks Setup');
+  logger.info('');
+
+  // Detect existing hook system
+  const hasHusky = tree.exists('.husky/_/husky.sh') || tree.exists('.husky');
+  const hookSystem = hasHusky ? 'Husky' : 'simple-git-hooks';
+
+  if (hasHusky) {
+    logger.info('📍 Detected: Husky (will add to existing setup)');
+  } else {
+    logger.info('📍 Will use: simple-git-hooks (lightweight)');
+  }
+  logger.info('');
+
+  const { setupHooks } = await prompt<{ setupHooks: boolean }>({
+    type: 'confirm',
+    name: 'setupHooks',
+    message: 'Set up git hooks for automatic project detection and validation?',
+    initial: true
+  });
+
+  let enablePreCommit = false;
+  let enablePrePush = false;
+
+  if (setupHooks) {
+    const { selectedHooks } = await prompt<{ selectedHooks: string[] }>({
+      type: 'multiselect',
+      name: 'selectedHooks',
+      message: 'Which hooks would you like to enable?',
+      // @ts-expect-error - enquirer types are incomplete
+      choices: [
+        {
+          name: 'pre-commit',
+          message: 'pre-commit: Auto-detect unconfigured projects',
+          hint: 'Prompts to configure new projects before commit'
+        },
+        {
+          name: 'pre-push',
+          message: 'pre-push: Validate configurations',
+          hint: 'Checks all release configs are valid before push'
+        }
+      ],
+      initial: [0, 1], // Both selected by default
+      validate: (value: string[]) => value.length > 0 || 'Select at least one hook'
+    });
+
+    enablePreCommit = selectedHooks.includes('pre-commit');
+    enablePrePush = selectedHooks.includes('pre-push');
+  }
+
   return {
     executorType,
     selectedProjects,
@@ -274,6 +334,11 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     registryUrl,
     access,
     distTag,
-    buildTarget
+    buildTarget,
+    setupHooks,
+    hookOptions: {
+      enablePreCommit,
+      enablePrePush
+    }
   };
 }

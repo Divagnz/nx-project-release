@@ -8,8 +8,14 @@ import {
 } from '@nx/devkit';
 import { ConfigAnswers } from './prompts';
 
-export function buildNxJsonTargetDefaults(answers: ConfigAnswers): Record<string, any> {
-  const targetDefaults: Record<string, any> = {};
+interface TargetDefault {
+  cache?: boolean;
+  options?: Record<string, unknown>;
+  dependsOn?: string[];
+}
+
+export function buildNxJsonTargetDefaults(answers: ConfigAnswers): Record<string, TargetDefault> {
+  const targetDefaults: Record<string, TargetDefault> = {};
 
   if (answers.executorType === 'individual') {
     // Version executor configuration
