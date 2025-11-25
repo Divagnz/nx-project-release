@@ -531,20 +531,20 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     initial: false
   });
 
-  let workflowType: 'single' | 'two-step' | 'batch' | 'none' = 'none';
+  let workflowType: 'single' | 'two-step' | 'affected' | 'none' = 'none';
   let createReleaseBranch = false;
   let autoCreatePR = false;
 
   if (setupGitHubWorkflows) {
-    const { selectedWorkflowType } = await prompt<{ selectedWorkflowType: 'single' | 'two-step' | 'batch' }>({
+    const { selectedWorkflowType } = await prompt<{ selectedWorkflowType: 'single' | 'two-step' | 'affected' }>({
       type: 'select',
       name: 'selectedWorkflowType',
       message: 'Which workflow pattern?',
       choices: [
         {
-          name: 'batch',
-          message: 'Batch: Release multiple projects in one PR',
-          hint: 'Recommended for monorepos: One release branch for all affected projects'
+          name: 'affected',
+          message: 'Affected projects: Release changed projects in one PR',
+          hint: 'Recommended: Uses nx affected to version only changed projects'
         },
         {
           name: 'two-step',
@@ -561,10 +561,10 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
 
     workflowType = selectedWorkflowType;
 
-    if (workflowType === 'batch') {
+    if (workflowType === 'affected') {
       createReleaseBranch = true;
       autoCreatePR = true;
-      logger.info('✓ Will create: batch release workflow (one branch for all projects) + publish workflow');
+      logger.info('✓ Will create: affected projects workflow + publish workflow + PR validation');
     } else if (workflowType === 'two-step') {
       createReleaseBranch = true;
       autoCreatePR = true;
