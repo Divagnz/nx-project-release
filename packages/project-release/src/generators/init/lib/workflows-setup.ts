@@ -163,26 +163,62 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build affected projects
+      - name: Detect versioned projects
+        id: projects
         run: |
-          npx nx affected --target=build \\
-            --base=\${{ needs.detect-changes.outputs.base_commit }} \\
-            --skip-nx-cache
+          # Get list of projects that were versioned from the merge commit
+          # Look for changed package.json or project.json files in the merge commit
+          CHANGED_FILES=\$(git diff-tree --no-commit-id --name-only -r HEAD)
+          PROJECTS=\$(echo "\$CHANGED_FILES" | grep -E '(package|project)\.json' | xargs -I {} dirname {} | sort -u | jq -R -s -c 'split("\\n")[:-1]')
+          echo "projects=\$PROJECTS" >> \$GITHUB_OUTPUT
+          echo "Found versioned projects: \$PROJECTS"
+
+      - name: Build versioned projects
+        run: |
+          # Build each versioned project
+          for dir in \$(echo '\${{ steps.projects.outputs.projects }}' | jq -r '.[]'); do
+            PROJECT_NAME=\$(jq -r '.name // empty' "\$dir/package.json" "\$dir/project.json" 2>/dev/null | head -n1)
+            if [ -n "\$PROJECT_NAME" ]; then
+              echo "Building \$PROJECT_NAME..."
+              npx nx run \$PROJECT_NAME:build || echo "No build target for \$PROJECT_NAME"
+            fi
+          done
 
       - name: Create tags and GitHub releases
         run: |
-          npx nx affected --target=version \\
-            --base=\${{ needs.detect-changes.outputs.base_commit }} \\
-            --gitTag \\
-            --githubRelease \\
-            --ciOnly=false
+          # Create tags and releases for each versioned project
+          for dir in \$(echo '\${{ steps.projects.outputs.projects }}' | jq -r '.[]'); do
+            PROJECT_NAME=\$(jq -r '.name // empty' "\$dir/package.json" "\$dir/project.json" 2>/dev/null | head -n1)
+            VERSION=\$(jq -r '.version // empty' "\$dir/package.json" "\$dir/project.json" 2>/dev/null | head -n1)
+            if [ -n "\$PROJECT_NAME" ] && [ -n "\$VERSION" ]; then
+              TAG="\${PROJECT_NAME}@\${VERSION}"
+              echo "Creating tag and release for \$TAG..."
+
+              # Create and push tag
+              git tag -a "\$TAG" -m "Release \$TAG"
+              git push origin "\$TAG"
+
+              # Create GitHub release
+              gh release create "\$TAG" \\
+                --title "\$TAG" \\
+                --notes "Release \$PROJECT_NAME version \$VERSION" \\
+                --target main
+            fi
+          done
         env:
           GITHUB_TOKEN: \${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish affected projects
+      - name: Publish versioned projects
         run: |
-          npx nx affected --target=publish \\
-            --base=\${{ needs.detect-changes.outputs.base_commit }}
+          # Publish each versioned project
+          for dir in \$(echo '\${{ steps.projects.outputs.projects }}' | jq -r '.[]'); do
+            PROJECT_NAME=\$(jq -r '.name // empty' "\$dir/package.json" "\$dir/project.json" 2>/dev/null | head -n1)
+            if [ -n "\$PROJECT_NAME" ]; then
+              echo "Publishing \$PROJECT_NAME..."
+              npx nx run \$PROJECT_NAME:publish || echo "Publish failed or no publish target for \$PROJECT_NAME"
+            fi
+          done
         env:
           # NPM Registry
           NODE_AUTH_TOKEN: \${{ secrets.NPM_TOKEN }}
