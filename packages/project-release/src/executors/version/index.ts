@@ -384,6 +384,20 @@ async function versionSingleProject(options: VersionExecutorSchema, context: Exe
     let currentVersion = versionInfo.version || '0.0.0';
     let isFirstRelease = !versionInfo.version || versionInfo.version === '0.0.0';
 
+    // If no version found and in show mode, provide interactive prompt
+    if (!versionInfo.version && options.show) {
+      logger.warn(`⚠️  No version found for project '${context.projectName}'`);
+      logger.info('');
+      logger.info('This project has no version information available.');
+      logger.info('Options:');
+      logger.info('  1. Set an initial version using --version flag (e.g., --version=1.0.0)');
+      logger.info('  2. Use --firstRelease flag to start from 0.0.0');
+      logger.info('  3. Configure version in package.json or project.json');
+      logger.info('  4. Skip this project in the release');
+      logger.info('');
+      return { success: false, error: `No version found for project ${context.projectName}. Use --version, --firstRelease, or configure version in project files.` };
+    }
+
     // If firstRelease option is set, use fallback logic
     if (options.firstRelease) {
       if (!versionInfo.version) {
@@ -1279,19 +1293,51 @@ async function showVersionChanges(
 
   // Git operations
   logger.info('🗂 Git Operations:');
-  if (!options.skipCommit) {
-    const commitMessage = generateConventionalCommitMessage(context.projectName, newVersion, !versionInfo.version || versionInfo.version === '0.0.0');
+  const shouldCommit = options.gitCommit ?? (options.skipCommit === false ? true : false);
+  const shouldTag = options.gitTag ?? (options.skipTag === false ? true : false);
+  const shouldPush = options.gitPush ?? false;
+
+  if (shouldCommit) {
+    const commitMessage = options.gitCommitMessage || generateConventionalCommitMessage(context.projectName, newVersion, !versionInfo.version || versionInfo.version === '0.0.0');
     logger.info(`  ✓ Commit: "${commitMessage}"`);
   } else {
     logger.info(`  ⊘ Commit: Skipped`);
   }
 
-  if (!options.skipTag) {
+  if (shouldTag) {
     const tag = generateTagName(context.projectName, newVersion, options);
+    const tagMsg = options.gitTagMessage || tag;
     logger.info(`  ✓ Tag: ${tag}`);
+    if (options.gitTagMessage) {
+      logger.info(`    Message: "${tagMsg}"`);
+    }
   } else {
     logger.info(`  ⊘ Tag: Skipped`);
   }
+
+  if (shouldPush) {
+    const remote = options.gitRemote || 'origin';
+    logger.info(`  ✓ Push: ${remote}`);
+  } else {
+    logger.info(`  ⊘ Push: Skipped`);
+  }
+
+  // Release branch
+  if (options.createReleaseBranch) {
+    const branchName = options.releaseBranchName || `release/v${newVersion}`;
+    logger.info(`  ✓ Release branch: ${branchName}`);
+    if (options.createPR) {
+      const prTitle = options.prTitle || `chore(release): ${context.projectName} v${newVersion}`;
+      logger.info(`    → Create PR: "${prTitle}"`);
+    }
+  }
+
+  // Merge after release
+  if (options.mergeAfterRelease && options.mergeToBranches && options.mergeToBranches.length > 0) {
+    logger.info(`  ✓ Merge to: ${options.mergeToBranches.join(', ')}`);
+    logger.info(`    Strategy: ${options.mergeStrategy || 'merge'}`);
+  }
+
   logger.info('');
 
   // Configuration source
