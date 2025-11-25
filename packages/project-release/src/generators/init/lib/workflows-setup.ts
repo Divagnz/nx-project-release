@@ -272,7 +272,7 @@ jobs:
 
             if (fs.existsSync(outputFile)) {
               const output = fs.readFileSync(outputFile, 'utf8');
-              body += '\\`\\`\\`\\n' + output + '\\n\\`\\`\\`';
+              body += '\`\`\`\\n' + output + '\\n\`\`\`';
             } else {
               body += 'No version changes detected.';
             }
