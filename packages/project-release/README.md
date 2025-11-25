@@ -1,47 +1,68 @@
-# Project Release Plugin
+# nx-project-release
 
 <a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
 
-A polyglot Nx plugin for releasing any project type using project.json and conventional commits, supporting multiple registries and flexible configuration.
+[![npm version](https://badge.fury.io/js/nx-project-release.svg)](https://www.npmjs.com/package/nx-project-release)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## 📖 Documentation
+A polyglot Nx plugin for automated semantic versioning, changelog generation, and publishing for any project type in your monorepo.
 
-For complete documentation, usage examples, and configuration options, please see the main README:
+## 📖 Full Documentation
+
+For complete documentation, examples, and configuration options:
 
 **[👉 View Full Documentation](../../README.md)**
 
-## Quick Installation
+## Quick Start
 
 ```bash
-npm install --save-dev @divagnz/project-release
-```
+# Install and run interactive setup
+nx add nx-project-release
 
-## Quick Usage
-
-```bash
-# Release a single project
-npx nx run my-project:project-release
-
-# Release all projects in workspace
-npx nx run project-release
-
-# Show what would change
-npx nx run my-project:project-release --show --dryRun
+# Or install manually
+npm install --save-dev nx-project-release
+nx g nx-project-release:init
 ```
 
 ## Features
 
-- ✅ **Polyglot Support** - Works with any project type
-- ✅ **Modular Executors** - version, changelog, publish, workflow
-- ✅ **Multiple Registries** - npm, Nexus, custom registries
-- ✅ **Dependency Tracking** - Auto-version dependent projects
-- ✅ **Sync Versioning** - Synchronize versions across projects
-- ✅ **Flexible Configuration** - Workspace and project-level settings
+- **🚀 Polyglot Support** - Works with any project type (Node.js, Python, Go, Rust, Java, etc.)
+- **📦 Multiple Registries** - NPM, Nexus (Sonatype), AWS S3, GitHub Packages
+- **🔄 Batch Releases** - Release multiple projects in one PR with `nx affected`
+- **📝 Auto Changelogs** - Generate from conventional commits
+- **🔖 Semantic Versioning** - Automatic or manual version bumps
+- **🔐 CI/CD Safety** - CI-only mode prevents accidental local releases
+- **🌿 Release Branches** - Automatic PR creation for review workflow
+- **🔗 Dependency Tracking** - Auto-version dependent projects
 
-## Contributing
+## Quick Usage
 
-See [CONTRIBUTING.md](../../CONTRIBUTING.md) for development setup and guidelines.
+```bash
+# First release
+nx run my-project:version --version=1.0.0 --gitCommit --gitTag --firstRelease
+nx run my-project:changelog
+nx run my-project:publish
+
+# Subsequent releases
+nx run my-project:version --releaseAs=minor --gitCommit --gitTag
+
+# Complete workflow (version + changelog + publish)
+nx run my-project:project-release --gitCommit --gitTag
+
+# Preview changes
+nx run my-project:version --show
+
+# Batch release (all affected projects)
+nx affected --target=version --base=main --releaseAs=minor --gitCommit
+```
+
+## Core Executors
+
+- **version** - Bump project version based on conventional commits
+- **changelog** - Generate CHANGELOG.md from commits
+- **publish** - Publish to NPM, Nexus, S3, or custom registry
+- **project-release** - All-in-one executor (version + changelog + publish)
 
 ## License
 
-MIT
+MIT © [Divagnz](https://github.com/Divagnz)
