@@ -403,8 +403,8 @@ async function versionSingleProject(options: VersionExecutorSchema, context: Exe
 
     // If no version found, handle based on mode
     if (!versionInfo.version && !options.firstRelease) {
-      if (options.show) {
-        // Show mode: provide detailed guidance
+      if (options.preview) {
+        // Preview mode: provide detailed guidance
         logger.warn(`⚠️  No version found for project '${context.projectName}'`);
         logger.info('');
         logger.info('This project has no version information available.');
@@ -457,8 +457,11 @@ async function versionSingleProject(options: VersionExecutorSchema, context: Exe
         newVersion = semver.inc(currentVersion, options.releaseAs) || currentVersion;
       }
     } else {
+      // Automatic mode - analyze commits to determine version bump
       const recommendedReleaseType = await analyzeConventionalCommits(context);
-      if (recommendedReleaseType) {
+
+      if (recommendedReleaseType && recommendedReleaseType !== 'none' && recommendedReleaseType !== 'not-affected') {
+        // Found conventional commits (feat/fix/breaking)
         if (isFirstRelease) {
           const baseVersion = recommendedReleaseType === 'major' ? '1.0.0' :
                             recommendedReleaseType === 'minor' ? '0.1.0' : '0.0.1';
@@ -471,8 +474,25 @@ async function versionSingleProject(options: VersionExecutorSchema, context: Exe
             newVersion = semver.inc(currentVersion, recommendedReleaseType) || currentVersion;
           }
         }
-      } else {
+      } else if (recommendedReleaseType === 'none') {
+        // Has commits affecting this project, but no conventional feat/fix/breaking commits
+        logger.warn('⚠️  No conventional commits (feat/fix/breaking) found since last release');
+        logger.info('💡 Defaulting to patch bump (use --releaseAs to specify different bump type)');
         newVersion = semver.inc(currentVersion, 'patch') || currentVersion;
+      } else if (recommendedReleaseType === 'not-affected') {
+        // Has commits, but none affect this project (monorepo)
+        // Just return current version (no bump, no release)
+        logger.info(`ℹ️  Project '${context.projectName}' not affected by recent changes`);
+        logger.info('💡 Skipping version bump (use --releaseAs to force a bump)');
+        return { success: true, skipped: true, reason: 'Project not affected by recent changes', version: currentVersion };
+      } else {
+        // No commits at all - don't bump, require explicit intent
+        throw new Error(
+          'No commits found since last release.\n' +
+          'To create a release anyway, use:\n' +
+          '  --releaseAs=patch/minor/major  (specify bump type)\n' +
+          '  --version=x.y.z  (set explicit version)'
+        );
       }
     }
 
@@ -481,8 +501,8 @@ async function versionSingleProject(options: VersionExecutorSchema, context: Exe
     // Determine target file path if not set
     const targetFilePath = versionInfo.filePath || path.join(context.root, projectRoot, options.versionFiles?.[0] || options.versionFile || 'project.json');
 
-    // Show detailed information if requested
-    if (options.show) {
+    // Preview detailed information if requested
+    if (options.preview) {
       await showVersionChanges(context, projectRoot, options, currentVersion, newVersion, { version: versionInfo.version, filePath: targetFilePath });
       return { success: true, version: newVersion };
     }
@@ -881,15 +901,35 @@ async function calculateNewVersionForProject(projectName: string, options: Versi
     return semver.inc(currentVersion, options.releaseAs) || currentVersion;
   } else {
     const recommendedReleaseType = await analyzeConventionalCommits(context);
-    if (recommendedReleaseType) {
+
+    if (recommendedReleaseType && recommendedReleaseType !== 'none' && recommendedReleaseType !== 'not-affected') {
+      // Found conventional commits (feat/fix/breaking)
       if (isFirstRelease) {
         return recommendedReleaseType === 'major' ? '1.0.0' :
                recommendedReleaseType === 'minor' ? '0.1.0' : '0.0.1';
       } else {
         return semver.inc(currentVersion, recommendedReleaseType) || currentVersion;
       }
-    } else {
+    } else if (recommendedReleaseType === 'none') {
+      // Has commits affecting this project, but no conventional feat/fix/breaking commits
+      // User made changes (chore/test/docs/etc), so bump is reasonable
+      logger.warn('⚠️  No conventional commits (feat/fix/breaking) found since last release');
+      logger.info('💡 Defaulting to patch bump (use --releaseAs to specify different bump type)');
       return semver.inc(currentVersion, 'patch') || currentVersion;
+    } else if (recommendedReleaseType === 'not-affected') {
+      // Has commits, but none affect this project (monorepo)
+      // Just return current version (no bump, no release)
+      logger.info(`ℹ️  Project '${projectName}' not affected by recent changes`);
+      logger.info('💡 Skipping version bump (use --releaseAs to force a bump)');
+      return currentVersion; // Return without bumping
+    } else {
+      // No commits at all - don't bump, require explicit intent
+      throw new Error(
+        'No commits found since last release.\n' +
+        'To create a release anyway, use:\n' +
+        '  --releaseAs=patch/minor/major  (specify bump type)\n' +
+        '  --version=x.y.z  (set explicit version)'
+      );
     }
   }
 }
@@ -1079,7 +1119,12 @@ function generateConventionalCommitMessage(projectName: string, version: string,
 }
 
 // Enhanced commit analysis with skip/target syntax support
-async function analyzeConventionalCommits(context: ExecutorContext): Promise<semver.ReleaseType | null> {
+// Returns:
+//   - ReleaseType (major/minor/patch) - Found conventional commits
+//   - 'none' - Has relevant commits but no conventional ones
+//   - 'not-affected' - Has commits but none affect this project
+//   - null - No commits at all
+async function analyzeConventionalCommits(context: ExecutorContext): Promise<semver.ReleaseType | null | 'none' | 'not-affected'> {
   try {
     let gitCommand = 'git log --format="%s" --no-merges';
 
@@ -1103,15 +1148,54 @@ async function analyzeConventionalCommits(context: ExecutorContext): Promise<sem
       stdio: 'pipe'
     }).trim();
 
+    // No commits at all since last tag
     if (!commits) return null;
 
     const commitLines = commits.split('\n').filter(line => line.trim());
     const projectName = context.projectName || '';
 
-    // Filter commits using enhanced syntax
-    const relevantCommits = filterCommitsForProject(commitLines, projectName);
+    // Check if project is actually affected using nx affected
+    // This is more accurate than git diff as it understands Nx dependencies
+    let isProjectAffected = false;
+    try {
+      // Determine base commit (last tag or HEAD)
+      let baseRef = 'HEAD';
+      try {
+        const lastTag = execSync(`git tag --list --sort=-version:refname | grep -E "^${projectName}-v|^v" | head -1`, {
+          cwd: context.root,
+          encoding: 'utf8',
+          stdio: 'pipe'
+        }).trim();
 
-    if (relevantCommits.length === 0) return null;
+        if (lastTag) {
+          baseRef = lastTag;
+        }
+      } catch {
+        // No previous tags found
+      }
+
+      // Use nx show projects --affected to check if this project is affected
+      const affectedOutput = execSync(
+        `npx nx show projects --affected --base=${baseRef} --head=HEAD`,
+        {
+          cwd: context.root,
+          encoding: 'utf8',
+          stdio: 'pipe'
+        }
+      ).trim();
+
+      const affectedProjects = affectedOutput.split('\n').filter(p => p.trim());
+      isProjectAffected = affectedProjects.includes(projectName);
+    } catch {
+      // If nx affected fails, assume project is affected (safer)
+      isProjectAffected = true;
+    }
+
+    // Has commits, but this project is not affected (monorepo scenario)
+    if (!isProjectAffected) return 'not-affected';
+
+    // Filter commits using enhanced syntax (for commit message analysis)
+    const relevantCommits = filterCommitsForProject(commitLines, projectName);
 
     let hasBreaking = false;
     let hasFeature = false;
@@ -1132,7 +1216,8 @@ async function analyzeConventionalCommits(context: ExecutorContext): Promise<sem
     if (hasFeature) return 'minor';
     if (hasFix) return 'patch';
 
-    return null;
+    // Has commits, but no conventional feat/fix/breaking commits
+    return 'none';
   } catch {
     return null;
   }
