@@ -52,7 +52,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     logger.info(`Registry:            ${answers.registryUrl}`);
     logger.info(`Git Commit:          ${answers.gitCommit ? 'Yes' : 'No'}`);
     logger.info(`Git Tag:             ${answers.gitTag ? 'Yes' : 'No'}`);
-    logger.info(`Git Push:            ${answers.gitPush ? 'Yes' : 'No'}`);
+    logger.info(`CI-Only Releases:    ${answers.ciOnly ? 'Yes (recommended)' : 'No (allows local releases)'}`);
 
     if (answers.configureTagNaming) {
       logger.info('');

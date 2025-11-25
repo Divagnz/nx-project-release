@@ -13,7 +13,7 @@ export interface ConfigAnswers {
   versionFiles: string[];
   gitCommit: boolean;
   gitTag: boolean;
-  gitPush: boolean;
+  ciOnly: boolean;
   mergeAfterRelease: boolean;
   mergeToBranches: string[];
   mergeStrategy: 'merge' | 'squash' | 'rebase';
@@ -144,12 +144,26 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     initial: true
   });
 
-  const { gitPush } = await prompt<{ gitPush: boolean }>({
+  const { ciOnly } = await prompt<{ ciOnly: boolean }>({
     type: 'confirm',
-    name: 'gitPush',
-    message: 'Automatically push commits and tags to remote?',
-    initial: false
+    name: 'ciOnly',
+    message: 'Enforce CI-only releases (prevent accidental local releases)?',
+    initial: true
   });
+
+  if (ciOnly) {
+    logger.info('');
+    logger.info('✓ CI-only mode enabled (recommended for safety)');
+    logger.info('  Git operations (commit/tag/push) will only run in CI environments.');
+    logger.info('  Commits and tags will be automatically pushed in CI.');
+    logger.info('  Set --ciOnly=false to test locally (use --gitPush=false to prevent push).');
+    logger.info('');
+  } else {
+    logger.info('');
+    logger.info('⚠ CI-only mode disabled');
+    logger.info('  Git operations can run locally. Use --gitPush flag to control push behavior.');
+    logger.info('');
+  }
 
   const { mergeAfterRelease } = await prompt<{ mergeAfterRelease: boolean }>({
     type: 'confirm',
@@ -568,7 +582,7 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     versionFiles,
     gitCommit,
     gitTag,
-    gitPush,
+    ciOnly,
     mergeAfterRelease,
     mergeToBranches,
     mergeStrategy,

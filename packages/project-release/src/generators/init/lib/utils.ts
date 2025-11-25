@@ -57,7 +57,7 @@ export function getDefaultAnswers() {
     versionFiles: ['package.json'],
     gitCommit: true,
     gitTag: true,
-    gitPush: false,
+    ciOnly: true,
     mergeAfterRelease: false,
     mergeToBranches: [],
     mergeStrategy: 'merge' as const,

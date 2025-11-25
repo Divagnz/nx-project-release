@@ -25,7 +25,7 @@ export function buildNxJsonTargetDefaults(answers: ConfigAnswers): Record<string
         versionFiles: answers.versionFiles,
         gitCommit: answers.gitCommit,
         gitTag: answers.gitTag,
-        gitPush: answers.gitPush,
+        ciOnly: answers.ciOnly,
         gitCommitMessage: answers.commitMessage,
         trackDeps: answers.trackDeps,
         syncVersions: answers.syncVersions
@@ -73,7 +73,7 @@ export function buildNxJsonTargetDefaults(answers: ConfigAnswers): Record<string
         versionFiles: answers.versionFiles,
         gitCommit: answers.gitCommit,
         gitTag: answers.gitTag,
-        gitPush: answers.gitPush,
+        ciOnly: answers.ciOnly,
         gitCommitMessage: answers.commitMessage,
         trackDeps: answers.trackDeps,
         syncVersions: answers.syncVersions,
