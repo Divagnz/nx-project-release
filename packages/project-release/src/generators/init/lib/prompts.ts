@@ -56,7 +56,7 @@ export interface ConfigAnswers {
 
   // GitHub Workflows options
   setupGitHubWorkflows: boolean;
-  workflowType: 'single' | 'two-step' | 'batch' | 'none';
+  workflowType: 'single' | 'two-step' | 'none';
   createReleaseBranch: boolean;
   autoCreatePR: boolean;
 }
@@ -531,25 +531,20 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     initial: false
   });
 
-  let workflowType: 'single' | 'two-step' | 'affected' | 'none' = 'none';
+  let workflowType: 'single' | 'two-step' | 'none' = 'none';
   let createReleaseBranch = false;
   let autoCreatePR = false;
 
   if (setupGitHubWorkflows) {
-    const { selectedWorkflowType } = await prompt<{ selectedWorkflowType: 'single' | 'two-step' | 'affected' }>({
+    const { selectedWorkflowType } = await prompt<{ selectedWorkflowType: 'single' | 'two-step' }>({
       type: 'select',
       name: 'selectedWorkflowType',
       message: 'Which workflow pattern?',
       choices: [
         {
-          name: 'affected',
-          message: 'Affected projects: Release changed projects in one PR',
-          hint: 'Recommended: Uses nx affected to version only changed projects'
-        },
-        {
           name: 'two-step',
           message: 'Two-step: PR creation + manual merge & publish',
-          hint: 'Creates PR for review, publishes after merge (one project at a time)'
+          hint: 'Creates release branch + PR for review, publishes after merge'
         },
         {
           name: 'single',
@@ -561,11 +556,7 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
 
     workflowType = selectedWorkflowType;
 
-    if (workflowType === 'affected') {
-      createReleaseBranch = true;
-      autoCreatePR = true;
-      logger.info('✓ Will create: affected projects workflow + publish workflow + PR validation');
-    } else if (workflowType === 'two-step') {
+    if (workflowType === 'two-step') {
       createReleaseBranch = true;
       autoCreatePR = true;
       logger.info('✓ Will create: release branch workflow + publish workflow');

@@ -27,10 +27,10 @@
       "default": false,
       "description": "Preview changes without making modifications"
     },
-    "show": {
+    "preview": {
       "type": "boolean",
       "default": false,
-      "description": "Show detailed information about what would change (version analysis, files affected, git operations)"
+      "description": "Preview detailed information about what would change (version analysis, files affected, git operations)"
     },
     "gitCommit": {
       "type": "boolean",

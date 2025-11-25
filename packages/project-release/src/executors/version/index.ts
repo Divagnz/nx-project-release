@@ -14,6 +14,7 @@ export interface VersionExecutorSchema {
   firstRelease?: boolean;
   dryRun?: boolean;
   show?: boolean;
+  preview?: boolean;
   // Git options (opt-in, disabled by default)
   gitCommit?: boolean;
   gitCommitMessage?: string;
@@ -38,6 +39,10 @@ export interface VersionExecutorSchema {
   prBaseBranch?: string;
   prDraft?: boolean;
   prLabels?: string;
+  // Merge after release
+  mergeAfterRelease?: boolean;
+  mergeToBranches?: string[];
+  mergeStrategy?: 'merge' | 'squash' | 'rebase';
   stageChanges?: boolean;
   // Deprecated (kept for backward compatibility)
   skipCommit?: boolean;
@@ -299,7 +304,7 @@ async function handleWorkspaceVersioning(options: VersionExecutorSchema, context
     }
 
     // Version each project
-    const results: Array<{ project: string; success: boolean; version?: string; error?: string }> = [];
+    const results: Array<{ project: string; success: boolean; version?: string; error?: string; skipped?: boolean; reason?: string }> = [];
 
     for (const projectName of Array.from(projectsToVersion)) {
       try {

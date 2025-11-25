@@ -50,7 +50,7 @@ nx run my-project:version --releaseAs=minor --gitCommit --gitTag
 nx run my-project:project-release --gitCommit --gitTag
 
 # Preview changes
-nx run my-project:version --show
+nx run my-project:version --preview
 
 # Batch release (all affected projects)
 nx affected --target=version --base=main --releaseAs=minor --gitCommit

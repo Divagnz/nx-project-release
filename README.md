@@ -50,7 +50,7 @@ The init generator will guide you through:
 
 ```bash
 # Preview what would happen
-nx run my-project:version --show
+nx run my-project:version --preview
 
 # Create first release
 nx run my-project:version --version=1.0.0 --gitCommit --gitTag --firstRelease
@@ -93,7 +93,7 @@ nx run my-project:version --releaseAs=prerelease --preid=beta
 nx run my-project:version --gitCommit --gitTag
 
 # Preview changes
-nx run my-project:version --show
+nx run my-project:version --preview
 ```
 
 **Key options:**
@@ -104,7 +104,7 @@ nx run my-project:version --show
 - `--gitCommit` - Create git commit
 - `--gitTag` - Create git tag
 - `--ciOnly` - Only allow git operations in CI (default: `true`)
-- `--show` - Display detailed analysis without making changes
+- `--preview` - Display detailed analysis without making changes
 - `--dryRun` - Preview changes without execution
 
 ### changelog
