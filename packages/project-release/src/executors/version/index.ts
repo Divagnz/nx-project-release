@@ -5,6 +5,7 @@ import * as fs from 'fs';
 import * as semver from 'semver';
 import { from, of, forkJoin } from 'rxjs';
 import { catchError, tap, map, finalize } from 'rxjs/operators';
+import { isCI, getCIPlatform } from '../utils/ci-detection';
 
 export interface VersionExecutorSchema {
   version?: string;
@@ -13,7 +14,7 @@ export interface VersionExecutorSchema {
   firstRelease?: boolean;
   dryRun?: boolean;
   show?: boolean;
-  ciOnly?: boolean;
+  preview?: boolean;
   // Git options (opt-in, disabled by default)
   gitCommit?: boolean;
   gitCommitMessage?: string;
@@ -24,10 +25,24 @@ export interface VersionExecutorSchema {
   gitPush?: boolean;
   gitPushArgs?: string;
   gitRemote?: string;
+  ciOnly?: boolean;
   githubRelease?: boolean;
   githubReleaseNotes?: string;
   githubReleaseDraft?: boolean;
   githubReleasePrerelease?: boolean;
+  // Branch release options
+  createReleaseBranch?: boolean;
+  releaseBranchName?: string;
+  createPR?: boolean;
+  prTitle?: string;
+  prBody?: string;
+  prBaseBranch?: string;
+  prDraft?: boolean;
+  prLabels?: string;
+  // Merge after release
+  mergeAfterRelease?: boolean;
+  mergeToBranches?: string[];
+  mergeStrategy?: 'merge' | 'squash' | 'rebase';
   stageChanges?: boolean;
   // Deprecated (kept for backward compatibility)
   skipCommit?: boolean;
@@ -289,7 +304,7 @@ async function handleWorkspaceVersioning(options: VersionExecutorSchema, context
     }
 
     // Version each project
-    const results: Array<{ project: string; success: boolean; version?: string; error?: string }> = [];
+    const results: Array<{ project: string; success: boolean; version?: string; error?: string; skipped?: boolean; reason?: string }> = [];
 
     for (const projectName of Array.from(projectsToVersion)) {
       try {
@@ -306,10 +321,16 @@ async function handleWorkspaceVersioning(options: VersionExecutorSchema, context
         });
 
         if (result.success) {
-          const version = (result as { success: boolean; version?: string }).version || targetVersion || 'unknown';
-          versions[projectName] = version;
-          results.push({ project: projectName, success: true, version });
-          logger.info(`✅ ${projectName}: ${version}`);
+          if (result.skipped) {
+            // Project was skipped (e.g., no version found)
+            results.push({ project: projectName, success: true, skipped: true, reason: result.reason });
+            logger.warn(`⏭️  ${projectName}: Skipped (${result.reason || 'unknown reason'})`);
+          } else {
+            const version = (result as { success: boolean; version?: string }).version || targetVersion || 'unknown';
+            versions[projectName] = version;
+            results.push({ project: projectName, success: true, version });
+            logger.info(`✅ ${projectName}: ${version}`);
+          }
         } else {
           results.push({ project: projectName, success: false, error: result.error });
           logger.error(`❌ ${projectName}: ${result.error}`);
@@ -321,12 +342,23 @@ async function handleWorkspaceVersioning(options: VersionExecutorSchema, context
       }
     }
 
-    const successful = results.filter(r => r.success).length;
+    const successful = results.filter(r => r.success && !(r as any).skipped).length;
+    const skipped = results.filter(r => r.success && (r as any).skipped).length;
     const failed = results.filter(r => !r.success).length;
 
     logger.info(`\n📊 Workspace Versioning Summary:`);
     logger.info(`✅ Successfully versioned: ${successful} projects`);
+    if (skipped > 0) {
+      logger.info(`⏭️  Skipped: ${skipped} projects`);
+    }
     logger.info(`❌ Failed: ${failed} projects`);
+
+    if (skipped > 0) {
+      logger.info(`\nSkipped projects:`);
+      results.filter(r => r.success && (r as any).skipped).forEach(r => {
+        logger.info(`  - ${r.project}: ${(r as any).reason || 'unknown reason'}`);
+      });
+    }
 
     if (failed > 0) {
       logger.info(`\nFailed projects:`);
@@ -347,7 +379,7 @@ async function handleWorkspaceVersioning(options: VersionExecutorSchema, context
   }
 }
 
-async function versionSingleProject(options: VersionExecutorSchema, context: ExecutorContext): Promise<{ success: boolean; error?: string; version?: string }> {
+async function versionSingleProject(options: VersionExecutorSchema, context: ExecutorContext): Promise<{ success: boolean; error?: string; version?: string; skipped?: boolean; reason?: string }> {
   if (!context.projectName) {
     return { success: false, error: 'No project name specified' };
   }
@@ -373,6 +405,27 @@ async function versionSingleProject(options: VersionExecutorSchema, context: Exe
     // Handle first release mode
     let currentVersion = versionInfo.version || '0.0.0';
     let isFirstRelease = !versionInfo.version || versionInfo.version === '0.0.0';
+
+    // If no version found, handle based on mode
+    if (!versionInfo.version && !options.firstRelease) {
+      if (options.preview) {
+        // Preview mode: provide detailed guidance
+        logger.warn(`⚠️  No version found for project '${context.projectName}'`);
+        logger.info('');
+        logger.info('This project has no version information available.');
+        logger.info('Options:');
+        logger.info('  1. Set an initial version using --version flag (e.g., --version=1.0.0)');
+        logger.info('  2. Use --firstRelease flag to start from 0.0.0');
+        logger.info('  3. Configure version in package.json or project.json');
+        logger.info('');
+        return { success: false, error: `No version found for project ${context.projectName}. Use --version, --firstRelease, or configure version in project files.` };
+      } else {
+        // Regular mode (CI/CD, affected, etc.): Skip with warning instead of failing
+        logger.warn(`⚠️  Skipping project '${context.projectName}': No version found`);
+        logger.info('💡 To version this project, use --firstRelease flag or configure version in project files');
+        return { success: true, skipped: true, reason: 'No version found' };
+      }
+    }
 
     // If firstRelease option is set, use fallback logic
     if (options.firstRelease) {
@@ -409,8 +462,11 @@ async function versionSingleProject(options: VersionExecutorSchema, context: Exe
         newVersion = semver.inc(currentVersion, options.releaseAs) || currentVersion;
       }
     } else {
+      // Automatic mode - analyze commits to determine version bump
       const recommendedReleaseType = await analyzeConventionalCommits(context);
-      if (recommendedReleaseType) {
+
+      if (recommendedReleaseType && recommendedReleaseType !== 'none' && recommendedReleaseType !== 'not-affected') {
+        // Found conventional commits (feat/fix/breaking)
         if (isFirstRelease) {
           const baseVersion = recommendedReleaseType === 'major' ? '1.0.0' :
                             recommendedReleaseType === 'minor' ? '0.1.0' : '0.0.1';
@@ -423,8 +479,25 @@ async function versionSingleProject(options: VersionExecutorSchema, context: Exe
             newVersion = semver.inc(currentVersion, recommendedReleaseType) || currentVersion;
           }
         }
-      } else {
+      } else if (recommendedReleaseType === 'none') {
+        // Has commits affecting this project, but no conventional feat/fix/breaking commits
+        logger.warn('⚠️  No conventional commits (feat/fix/breaking) found since last release');
+        logger.info('💡 Defaulting to patch bump (use --releaseAs to specify different bump type)');
         newVersion = semver.inc(currentVersion, 'patch') || currentVersion;
+      } else if (recommendedReleaseType === 'not-affected') {
+        // Has commits, but none affect this project (monorepo)
+        // Just return current version (no bump, no release)
+        logger.info(`ℹ️  Project '${context.projectName}' not affected by recent changes`);
+        logger.info('💡 Skipping version bump (use --releaseAs to force a bump)');
+        return { success: true, skipped: true, reason: 'Project not affected by recent changes', version: currentVersion };
+      } else {
+        // No commits at all - don't bump, require explicit intent
+        throw new Error(
+          'No commits found since last release.\n' +
+          'To create a release anyway, use:\n' +
+          '  --releaseAs=patch/minor/major  (specify bump type)\n' +
+          '  --version=x.y.z  (set explicit version)'
+        );
       }
     }
 
@@ -433,8 +506,8 @@ async function versionSingleProject(options: VersionExecutorSchema, context: Exe
     // Determine target file path if not set
     const targetFilePath = versionInfo.filePath || path.join(context.root, projectRoot, options.versionFiles?.[0] || options.versionFile || 'project.json');
 
-    // Show detailed information if requested
-    if (options.show) {
+    // Preview detailed information if requested
+    if (options.preview) {
       await showVersionChanges(context, projectRoot, options, currentVersion, newVersion, { version: versionInfo.version, filePath: targetFilePath });
       return { success: true, version: newVersion };
     }
@@ -483,11 +556,37 @@ async function versionSingleProject(options: VersionExecutorSchema, context: Exe
     const lockFileUpdated = await updateLockFiles(context, options);
 
     // Check ciOnly restriction before any git operations
-    const hasGitOperations = shouldCommit || shouldTag || shouldPush || options.githubRelease;
+    const hasGitOperations = shouldCommit || shouldTag || shouldPush || options.githubRelease || options.createReleaseBranch;
     if (options.ciOnly && hasGitOperations && !process.env.CI) {
       logger.error('❌ Git operations are restricted to CI/CD environments only (ciOnly: true)');
       logger.info('💡 Set CI environment variable or disable ciOnly to run locally');
       return { success: false };
+    }
+
+    // Create release branch if requested
+    let releaseBranchName = '';
+    if (options.createReleaseBranch) {
+      try {
+        // Get current branch
+        const currentBranch = execSync('git rev-parse --abbrev-ref HEAD', {
+          cwd: context.root,
+          encoding: 'utf-8'
+        }).trim();
+
+        // Generate release branch name (default: semver only)
+        releaseBranchName = options.releaseBranchName || `release/v${newVersion}`;
+        releaseBranchName = releaseBranchName
+          .replace(/{version}/g, newVersion)
+          .replace(/{projectName}/g, context.projectName)
+          .replace(/{tag}/g, generateTagName(context.projectName, newVersion, options));
+
+        // Create and checkout release branch
+        execSync(`git checkout -b ${releaseBranchName}`, { cwd: context.root });
+        logger.info(`✅ Created release branch: ${releaseBranchName} (from ${currentBranch})`);
+      } catch (error) {
+        logger.error(`❌ Failed to create release branch: ${error instanceof Error ? error.message : String(error)}`);
+        throw error;
+      }
     }
 
     // Stage changes if requested
@@ -568,17 +667,33 @@ async function versionSingleProject(options: VersionExecutorSchema, context: Exe
 
     // Push to remote if requested
     if (shouldPush) {
+      // Add warning about push operation
+      const ciPlatform = getCIPlatform();
+      if (ciPlatform) {
+        logger.warn(`⚠️  About to push to remote (running in ${ciPlatform})`);
+      } else if (!options.ciOnly) {
+        logger.warn(`⚠️  About to push to remote from local environment`);
+        logger.warn(`💡 Consider setting ciOnly: true to prevent accidental local pushes`);
+      }
+
       try {
         const remote = options.gitRemote || 'origin';
         let pushCmd = `git push ${remote}`;
 
-        // Push commits and/or tags
-        if (shouldCommit) {
-          pushCmd += ` HEAD`;
-        }
-        if (shouldTag) {
-          const tag = generateTagName(context.projectName, newVersion, options);
-          pushCmd += ` ${tag}`;
+        // Push release branch or commits and/or tags
+        if (options.createReleaseBranch && releaseBranchName) {
+          // Push the release branch with upstream tracking
+          pushCmd += ` ${releaseBranchName} -u`;
+          logger.info(`Pushing release branch: ${releaseBranchName}`);
+        } else {
+          // Original behavior: push commits and/or tags
+          if (shouldCommit) {
+            pushCmd += ` HEAD`;
+          }
+          if (shouldTag) {
+            const tag = generateTagName(context.projectName, newVersion, options);
+            pushCmd += ` ${tag}`;
+          }
         }
 
         if (options.gitPushArgs) {
@@ -590,6 +705,16 @@ async function versionSingleProject(options: VersionExecutorSchema, context: Exe
       } catch (error) {
         logger.error(`❌ Failed to push: ${error instanceof Error ? error.message : String(error)}`);
         throw error;
+      }
+    }
+
+    // Create pull request if requested
+    if (options.createPR && options.createReleaseBranch && releaseBranchName) {
+      try {
+        await createPullRequest(context, releaseBranchName, newVersion, options);
+      } catch (error) {
+        logger.error(`❌ Failed to create PR: ${error instanceof Error ? error.message : String(error)}`);
+        // Don't fail the entire release if PR creation fails
       }
     }
 
@@ -781,15 +906,35 @@ async function calculateNewVersionForProject(projectName: string, options: Versi
     return semver.inc(currentVersion, options.releaseAs) || currentVersion;
   } else {
     const recommendedReleaseType = await analyzeConventionalCommits(context);
-    if (recommendedReleaseType) {
+
+    if (recommendedReleaseType && recommendedReleaseType !== 'none' && recommendedReleaseType !== 'not-affected') {
+      // Found conventional commits (feat/fix/breaking)
       if (isFirstRelease) {
         return recommendedReleaseType === 'major' ? '1.0.0' :
                recommendedReleaseType === 'minor' ? '0.1.0' : '0.0.1';
       } else {
         return semver.inc(currentVersion, recommendedReleaseType) || currentVersion;
       }
-    } else {
+    } else if (recommendedReleaseType === 'none') {
+      // Has commits affecting this project, but no conventional feat/fix/breaking commits
+      // User made changes (chore/test/docs/etc), so bump is reasonable
+      logger.warn('⚠️  No conventional commits (feat/fix/breaking) found since last release');
+      logger.info('💡 Defaulting to patch bump (use --releaseAs to specify different bump type)');
       return semver.inc(currentVersion, 'patch') || currentVersion;
+    } else if (recommendedReleaseType === 'not-affected') {
+      // Has commits, but none affect this project (monorepo)
+      // Just return current version (no bump, no release)
+      logger.info(`ℹ️  Project '${projectName}' not affected by recent changes`);
+      logger.info('💡 Skipping version bump (use --releaseAs to force a bump)');
+      return currentVersion; // Return without bumping
+    } else {
+      // No commits at all - don't bump, require explicit intent
+      throw new Error(
+        'No commits found since last release.\n' +
+        'To create a release anyway, use:\n' +
+        '  --releaseAs=patch/minor/major  (specify bump type)\n' +
+        '  --version=x.y.z  (set explicit version)'
+      );
     }
   }
 }
@@ -979,7 +1124,12 @@ function generateConventionalCommitMessage(projectName: string, version: string,
 }
 
 // Enhanced commit analysis with skip/target syntax support
-async function analyzeConventionalCommits(context: ExecutorContext): Promise<semver.ReleaseType | null> {
+// Returns:
+//   - ReleaseType (major/minor/patch) - Found conventional commits
+//   - 'none' - Has relevant commits but no conventional ones
+//   - 'not-affected' - Has commits but none affect this project
+//   - null - No commits at all
+async function analyzeConventionalCommits(context: ExecutorContext): Promise<semver.ReleaseType | null | 'none' | 'not-affected'> {
   try {
     let gitCommand = 'git log --format="%s" --no-merges';
 
@@ -1003,15 +1153,54 @@ async function analyzeConventionalCommits(context: ExecutorContext): Promise<sem
       stdio: 'pipe'
     }).trim();
 
+    // No commits at all since last tag
     if (!commits) return null;
 
     const commitLines = commits.split('\n').filter(line => line.trim());
     const projectName = context.projectName || '';
 
-    // Filter commits using enhanced syntax
-    const relevantCommits = filterCommitsForProject(commitLines, projectName);
+    // Check if project is actually affected using nx affected
+    // This is more accurate than git diff as it understands Nx dependencies
+    let isProjectAffected = false;
+    try {
+      // Determine base commit (last tag or HEAD)
+      let baseRef = 'HEAD';
+      try {
+        const lastTag = execSync(`git tag --list --sort=-version:refname | grep -E "^${projectName}-v|^v" | head -1`, {
+          cwd: context.root,
+          encoding: 'utf8',
+          stdio: 'pipe'
+        }).trim();
 
-    if (relevantCommits.length === 0) return null;
+        if (lastTag) {
+          baseRef = lastTag;
+        }
+      } catch {
+        // No previous tags found
+      }
+
+      // Use nx show projects --affected to check if this project is affected
+      const affectedOutput = execSync(
+        `npx nx show projects --affected --base=${baseRef} --head=HEAD`,
+        {
+          cwd: context.root,
+          encoding: 'utf8',
+          stdio: 'pipe'
+        }
+      ).trim();
+
+      const affectedProjects = affectedOutput.split('\n').filter(p => p.trim());
+      isProjectAffected = affectedProjects.includes(projectName);
+    } catch {
+      // If nx affected fails, assume project is affected (safer)
+      isProjectAffected = true;
+    }
+
+    // Has commits, but this project is not affected (monorepo scenario)
+    if (!isProjectAffected) return 'not-affected';
+
+    // Filter commits using enhanced syntax (for commit message analysis)
+    const relevantCommits = filterCommitsForProject(commitLines, projectName);
 
     let hasBreaking = false;
     let hasFeature = false;
@@ -1032,7 +1221,8 @@ async function analyzeConventionalCommits(context: ExecutorContext): Promise<sem
     if (hasFeature) return 'minor';
     if (hasFix) return 'patch';
 
-    return null;
+    // Has commits, but no conventional feat/fix/breaking commits
+    return 'none';
   } catch {
     return null;
   }
@@ -1217,19 +1407,51 @@ async function showVersionChanges(
 
   // Git operations
   logger.info('🗂 Git Operations:');
-  if (!options.skipCommit) {
-    const commitMessage = generateConventionalCommitMessage(context.projectName, newVersion, !versionInfo.version || versionInfo.version === '0.0.0');
+  const shouldCommit = options.gitCommit ?? (options.skipCommit === false ? true : false);
+  const shouldTag = options.gitTag ?? (options.skipTag === false ? true : false);
+  const shouldPush = options.gitPush ?? false;
+
+  if (shouldCommit) {
+    const commitMessage = options.gitCommitMessage || generateConventionalCommitMessage(context.projectName, newVersion, !versionInfo.version || versionInfo.version === '0.0.0');
     logger.info(`  ✓ Commit: "${commitMessage}"`);
   } else {
     logger.info(`  ⊘ Commit: Skipped`);
   }
 
-  if (!options.skipTag) {
+  if (shouldTag) {
     const tag = generateTagName(context.projectName, newVersion, options);
+    const tagMsg = options.gitTagMessage || tag;
     logger.info(`  ✓ Tag: ${tag}`);
+    if (options.gitTagMessage) {
+      logger.info(`    Message: "${tagMsg}"`);
+    }
   } else {
     logger.info(`  ⊘ Tag: Skipped`);
   }
+
+  if (shouldPush) {
+    const remote = options.gitRemote || 'origin';
+    logger.info(`  ✓ Push: ${remote}`);
+  } else {
+    logger.info(`  ⊘ Push: Skipped`);
+  }
+
+  // Release branch
+  if (options.createReleaseBranch) {
+    const branchName = options.releaseBranchName || `release/v${newVersion}`;
+    logger.info(`  ✓ Release branch: ${branchName}`);
+    if (options.createPR) {
+      const prTitle = options.prTitle || `chore(release): ${context.projectName} v${newVersion}`;
+      logger.info(`    → Create PR: "${prTitle}"`);
+    }
+  }
+
+  // Merge after release
+  if (options.mergeAfterRelease && options.mergeToBranches && options.mergeToBranches.length > 0) {
+    logger.info(`  ✓ Merge to: ${options.mergeToBranches.join(', ')}`);
+    logger.info(`    Strategy: ${options.mergeStrategy || 'merge'}`);
+  }
+
   logger.info('');
 
   // Configuration source
@@ -1291,6 +1513,106 @@ async function showVersionChanges(
   logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   logger.info('💡 Use --dryRun to preview without showing this detailed analysis');
   logger.info('');
+}
+
+async function createPullRequest(
+  context: ExecutorContext,
+  branchName: string,
+  version: string,
+  options: VersionExecutorSchema
+): Promise<void> {
+  logger.info(`📝 Creating pull request for ${branchName}...`);
+
+  try {
+    // Check if gh CLI is installed
+    try {
+      execSync('gh --version', { stdio: 'pipe' });
+    } catch {
+      throw new Error('GitHub CLI (gh) is not installed. Install it from https://cli.github.com/');
+    }
+
+    // Detect base branch (main or master)
+    let baseBranch = options.prBaseBranch;
+    if (!baseBranch) {
+      try {
+        const mainExists = execSync('git rev-parse --verify main', {
+          cwd: context.root,
+          stdio: 'pipe'
+        });
+        baseBranch = 'main';
+      } catch {
+        baseBranch = 'master'; // Fallback to master
+      }
+    }
+
+    // Build PR title
+    const prTitle = options.prTitle || `chore(release): {projectName} v{version}`;
+    const interpolatedTitle = prTitle
+      .replace(/{version}/g, version)
+      .replace(/{projectName}/g, context.projectName || '')
+      .replace(/{tag}/g, generateTagName(context.projectName || '', version, options));
+
+    // Build PR body
+    let prBody = options.prBody || '';
+    if (!prBody) {
+      // Generate default PR body
+      prBody = `## Release ${version}\n\nThis PR contains version bump changes for ${context.projectName} v${version}.\n\n### Changes\n- Updated version to ${version}\n- Updated lock files\n\n---\n*This PR was created automatically by nx-project-release*`;
+    }
+
+    // Try to read changelog for PR body
+    if (prBody.includes('{changelog}')) {
+      const projectRoot = context.projectsConfigurations?.projects[context.projectName]?.root || context.projectName;
+      const changelogPath = path.join(context.root, projectRoot, 'CHANGELOG.md');
+
+      let changelog = '';
+      if (fs.existsSync(changelogPath)) {
+        const changelogContent = fs.readFileSync(changelogPath, 'utf8');
+        // Extract the latest release section
+        const sections = changelogContent.split(/^#+ /m);
+        if (sections.length > 1) {
+          changelog = sections[1].trim();
+        }
+      }
+      prBody = prBody.replace(/{changelog}/g, changelog);
+    }
+
+    // Interpolate placeholders
+    prBody = prBody
+      .replace(/{version}/g, version)
+      .replace(/{projectName}/g, context.projectName || '')
+      .replace(/{tag}/g, generateTagName(context.projectName || '', version, options));
+
+    // Write PR body to temp file to avoid shell escaping issues
+    const tempFile = path.join(context.root, '.gh-pr-body.tmp');
+    fs.writeFileSync(tempFile, prBody);
+
+    // Build gh pr create command
+    let prCmd = `gh pr create --title "${interpolatedTitle}" --body-file "${tempFile}" --base ${baseBranch}`;
+
+    if (options.prDraft) {
+      prCmd += ` --draft`;
+    }
+
+    if (options.prLabels) {
+      const labels = options.prLabels.split(',').map(l => l.trim()).join(',');
+      prCmd += ` --label "${labels}"`;
+    }
+
+    const prUrl = execSync(prCmd, {
+      cwd: context.root,
+      encoding: 'utf-8',
+      stdio: 'pipe'
+    }).trim();
+
+    // Clean up temp file
+    if (fs.existsSync(tempFile)) {
+      fs.unlinkSync(tempFile);
+    }
+
+    logger.info(`✅ Created pull request: ${prUrl}`);
+  } catch (error) {
+    throw new Error(`Failed to create PR: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 async function createGitHubRelease(

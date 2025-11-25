@@ -1,2 +1,2 @@
 // Placeholder for public API exports
-// Version 1.0.8 - Stable release with ESM module resolution fixes
+// Version 0.0.0 - Initial unscoped package (awaiting first release)

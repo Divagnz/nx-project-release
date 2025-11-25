@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema",
   "title": "Publish Executor",
-  "description": "Polyglot package publishing to npm, Nexus, or custom registries for any project type",
+  "description": "Polyglot package publishing to npm, Nexus, S3, or custom registries for any project type",
   "type": "object",
   "properties": {
     "dryRun": {
@@ -11,13 +11,13 @@
     },
     "registry": {
       "type": "string",
-      "description": "Registry URL to publish to"
+      "description": "Registry URL to publish to (for NPM and custom registries)"
     },
     "registryType": {
       "type": "string",
-      "enum": ["npm", "nexus", "custom"],
+      "enum": ["npm", "nexus", "s3", "custom"],
       "default": "npm",
-      "description": "Type of registry"
+      "description": "Type of registry to publish to"
     },
     "distTag": {
       "type": "string",
@@ -28,7 +28,7 @@
       "type": "string",
       "enum": ["public", "restricted"],
       "default": "public",
-      "description": "Package access level"
+      "description": "Package access level (for NPM)"
     },
     "buildTarget": {
       "type": "string",
@@ -46,6 +46,61 @@
     "otp": {
       "type": "string",
       "description": "One-time password for npm 2FA"
+    },
+    "pathStrategy": {
+      "type": "string",
+      "enum": ["version", "hash", "flat"],
+      "default": "version",
+      "description": "Path strategy for artifact uploads (Nexus/S3). 'version' uses semver (1.2.3/file.tgz), 'hash' uses file hash, 'flat' no subdirectories"
+    },
+    "skipExisting": {
+      "type": "boolean",
+      "default": true,
+      "description": "Skip upload if artifact already exists in registry (Nexus/S3)"
+    },
+    "nexusUrl": {
+      "type": "string",
+      "description": "Nexus repository URL (e.g., https://nexus.example.com). Can be set via NEXUS_URL env var"
+    },
+    "nexusRepository": {
+      "type": "string",
+      "description": "Nexus repository name (e.g., 'raw-releases'). Can be set via NEXUS_REPOSITORY env var"
+    },
+    "nexusUsername": {
+      "type": "string",
+      "description": "Nexus username for Basic Auth. Can be set via NEXUS_USERNAME env var"
+    },
+    "nexusPassword": {
+      "type": "string",
+      "description": "Nexus password for Basic Auth. Can be set via NEXUS_PASSWORD env var"
+    },
+    "s3Bucket": {
+      "type": "string",
+      "description": "S3 bucket name. Can be set via S3_BUCKET env var"
+    },
+    "s3Prefix": {
+      "type": "string",
+      "description": "S3 key prefix (e.g., 'artifacts/'). Can be set via S3_PREFIX env var"
+    },
+    "s3Region": {
+      "type": "string",
+      "description": "AWS region (e.g., 'us-east-1'). Can be set via AWS_REGION env var"
+    },
+    "awsAccessKeyId": {
+      "type": "string",
+      "description": "AWS access key ID (optional - if not provided, uses IAM/OIDC). Can be set via AWS_ACCESS_KEY_ID env var"
+    },
+    "awsSecretAccessKey": {
+      "type": "string",
+      "description": "AWS secret access key (optional - if not provided, uses IAM/OIDC). Can be set via AWS_SECRET_ACCESS_KEY env var"
+    },
+    "awsSessionToken": {
+      "type": "string",
+      "description": "AWS session token for temporary credentials (optional). Can be set via AWS_SESSION_TOKEN env var"
+    },
+    "npmScope": {
+      "type": "string",
+      "description": "NPM scope override (advanced - normally read from package.json). Use format '@scope' with leading @"
     }
   }
 }

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "$id": "ResetConfig",
+  "title": "Reset nx-project-release configuration",
+  "description": "Remove all nx-project-release configuration from the workspace",
+  "type": "object",
+  "properties": {
+    "skipConfirmation": {
+      "type": "boolean",
+      "description": "Skip confirmation prompt",
+      "default": false,
+      "x-prompt": "Skip confirmation and remove all configuration?"
+    },
+    "removeHooks": {
+      "type": "boolean",
+      "description": "Remove git hooks added by nx-project-release (only removes plugin-specific hooks, preserves existing hooks)",
+      "default": false,
+      "x-prompt": "Remove nx-project-release git hooks? (preserves other hooks)"
+    }
+  }
+}
