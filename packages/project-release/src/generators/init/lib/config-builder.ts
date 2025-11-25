@@ -120,7 +120,7 @@ export function updateNxJsonConfiguration(tree: Tree, answers: ConfigAnswers): v
   Object.assign(nxJson.targetDefaults, newTargetDefaults);
 
   // Add projectRelease configuration section if tag naming or release groups are configured
-  if (answers.configureTagNaming || answers.configureReleaseGroups) {
+  if (answers.configureTagNaming || answers.configureReleaseGroups || answers.useReleaseGroups) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const nxJsonAny = nxJson as any;
 
@@ -137,7 +137,25 @@ export function updateNxJsonConfiguration(tree: Tree, answers: ConfigAnswers): v
       logger.info('✅ Added tag naming configuration to nx.json');
     }
 
-    // Add release groups configuration
+    // Add release groups configuration (new format)
+    if (answers.useReleaseGroups && answers.releaseGroups && answers.releaseGroups.length > 0) {
+      nxJsonAny.projectRelease.groups = {};
+
+      for (const group of answers.releaseGroups) {
+        nxJsonAny.projectRelease.groups[group.groupName] = {
+          registryType: group.registryType,
+          registryUrl: group.registryUrl,
+          versionStrategy: group.versionStrategy,
+          versionFiles: group.versionFiles,
+          pathStrategy: group.pathStrategy,
+          projects: group.projects
+        };
+      }
+
+      logger.info(`✅ Added ${answers.releaseGroups.length} release groups to nx.json`);
+    }
+
+    // Add release groups configuration (legacy format - for backward compatibility)
     if (answers.configureReleaseGroups && answers.releaseGroupsConfig) {
       nxJsonAny.projectRelease.releaseGroups = {};
 
@@ -164,6 +182,16 @@ export function updateNxJsonConfiguration(tree: Tree, answers: ConfigAnswers): v
 }
 
 export function addTargetsToProjects(tree: Tree, answers: ConfigAnswers): void {
+  // Build a map of project name to group name
+  const projectToGroup = new Map<string, string>();
+  if (answers.releaseGroups) {
+    for (const group of answers.releaseGroups) {
+      for (const projectName of group.projects) {
+        projectToGroup.set(projectName, group.groupName);
+      }
+    }
+  }
+
   for (const projectName of answers.selectedProjects) {
     try {
       const projectConfig = readProjectConfiguration(tree, projectName);
@@ -172,11 +200,16 @@ export function addTargetsToProjects(tree: Tree, answers: ConfigAnswers): void {
         projectConfig.targets = {};
       }
 
+      // Get the release group for this project
+      const groupName = projectToGroup.get(projectName);
+      const groupOptions = groupName ? { releaseGroup: groupName } : {};
+
       if (answers.executorType === 'individual') {
         // Add individual executor targets
         projectConfig.targets.version = {
-          executor: 'nx-project-release:version'
-          // Inherits options from nx.json targetDefaults
+          executor: 'nx-project-release:version',
+          options: groupOptions
+          // Inherits other options from nx.json targetDefaults
         };
 
         projectConfig.targets.changelog = {
@@ -191,12 +224,14 @@ export function addTargetsToProjects(tree: Tree, answers: ConfigAnswers): void {
         // Add all-in-one executor target
         projectConfig.targets['project-release'] = {
           executor: 'nx-project-release:project-release',
-          dependsOn: [answers.buildTarget]
+          dependsOn: [answers.buildTarget],
+          options: groupOptions
         };
       }
 
       updateProjectConfiguration(tree, projectName, projectConfig);
-      logger.info(`✅ Added release targets to ${projectName}`);
+      const groupInfo = groupName ? ` (group: ${groupName})` : '';
+      logger.info(`✅ Added release targets to ${projectName}${groupInfo}`);
     } catch (error) {
       logger.warn(`⚠️  Could not update project ${projectName}: ${error.message}`);
     }

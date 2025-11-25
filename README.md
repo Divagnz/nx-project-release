@@ -39,12 +39,15 @@ nx g nx-project-release:init
 ```
 
 The init generator will guide you through:
-- ✅ Executor setup (individual or all-in-one)
-- ✅ Version detection strategy (git tags, files, or registry)
 - ✅ Git operations (commit, tag, CI-only mode)
-- ✅ Changelog configuration
-- ✅ Publishing setup (registry type, dist tags)
-- ✅ Git hooks and GitHub workflows
+- ✅ Changelog configuration (conventional commits preset)
+- ✅ Publishing setup (npm access, dist tags, build target)
+- ✅ Tag naming configuration
+- ✅ Configuration location (nx.json, project.json, or both)
+- ✅ Git hooks setup (pre-commit, pre-push)
+- ✅ GitHub workflows setup (optional)
+- ✅ Release groups creation (registry, version strategy, files)
+- ✅ Project assignment (assign each project to a group or skip)
 
 ### First Release
 
@@ -312,6 +315,147 @@ nx run my-project:version \
 - `--mergeAfterRelease` - Enable branch sync
 - `--mergeToBranches` - Target branches (array)
 - `--mergeStrategy` - `merge | squash | rebase` (default: `merge`)
+
+## 📦 Release Groups
+
+**Release groups** are configuration templates that organize projects by type, registry, or deployment target. They simplify setup by letting you define shared settings once and assign multiple projects to them.
+
+### What Are Release Groups?
+
+Release groups define:
+- **Registry settings** - Where to publish (npm, Nexus, S3, or no publishing)
+- **Version strategy** - How to determine current version (git tags, files, registry)
+- **Version files** - Which files to update (package.json, project.json, version.txt)
+- **Path strategy** - How to organize artifacts (for Nexus/S3)
+
+### Release Groups vs syncVersions
+
+These are two **different** concepts:
+
+| Concept | Purpose | Example |
+|---------|---------|---------|
+| **Release Groups** | Configuration templates | "backend-services" → Nexus registry<br>"npm-libraries" → npm registry<br>"frontend-apps" → no publishing |
+| **syncVersions** | Version number synchronization | `true`: All projects share one version (1.2.3)<br>`false`: Each project has independent versions |
+
+**Key distinction:**
+- Release groups = **WHERE/HOW** to release (registry, files, strategy)
+- syncVersions = **VERSION NUMBERS** stay in sync or not
+
+### Example Setup
+
+```bash
+# During init, you create release groups:
+? Release group name: backend-services
+? Publish artifacts to a registry? Yes
+? Registry type: Nexus Repository
+? Version strategy: Git tags
+? Version files: project.json
+
+? Release group name: npm-libraries
+? Publish artifacts to a registry? Yes
+? Registry type: NPM Registry
+? Version strategy: Git tags
+? Version files: package.json
+
+? Release group name: internal-tools
+? Publish artifacts to a registry? No (version-only)
+```
+
+Then assign projects:
+
+```
+📋 Assign Projects to Release Groups
+
+  1: backend-services (nexus)
+  2: npm-libraries (npm)
+  3: internal-tools (none)
+  X: Skip (no release)
+
+api-service (app): 1
+shared-lib (lib): 2
+user-service (app): 1
+build-tool (lib): 3
+```
+
+Result:
+- `api-service` + `user-service` → publish to Nexus, independent versions
+- `shared-lib` → publish to npm, independent versions
+- `build-tool` → version only (no publishing), independent versions
+
+### How Release Groups Are Stored
+
+**Release groups are persisted in nx.json** for easy management and visibility:
+
+```json
+{
+  "projectRelease": {
+    "groups": {
+      "backend-services": {
+        "registryType": "nexus",
+        "registryUrl": "https://nexus.company.com/repository/raw-releases",
+        "versionStrategy": "git-tag",
+        "versionFiles": ["project.json"],
+        "pathStrategy": "version",
+        "projects": ["api-service", "user-service", "auth-service"]
+      },
+      "npm-libraries": {
+        "registryType": "npm",
+        "versionFiles": ["package.json"],
+        "projects": ["shared-lib", "utils-lib"]
+      },
+      "internal-tools": {
+        "registryType": "none",
+        "versionStrategy": "git-tag",
+        "versionFiles": ["project.json"],
+        "projects": ["build-scripts", "dev-tools"]
+      }
+    }
+  }
+}
+```
+
+Each project references its group in `project.json`:
+
+```json
+{
+  "targets": {
+    "version": {
+      "executor": "nx-project-release:version",
+      "options": {
+        "releaseGroup": "backend-services"
+      }
+    }
+  }
+}
+```
+
+**Managing Groups:**
+
+1. **View structure** - All groups visible in nx.json
+2. **Add projects** - Edit nx.json, add project name to group's `projects` array, then add `releaseGroup` to project.json
+3. **Update settings** - Change group settings once in nx.json, affects all projects in that group
+4. **Remove projects** - Delete from `projects` array and remove `releaseGroup` from project.json
+
+**Example: Adding a new project to existing group**
+
+```bash
+# 1. Edit nx.json - add to projects array
+"backend-services": {
+  "projects": ["api-service", "user-service", "new-service"] // ← add here
+}
+
+# 2. Edit packages/new-service/project.json - add releaseGroup reference
+{
+  "targets": {
+    "version": {
+      "executor": "nx-project-release:version",
+      "options": {
+        "releaseGroup": "backend-services"  // ← add this
+      }
+    }
+  }
+}
+```
 
 ## ⚙️ Configuration
 

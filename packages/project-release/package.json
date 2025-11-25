@@ -1,6 +1,6 @@
 {
   "name": "nx-project-release",
-  "version": "0.0.5",
+  "version": "0.0.13",
   "description": "Polyglot Nx plugin for releasing any project type using project.json and conventional commits",
   "keywords": [
     "nx",

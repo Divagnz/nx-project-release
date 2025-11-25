@@ -51,6 +51,8 @@ export function getPublishableProjects(tree: Tree): string[] {
 export function getDefaultAnswers() {
   return {
     executorType: 'all-in-one' as const,
+    useReleaseGroups: false,
+    releaseGroups: undefined,
     selectedProjects: [],
     configLocation: 'both' as const,
     versionStrategy: 'git-tag' as const,

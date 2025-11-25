@@ -3,14 +3,26 @@ import Enquirer from 'enquirer';
 
 const { prompt } = Enquirer;
 
-export interface ConfigAnswers {
-  executorType: 'individual' | 'all-in-one';
-  selectedProjects: string[];
-  configLocation: 'nx-json' | 'project-json' | 'both';
-
-  // Version executor options
+export interface ReleaseGroup {
+  groupName: string;
+  registryType: 'npm' | 'nexus' | 's3' | 'github' | 'custom' | 'none';
+  registryUrl?: string;
   versionStrategy: 'git-tag' | 'disk' | 'registry';
   versionFiles: string[];
+  pathStrategy?: 'version' | 'hash' | 'flat';
+  tagPrefix?: string;
+  tagFormat?: string;
+  projects: string[];
+}
+
+export interface ConfigAnswers {
+  executorType: 'individual' | 'all-in-one';
+  useReleaseGroups: boolean;
+
+  // Release groups (if useReleaseGroups = true)
+  releaseGroups?: ReleaseGroup[];
+
+  // Global settings
   gitCommit: boolean;
   gitTag: boolean;
   ciOnly: boolean;
@@ -19,33 +31,16 @@ export interface ConfigAnswers {
   mergeStrategy: 'merge' | 'squash' | 'rebase';
   commitMessage: string;
   trackDeps: boolean;
-  syncVersions: boolean;
 
-  // Changelog executor options
+  // Changelog options
   preset: string;
   projectChangelogs: boolean;
   workspaceChangelog: boolean;
-
-  // Publish executor options
-  registryType: 'npm' | 'nexus' | 's3' | 'github' | 'custom';
-  registryUrl: string;
-  access: 'public' | 'restricted';
-  distTag: string;
-  buildTarget: string;
-  pathStrategy?: 'version' | 'hash' | 'flat';
 
   // Tag naming options
   configureTagNaming: boolean;
   tagPrefix: string;
   tagFormat: string;
-
-  // Release groups options
-  configureReleaseGroups: boolean;
-  releaseGroupsConfig?: {
-    groupName: string;
-    projectsPattern: string;
-    versioning: 'fixed' | 'independent';
-  }[];
 
   // Git hooks options
   setupHooks: boolean;
@@ -59,6 +54,25 @@ export interface ConfigAnswers {
   workflowType: 'single' | 'two-step' | 'none';
   createReleaseBranch: boolean;
   autoCreatePR: boolean;
+
+  // Legacy fields for backward compatibility
+  selectedProjects: string[];
+  configLocation: 'nx-json' | 'project-json' | 'both';
+  versionStrategy: 'git-tag' | 'disk' | 'registry';
+  versionFiles: string[];
+  syncVersions: boolean;
+  registryType: 'npm' | 'nexus' | 's3' | 'github' | 'custom' | 'none';
+  registryUrl: string;
+  access: 'public' | 'restricted';
+  distTag: string;
+  buildTarget: string;
+  pathStrategy?: 'version' | 'hash' | 'flat';
+  configureReleaseGroups: boolean;
+  releaseGroupsConfig?: {
+    groupName: string;
+    projectsPattern: string;
+    versioning: 'fixed' | 'independent';
+  }[];
 }
 
 export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
@@ -66,69 +80,10 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
   logger.info('🚀 Welcome to nx-project-release interactive setup!');
   logger.info('');
 
-  // 1. Executor type choice
-  const { executorType } = await prompt<{ executorType: 'individual' | 'all-in-one' }>({
-    type: 'select',
-    name: 'executorType',
-    message: 'How would you like to configure releases?',
-    choices: [
-      {
-        name: 'individual',
-        message: 'Individual executors (version, changelog, publish separately)',
-        hint: 'More granular control over each step'
-      },
-      {
-        name: 'all-in-one',
-        message: 'All-in-one executor (project-release for complete workflow)',
-        hint: 'Simpler setup, runs all steps together'
-      }
-    ]
-  });
-
-  // 2. Project selection
-  const projects = getProjects(tree);
-  const projectChoices = Array.from(projects.entries()).map(([name, config]) => {
-    const hasPackageJson = tree.exists(`${config.root}/package.json`);
-    return {
-      name,
-      message: hasPackageJson ? `${name} (publishable)` : name,
-      hint: hasPackageJson ? 'Has package.json' : undefined
-    };
-  });
-
-  const { selectedProjects } = await prompt<{ selectedProjects: string[] }>({
-    type: 'multiselect',
-    name: 'selectedProjects',
-    message: 'Select projects to configure for release:',
-    choices: projectChoices,
-    validate: (value) => value.length > 0 || 'Please select at least one project'
-  });
-
-  // 3. Version executor configuration
+  // 1. Global Git Configuration
   logger.info('');
-  logger.info('📋 Version Configuration');
+  logger.info('⚙️  Git Configuration');
   logger.info('');
-
-  const { versionStrategy } = await prompt<{ versionStrategy: 'git-tag' | 'disk' | 'registry' }>({
-    type: 'select',
-    name: 'versionStrategy',
-    message: 'How should the current version be determined?',
-    choices: [
-      { name: 'git-tag', message: 'Git tags (recommended)', hint: 'Read from latest git tag' },
-      { name: 'disk', message: 'Version files', hint: 'Read from package.json or other files' },
-      { name: 'registry', message: 'NPM registry', hint: 'Query npm registry for latest version' }
-    ]
-  });
-
-  const { versionFiles } = await prompt<{ versionFiles: string[] }>({
-    type: 'multiselect',
-    name: 'versionFiles',
-    message: 'Which files should be updated with the new version?',
-    // @ts-expect-error - enquirer types are incomplete
-    choices: ['package.json', 'project.json', 'version.txt'],
-    initial: [0], // Select package.json by default
-    validate: (value: string[]) => value.length > 0 || 'Please select at least one file'
-  });
 
   const { gitCommit } = await prompt<{ gitCommit: boolean }>({
     type: 'confirm',
@@ -228,7 +183,7 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     initial: false
   });
 
-  // 4. Changelog executor configuration
+  // 2. Changelog Configuration
   logger.info('');
   logger.info('📝 Changelog Configuration');
   logger.info('');
@@ -259,53 +214,7 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     initial: false
   });
 
-  // 5. Publish executor configuration
-  logger.info('');
-  logger.info('📦 Publish Configuration');
-  logger.info('');
-
-  const { registryType } = await prompt<{ registryType: 'npm' | 'nexus' | 's3' | 'github' | 'custom' }>({
-    type: 'select',
-    name: 'registryType',
-    message: 'Which registry type?',
-    choices: [
-      { name: 'npm', message: 'NPM Registry (default)', hint: 'Publish to npmjs.org or private npm registry' },
-      { name: 'nexus', message: 'Nexus Repository', hint: 'Upload artifacts to Sonatype Nexus (raw repository)' },
-      { name: 's3', message: 'AWS S3', hint: 'Upload artifacts to Amazon S3 bucket' },
-      { name: 'github', message: 'GitHub Packages', hint: 'Publish to GitHub npm registry' },
-      { name: 'custom', message: 'Custom Registry', hint: 'Use a custom npm-compatible registry' }
-    ]
-  });
-
-  let registryUrl = 'https://registry.npmjs.org';
-  if (registryType === 'github') {
-    registryUrl = 'https://npm.pkg.github.com';
-  } else if (registryType === 'custom') {
-    const response = await prompt<{ registryUrl: string }>({
-      type: 'input',
-      name: 'registryUrl',
-      message: 'Custom registry URL:',
-      initial: 'https://registry.npmjs.org'
-    });
-    registryUrl = response.registryUrl;
-  }
-
-  // Path strategy for Nexus/S3
-  let pathStrategy: 'version' | 'hash' | 'flat' | undefined;
-  if (registryType === 'nexus' || registryType === 's3') {
-    const { selectedPathStrategy } = await prompt<{ selectedPathStrategy: 'version' | 'hash' | 'flat' }>({
-      type: 'select',
-      name: 'selectedPathStrategy',
-      message: 'Artifact path strategy:',
-      choices: [
-        { name: 'version', message: 'Version-based (recommended)', hint: 'e.g., 1.2.3/artifact.tgz' },
-        { name: 'hash', message: 'Hash-based', hint: 'e.g., abc123.../artifact.tgz (when semver not available)' },
-        ...(registryType === 's3' ? [{ name: 'flat' as const, message: 'Flat', hint: 'No subdirectories, just filename' }] : [])
-      ]
-    });
-    pathStrategy = selectedPathStrategy;
-  }
-
+  // 3. NPM Configuration
   const { access } = await prompt<{ access: 'public' | 'restricted' }>({
     type: 'select',
     name: 'access',
@@ -336,7 +245,7 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     initial: 'build'
   });
 
-  // 6. Tag Naming Configuration
+  // 4. Tag Naming Configuration
   logger.info('');
   logger.info('🏷️  Tag Naming Configuration');
   logger.info('');
@@ -374,72 +283,7 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     tagFormat = tagFormatResponse.tagFormat;
   }
 
-  // 7. Release Groups Configuration
-  logger.info('');
-  logger.info('📦 Release Groups Configuration');
-  logger.info('');
-
-  const { configureReleaseGroups } = await prompt<{ configureReleaseGroups: boolean }>({
-    type: 'confirm',
-    name: 'configureReleaseGroups',
-    message: 'Set up release groups for organized versioning?',
-    initial: false
-  });
-
-  let releaseGroupsConfig: { groupName: string; projectsPattern: string; versioning: 'fixed' | 'independent' }[] | undefined;
-
-  if (configureReleaseGroups) {
-    logger.info('');
-    logger.info('Release groups allow you to organize projects with different versioning strategies.');
-    logger.info('Examples: backend (api, server), frontend (web-*, mobile-*), libs (libs/*)');
-    logger.info('');
-
-    releaseGroupsConfig = [];
-    let addMore = true;
-
-    while (addMore) {
-      const groupName = await prompt<{ groupName: string }>({
-        type: 'input',
-        name: 'groupName',
-        message: 'Release group name:',
-        validate: (value: string) => value.length > 0 || 'Group name is required'
-      });
-
-      const projectsPattern = await prompt<{ projectsPattern: string }>({
-        type: 'input',
-        name: 'projectsPattern',
-        message: 'Projects pattern (comma-separated, e.g., "api,server" or "web-*,mobile-*"):',
-        validate: (value: string) => value.length > 0 || 'At least one pattern is required'
-      });
-
-      const versioning = await prompt<{ versioning: 'fixed' | 'independent' }>({
-        type: 'select',
-        name: 'versioning',
-        message: 'Versioning strategy for this group:',
-        choices: [
-          { name: 'fixed', message: 'Fixed (all projects share the same version)', hint: 'Synchronized releases' },
-          { name: 'independent', message: 'Independent (each project has its own version)', hint: 'Separate releases' }
-        ]
-      });
-
-      releaseGroupsConfig.push({
-        groupName: groupName.groupName,
-        projectsPattern: projectsPattern.projectsPattern,
-        versioning: versioning.versioning
-      });
-
-      const addAnother = await prompt<{ addAnother: boolean }>({
-        type: 'confirm',
-        name: 'addAnother',
-        message: 'Add another release group?',
-        initial: false
-      });
-
-      addMore = addAnother.addAnother;
-    }
-  }
-
-  // 8. Configuration location
+  // 5. Configuration Location
   logger.info('');
   logger.info('⚙️  Configuration Location');
   logger.info('');
@@ -467,7 +311,7 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     ]
   });
 
-  // 9. Git Hooks Setup
+  // 6. Git Hooks Setup
   logger.info('');
   logger.info('🪝 Git Hooks Setup');
   logger.info('');
@@ -519,7 +363,7 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     enablePrePush = selectedHooks.includes('pre-push');
   }
 
-  // 10. GitHub Workflows Setup
+  // 7. GitHub Workflows Setup
   logger.info('');
   logger.info('🔄 GitHub Workflows Setup');
   logger.info('');
@@ -565,12 +409,225 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     }
   }
 
+  // 8. Create Release Groups
+  logger.info('');
+  logger.info('📦 Create Release Groups');
+  logger.info('');
+  logger.info('Release groups are configuration templates that organize projects');
+  logger.info('by type, registry, or deployment target.');
+  logger.info('');
+  logger.info('Examples:');
+  logger.info('  • "backend-services" → Nexus, project.json versions');
+  logger.info('  • "npm-libraries" → npm registry, package.json + git tags');
+  logger.info('  • "frontend-apps" → No publishing, git tags only');
+  logger.info('');
+  logger.info('Note: All projects always version independently based on their commits.');
+  logger.info('');
+
+  const releaseGroups: ReleaseGroup[] = [];
+  let addMore = true;
+
+  while (addMore) {
+      // Group name
+      const { groupName } = await prompt<{ groupName: string }>({
+        type: 'input',
+        name: 'groupName',
+        message: 'Release group name:',
+        validate: (value: string) => value.length > 0 || 'Group name is required'
+      });
+
+      // Do they want to publish artifacts?
+      const { shouldPublish } = await prompt<{ shouldPublish: boolean }>({
+        type: 'confirm',
+        name: 'shouldPublish',
+        message: `[${groupName}] Publish artifacts to a registry?`,
+        initial: true
+      });
+
+      // Registry type (only if publishing)
+      let registryType: 'npm' | 'nexus' | 's3' | 'github' | 'custom' | 'none' = 'none';
+
+      if (shouldPublish) {
+        const registryTypeResponse = await prompt<{ registryType: 'npm' | 'nexus' | 's3' | 'github' | 'custom' }>({
+          type: 'select',
+          name: 'registryType',
+          message: `[${groupName}] Registry type:`,
+          choices: [
+            { name: 'npm', message: 'NPM Registry', hint: 'Publish to npmjs.org or private npm registry' },
+            { name: 'nexus', message: 'Nexus Repository', hint: 'Upload artifacts to Sonatype Nexus (raw repository)' },
+            { name: 's3', message: 'AWS S3', hint: 'Upload artifacts to Amazon S3 bucket' },
+            { name: 'github', message: 'GitHub Packages', hint: 'Publish to GitHub npm registry' },
+            { name: 'custom', message: 'Custom Registry', hint: 'Use a custom npm-compatible registry' }
+          ]
+        });
+        registryType = registryTypeResponse.registryType;
+      } else {
+        logger.info('');
+        logger.info(`  Skipping registry configuration (version-only group)`);
+        logger.info('');
+      }
+
+      // Registry URL (if needed)
+      let registryUrl: string | undefined;
+      if (registryType === 'github') {
+        registryUrl = 'https://npm.pkg.github.com';
+      } else if (registryType === 'custom') {
+        const response = await prompt<{ registryUrl: string }>({
+          type: 'input',
+          name: 'registryUrl',
+          message: `[${groupName}] Custom registry URL:`,
+          initial: 'https://registry.npmjs.org'
+        });
+        registryUrl = response.registryUrl;
+      }
+
+      // Version strategy
+      const { versionStrategy } = await prompt<{ versionStrategy: 'git-tag' | 'disk' | 'registry' }>({
+        type: 'select',
+        name: 'versionStrategy',
+        message: `[${groupName}] How should the current version be determined?`,
+        choices: [
+          { name: 'git-tag', message: 'Git tags (recommended)', hint: 'Read from latest git tag' },
+          { name: 'disk', message: 'Version files', hint: 'Read from package.json or other files' },
+          { name: 'registry', message: 'NPM registry', hint: 'Query npm registry for latest version' }
+        ]
+      });
+
+      // Version files
+      const { versionFiles } = await prompt<{ versionFiles: string[] }>({
+        type: 'multiselect',
+        name: 'versionFiles',
+        message: `[${groupName}] Which files should be updated with the new version?`,
+        // @ts-expect-error - enquirer types are incomplete
+        choices: ['package.json', 'project.json', 'version.txt'],
+        initial: [0], // Select package.json by default
+        validate: (value: string[]) => value.length > 0 || 'Please select at least one file'
+      });
+
+      // Path strategy for Nexus/S3
+      let pathStrategy: 'version' | 'hash' | 'flat' | undefined;
+      if (registryType === 'nexus' || registryType === 's3') {
+        const { selectedPathStrategy } = await prompt<{ selectedPathStrategy: 'version' | 'hash' | 'flat' }>({
+          type: 'select',
+          name: 'selectedPathStrategy',
+          message: `[${groupName}] Artifact path strategy:`,
+          choices: [
+            { name: 'version', message: 'Version-based (recommended)', hint: 'e.g., 1.2.3/artifact.tgz' },
+            { name: 'hash', message: 'Hash-based', hint: 'e.g., abc123.../artifact.tgz (when semver not available)' },
+            ...(registryType === 's3' ? [{ name: 'flat' as const, message: 'Flat', hint: 'No subdirectories, just filename' }] : [])
+          ]
+        });
+        pathStrategy = selectedPathStrategy;
+      }
+
+      releaseGroups.push({
+        groupName,
+        registryType,
+        registryUrl,
+        versionStrategy,
+        versionFiles,
+        pathStrategy,
+        projects: [] // Will be populated when assigning projects
+      });
+
+      const { addAnother } = await prompt<{ addAnother: boolean }>({
+        type: 'confirm',
+        name: 'addAnother',
+        message: 'Add another release group?',
+        initial: false
+      });
+
+      addMore = addAnother;
+  }
+
+  // 9. Assign Projects to Groups
+  logger.info('');
+  logger.info('📋 Assign Projects to Release Groups');
+  logger.info('');
+  logger.info('For each project, type a group number or X to skip:');
+  logger.info('');
+
+  // Show available groups
+  releaseGroups.forEach((group, index) => {
+    logger.info(`  ${index + 1}: ${group.groupName} (${group.registryType})`);
+  });
+  logger.info(`  X: Skip (no release)`);
+  logger.info('');
+
+  const projects = getProjects(tree);
+  const projectList = Array.from(projects.entries()).map(([name, config]) => {
+    // Determine project type based on projectType field or path conventions
+    let projectType = 'lib'; // default
+    if (config.projectType === 'application') {
+      projectType = 'app';
+    } else if (config.projectType === 'library') {
+      projectType = 'lib';
+    } else if (config.root?.startsWith('apps/')) {
+      projectType = 'app';
+    } else if (config.root?.startsWith('libs/')) {
+      projectType = 'lib';
+    } else if (config.root?.startsWith('tools/')) {
+      projectType = 'tool';
+    }
+
+    const hasPackageJson = tree.exists(`${config.root}/package.json`);
+
+    return {
+      name,
+      projectType,
+      hasPackageJson
+    };
+  });
+
+  // Assign each project to a group
+  const selectedProjects: string[] = [];
+
+  for (const project of projectList) {
+    const validChoices = releaseGroups.map((_, index) => String(index + 1));
+    validChoices.push('X', 'x');
+
+    const { groupChoice } = await prompt<{ groupChoice: string }>({
+      type: 'input',
+      name: 'groupChoice',
+      message: `${project.name} (${project.projectType}):`,
+      validate: (value: string) => {
+        if (!value || !validChoices.includes(value.trim())) {
+          return `Please enter a valid group number (1-${releaseGroups.length}) or X to skip`;
+        }
+        return true;
+      }
+    });
+
+    const choice = groupChoice.trim();
+    if (choice.toLowerCase() !== 'x') {
+      const groupIndex = parseInt(choice) - 1;
+      releaseGroups[groupIndex].projects.push(project.name);
+      selectedProjects.push(project.name);
+    }
+  }
+
+  logger.info('');
+  logger.info('Project assignment complete:');
+  releaseGroups.forEach(group => {
+    if (group.projects.length > 0) {
+      logger.info(`  ${group.groupName}: ${group.projects.length} project(s)`);
+    }
+  });
+  const skippedCount = projectList.length - selectedProjects.length;
+  if (skippedCount > 0) {
+    logger.info(`  Skipped: ${skippedCount} project(s)`);
+  }
+  logger.info('');
+
   return {
-    executorType,
+    executorType: 'individual', // Default to individual since we don't ask anymore
+    useReleaseGroups: true, // Always use release groups
+    releaseGroups,
     selectedProjects,
     configLocation,
-    versionStrategy,
-    versionFiles,
+    // Legacy fields - use first group's settings as defaults
+    versionStrategy: releaseGroups[0]?.versionStrategy || 'git-tag',
+    versionFiles: releaseGroups[0]?.versionFiles || ['package.json'],
     gitCommit,
     gitTag,
     ciOnly,
@@ -583,17 +640,17 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     preset,
     projectChangelogs,
     workspaceChangelog,
-    registryType,
-    registryUrl,
+    registryType: releaseGroups[0]?.registryType || 'npm',
+    registryUrl: releaseGroups[0]?.registryUrl || 'https://registry.npmjs.org',
     access,
     distTag,
     buildTarget,
-    pathStrategy,
+    pathStrategy: releaseGroups[0]?.pathStrategy,
     configureTagNaming,
     tagPrefix,
     tagFormat,
-    configureReleaseGroups,
-    releaseGroupsConfig,
+    configureReleaseGroups: true, // Always true
+    releaseGroupsConfig: undefined, // Legacy field, replaced by releaseGroups
     setupHooks,
     hookOptions: {
       enablePreCommit,
