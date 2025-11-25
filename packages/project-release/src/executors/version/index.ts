@@ -316,10 +316,16 @@ async function handleWorkspaceVersioning(options: VersionExecutorSchema, context
         });
 
         if (result.success) {
-          const version = (result as { success: boolean; version?: string }).version || targetVersion || 'unknown';
-          versions[projectName] = version;
-          results.push({ project: projectName, success: true, version });
-          logger.info(`✅ ${projectName}: ${version}`);
+          if (result.skipped) {
+            // Project was skipped (e.g., no version found)
+            results.push({ project: projectName, success: true, skipped: true, reason: result.reason });
+            logger.warn(`⏭️  ${projectName}: Skipped (${result.reason || 'unknown reason'})`);
+          } else {
+            const version = (result as { success: boolean; version?: string }).version || targetVersion || 'unknown';
+            versions[projectName] = version;
+            results.push({ project: projectName, success: true, version });
+            logger.info(`✅ ${projectName}: ${version}`);
+          }
         } else {
           results.push({ project: projectName, success: false, error: result.error });
           logger.error(`❌ ${projectName}: ${result.error}`);
@@ -331,12 +337,23 @@ async function handleWorkspaceVersioning(options: VersionExecutorSchema, context
       }
     }
 
-    const successful = results.filter(r => r.success).length;
+    const successful = results.filter(r => r.success && !(r as any).skipped).length;
+    const skipped = results.filter(r => r.success && (r as any).skipped).length;
     const failed = results.filter(r => !r.success).length;
 
     logger.info(`\n📊 Workspace Versioning Summary:`);
     logger.info(`✅ Successfully versioned: ${successful} projects`);
+    if (skipped > 0) {
+      logger.info(`⏭️  Skipped: ${skipped} projects`);
+    }
     logger.info(`❌ Failed: ${failed} projects`);
+
+    if (skipped > 0) {
+      logger.info(`\nSkipped projects:`);
+      results.filter(r => r.success && (r as any).skipped).forEach(r => {
+        logger.info(`  - ${r.project}: ${(r as any).reason || 'unknown reason'}`);
+      });
+    }
 
     if (failed > 0) {
       logger.info(`\nFailed projects:`);
@@ -357,7 +374,7 @@ async function handleWorkspaceVersioning(options: VersionExecutorSchema, context
   }
 }
 
-async function versionSingleProject(options: VersionExecutorSchema, context: ExecutorContext): Promise<{ success: boolean; error?: string; version?: string }> {
+async function versionSingleProject(options: VersionExecutorSchema, context: ExecutorContext): Promise<{ success: boolean; error?: string; version?: string; skipped?: boolean; reason?: string }> {
   if (!context.projectName) {
     return { success: false, error: 'No project name specified' };
   }
@@ -384,18 +401,25 @@ async function versionSingleProject(options: VersionExecutorSchema, context: Exe
     let currentVersion = versionInfo.version || '0.0.0';
     let isFirstRelease = !versionInfo.version || versionInfo.version === '0.0.0';
 
-    // If no version found and in show mode, provide interactive prompt
-    if (!versionInfo.version && options.show) {
-      logger.warn(`⚠️  No version found for project '${context.projectName}'`);
-      logger.info('');
-      logger.info('This project has no version information available.');
-      logger.info('Options:');
-      logger.info('  1. Set an initial version using --version flag (e.g., --version=1.0.0)');
-      logger.info('  2. Use --firstRelease flag to start from 0.0.0');
-      logger.info('  3. Configure version in package.json or project.json');
-      logger.info('  4. Skip this project in the release');
-      logger.info('');
-      return { success: false, error: `No version found for project ${context.projectName}. Use --version, --firstRelease, or configure version in project files.` };
+    // If no version found, handle based on mode
+    if (!versionInfo.version && !options.firstRelease) {
+      if (options.show) {
+        // Show mode: provide detailed guidance
+        logger.warn(`⚠️  No version found for project '${context.projectName}'`);
+        logger.info('');
+        logger.info('This project has no version information available.');
+        logger.info('Options:');
+        logger.info('  1. Set an initial version using --version flag (e.g., --version=1.0.0)');
+        logger.info('  2. Use --firstRelease flag to start from 0.0.0');
+        logger.info('  3. Configure version in package.json or project.json');
+        logger.info('');
+        return { success: false, error: `No version found for project ${context.projectName}. Use --version, --firstRelease, or configure version in project files.` };
+      } else {
+        // Regular mode (CI/CD, affected, etc.): Skip with warning instead of failing
+        logger.warn(`⚠️  Skipping project '${context.projectName}': No version found`);
+        logger.info('💡 To version this project, use --firstRelease flag or configure version in project files');
+        return { success: true, skipped: true, reason: 'No version found' };
+      }
     }
 
     // If firstRelease option is set, use fallback logic
