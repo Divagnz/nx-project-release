@@ -4,6 +4,11 @@
       "factory": "./src/generators/init/generator",
       "schema": "./src/generators/init/schema.json",
       "description": "Initialize nx-project-release in your workspace with interactive configuration"
+    },
+    "reset-config": {
+      "factory": "./src/generators/reset-config/generator",
+      "schema": "./src/generators/reset-config/schema.json",
+      "description": "Remove all nx-project-release configuration from the workspace"
     }
   }
 }

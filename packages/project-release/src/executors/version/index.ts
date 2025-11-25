@@ -5,6 +5,7 @@ import * as fs from 'fs';
 import * as semver from 'semver';
 import { from, of, forkJoin } from 'rxjs';
 import { catchError, tap, map, finalize } from 'rxjs/operators';
+import { isCI, getCIPlatform } from '../utils/ci-detection';
 
 export interface VersionExecutorSchema {
   version?: string;
@@ -13,7 +14,6 @@ export interface VersionExecutorSchema {
   firstRelease?: boolean;
   dryRun?: boolean;
   show?: boolean;
-  ciOnly?: boolean;
   // Git options (opt-in, disabled by default)
   gitCommit?: boolean;
   gitCommitMessage?: string;
@@ -24,10 +24,20 @@ export interface VersionExecutorSchema {
   gitPush?: boolean;
   gitPushArgs?: string;
   gitRemote?: string;
+  ciOnly?: boolean;
   githubRelease?: boolean;
   githubReleaseNotes?: string;
   githubReleaseDraft?: boolean;
   githubReleasePrerelease?: boolean;
+  // Branch release options
+  createReleaseBranch?: boolean;
+  releaseBranchName?: string;
+  createPR?: boolean;
+  prTitle?: string;
+  prBody?: string;
+  prBaseBranch?: string;
+  prDraft?: boolean;
+  prLabels?: string;
   stageChanges?: boolean;
   // Deprecated (kept for backward compatibility)
   skipCommit?: boolean;
@@ -483,11 +493,37 @@ async function versionSingleProject(options: VersionExecutorSchema, context: Exe
     const lockFileUpdated = await updateLockFiles(context, options);
 
     // Check ciOnly restriction before any git operations
-    const hasGitOperations = shouldCommit || shouldTag || shouldPush || options.githubRelease;
+    const hasGitOperations = shouldCommit || shouldTag || shouldPush || options.githubRelease || options.createReleaseBranch;
     if (options.ciOnly && hasGitOperations && !process.env.CI) {
       logger.error('❌ Git operations are restricted to CI/CD environments only (ciOnly: true)');
       logger.info('💡 Set CI environment variable or disable ciOnly to run locally');
       return { success: false };
+    }
+
+    // Create release branch if requested
+    let releaseBranchName = '';
+    if (options.createReleaseBranch) {
+      try {
+        // Get current branch
+        const currentBranch = execSync('git rev-parse --abbrev-ref HEAD', {
+          cwd: context.root,
+          encoding: 'utf-8'
+        }).trim();
+
+        // Generate release branch name (default: semver only)
+        releaseBranchName = options.releaseBranchName || `release/v${newVersion}`;
+        releaseBranchName = releaseBranchName
+          .replace(/{version}/g, newVersion)
+          .replace(/{projectName}/g, context.projectName)
+          .replace(/{tag}/g, generateTagName(context.projectName, newVersion, options));
+
+        // Create and checkout release branch
+        execSync(`git checkout -b ${releaseBranchName}`, { cwd: context.root });
+        logger.info(`✅ Created release branch: ${releaseBranchName} (from ${currentBranch})`);
+      } catch (error) {
+        logger.error(`❌ Failed to create release branch: ${error instanceof Error ? error.message : String(error)}`);
+        throw error;
+      }
     }
 
     // Stage changes if requested
@@ -568,17 +604,33 @@ async function versionSingleProject(options: VersionExecutorSchema, context: Exe
 
     // Push to remote if requested
     if (shouldPush) {
+      // Add warning about push operation
+      const ciPlatform = getCIPlatform();
+      if (ciPlatform) {
+        logger.warn(`⚠️  About to push to remote (running in ${ciPlatform})`);
+      } else if (!options.ciOnly) {
+        logger.warn(`⚠️  About to push to remote from local environment`);
+        logger.warn(`💡 Consider setting ciOnly: true to prevent accidental local pushes`);
+      }
+
       try {
         const remote = options.gitRemote || 'origin';
         let pushCmd = `git push ${remote}`;
 
-        // Push commits and/or tags
-        if (shouldCommit) {
-          pushCmd += ` HEAD`;
-        }
-        if (shouldTag) {
-          const tag = generateTagName(context.projectName, newVersion, options);
-          pushCmd += ` ${tag}`;
+        // Push release branch or commits and/or tags
+        if (options.createReleaseBranch && releaseBranchName) {
+          // Push the release branch with upstream tracking
+          pushCmd += ` ${releaseBranchName} -u`;
+          logger.info(`Pushing release branch: ${releaseBranchName}`);
+        } else {
+          // Original behavior: push commits and/or tags
+          if (shouldCommit) {
+            pushCmd += ` HEAD`;
+          }
+          if (shouldTag) {
+            const tag = generateTagName(context.projectName, newVersion, options);
+            pushCmd += ` ${tag}`;
+          }
         }
 
         if (options.gitPushArgs) {
@@ -590,6 +642,16 @@ async function versionSingleProject(options: VersionExecutorSchema, context: Exe
       } catch (error) {
         logger.error(`❌ Failed to push: ${error instanceof Error ? error.message : String(error)}`);
         throw error;
+      }
+    }
+
+    // Create pull request if requested
+    if (options.createPR && options.createReleaseBranch && releaseBranchName) {
+      try {
+        await createPullRequest(context, releaseBranchName, newVersion, options);
+      } catch (error) {
+        logger.error(`❌ Failed to create PR: ${error instanceof Error ? error.message : String(error)}`);
+        // Don't fail the entire release if PR creation fails
       }
     }
 
@@ -1291,6 +1353,106 @@ async function showVersionChanges(
   logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   logger.info('💡 Use --dryRun to preview without showing this detailed analysis');
   logger.info('');
+}
+
+async function createPullRequest(
+  context: ExecutorContext,
+  branchName: string,
+  version: string,
+  options: VersionExecutorSchema
+): Promise<void> {
+  logger.info(`📝 Creating pull request for ${branchName}...`);
+
+  try {
+    // Check if gh CLI is installed
+    try {
+      execSync('gh --version', { stdio: 'pipe' });
+    } catch {
+      throw new Error('GitHub CLI (gh) is not installed. Install it from https://cli.github.com/');
+    }
+
+    // Detect base branch (main or master)
+    let baseBranch = options.prBaseBranch;
+    if (!baseBranch) {
+      try {
+        const mainExists = execSync('git rev-parse --verify main', {
+          cwd: context.root,
+          stdio: 'pipe'
+        });
+        baseBranch = 'main';
+      } catch {
+        baseBranch = 'master'; // Fallback to master
+      }
+    }
+
+    // Build PR title
+    const prTitle = options.prTitle || `chore(release): {projectName} v{version}`;
+    const interpolatedTitle = prTitle
+      .replace(/{version}/g, version)
+      .replace(/{projectName}/g, context.projectName || '')
+      .replace(/{tag}/g, generateTagName(context.projectName || '', version, options));
+
+    // Build PR body
+    let prBody = options.prBody || '';
+    if (!prBody) {
+      // Generate default PR body
+      prBody = `## Release ${version}\n\nThis PR contains version bump changes for ${context.projectName} v${version}.\n\n### Changes\n- Updated version to ${version}\n- Updated lock files\n\n---\n*This PR was created automatically by nx-project-release*`;
+    }
+
+    // Try to read changelog for PR body
+    if (prBody.includes('{changelog}')) {
+      const projectRoot = context.projectsConfigurations?.projects[context.projectName]?.root || context.projectName;
+      const changelogPath = path.join(context.root, projectRoot, 'CHANGELOG.md');
+
+      let changelog = '';
+      if (fs.existsSync(changelogPath)) {
+        const changelogContent = fs.readFileSync(changelogPath, 'utf8');
+        // Extract the latest release section
+        const sections = changelogContent.split(/^#+ /m);
+        if (sections.length > 1) {
+          changelog = sections[1].trim();
+        }
+      }
+      prBody = prBody.replace(/{changelog}/g, changelog);
+    }
+
+    // Interpolate placeholders
+    prBody = prBody
+      .replace(/{version}/g, version)
+      .replace(/{projectName}/g, context.projectName || '')
+      .replace(/{tag}/g, generateTagName(context.projectName || '', version, options));
+
+    // Write PR body to temp file to avoid shell escaping issues
+    const tempFile = path.join(context.root, '.gh-pr-body.tmp');
+    fs.writeFileSync(tempFile, prBody);
+
+    // Build gh pr create command
+    let prCmd = `gh pr create --title "${interpolatedTitle}" --body-file "${tempFile}" --base ${baseBranch}`;
+
+    if (options.prDraft) {
+      prCmd += ` --draft`;
+    }
+
+    if (options.prLabels) {
+      const labels = options.prLabels.split(',').map(l => l.trim()).join(',');
+      prCmd += ` --label "${labels}"`;
+    }
+
+    const prUrl = execSync(prCmd, {
+      cwd: context.root,
+      encoding: 'utf-8',
+      stdio: 'pipe'
+    }).trim();
+
+    // Clean up temp file
+    if (fs.existsSync(tempFile)) {
+      fs.unlinkSync(tempFile);
+    }
+
+    logger.info(`✅ Created pull request: ${prUrl}`);
+  } catch (error) {
+    throw new Error(`Failed to create PR: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 async function createGitHubRelease(

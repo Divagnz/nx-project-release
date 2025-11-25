@@ -68,6 +68,20 @@ export function getDefaultAnswers() {
     registryUrl: 'https://registry.npmjs.org',
     access: 'public' as const,
     distTag: 'latest',
-    buildTarget: 'build'
+    buildTarget: 'build',
+    configureTagNaming: false,
+    tagPrefix: 'v',
+    tagFormat: 'v{version}',
+    configureReleaseGroups: false,
+    releaseGroupsConfig: undefined,
+    setupHooks: false,
+    hookOptions: {
+      enablePreCommit: false,
+      enablePrePush: false
+    },
+    setupGitHubWorkflows: false,
+    workflowType: 'none' as const,
+    createReleaseBranch: false,
+    autoCreatePR: false
   };
 }

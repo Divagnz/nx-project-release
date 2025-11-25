@@ -60,8 +60,8 @@
     },
     "ciOnly": {
       "type": "boolean",
-      "default": false,
-      "description": "Only allow git operations (commit, tag, push, GitHub release) in CI/CD environments. Checks for CI environment variable. Prevents accidental releases from local development."
+      "default": true,
+      "description": "Only allow git operations (commit, tag, push, GitHub release) in CI/CD environments. Checks for CI environment variables (CI, GITHUB_ACTIONS, GITLAB_CI, etc.). Set to false to allow local releases."
     },
     "gitPush": {
       "type": "boolean",
@@ -95,6 +95,41 @@
       "type": "boolean",
       "default": false,
       "description": "Mark the GitHub release as a prerelease"
+    },
+    "createReleaseBranch": {
+      "type": "boolean",
+      "default": false,
+      "description": "Create a release branch from current branch and push version bump commit there (e.g., release/v1.0.0)"
+    },
+    "releaseBranchName": {
+      "type": "string",
+      "description": "Custom release branch name. Supports {version}, {projectName}, {tag} placeholders. Default: 'release/v{version}'"
+    },
+    "createPR": {
+      "type": "boolean",
+      "default": false,
+      "description": "Automatically create a pull request for the release branch using GitHub CLI (requires 'gh' to be installed and authenticated)"
+    },
+    "prTitle": {
+      "type": "string",
+      "description": "Custom PR title. Supports {version}, {projectName}, {tag} placeholders. Default: 'chore(release): {projectName} v{version}'"
+    },
+    "prBody": {
+      "type": "string",
+      "description": "Custom PR body. Supports {version}, {projectName}, {tag}, {changelog} placeholders. Default: generated from changelog"
+    },
+    "prBaseBranch": {
+      "type": "string",
+      "description": "Base branch to target for PR. Default: main branch detected from git"
+    },
+    "prDraft": {
+      "type": "boolean",
+      "default": false,
+      "description": "Create the PR as a draft"
+    },
+    "prLabels": {
+      "type": "string",
+      "description": "Comma-separated list of labels to add to the PR (e.g., 'release,automated')"
     },
     "stageChanges": {
       "type": "boolean",

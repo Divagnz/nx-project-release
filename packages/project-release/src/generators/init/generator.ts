@@ -4,6 +4,7 @@ import { promptForConfig } from './lib/prompts';
 import { updateNxJsonConfiguration, addTargetsToProjects } from './lib/config-builder';
 import { detectExistingConfiguration, getDefaultAnswers, getPublishableProjects } from './lib/utils';
 import { setupGitHooks } from './lib/hooks-setup';
+import { createGitHubWorkflows } from './lib/workflows-setup';
 
 export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
   logger.info('');
@@ -52,6 +53,21 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     logger.info(`Git Commit:          ${answers.gitCommit ? 'Yes' : 'No'}`);
     logger.info(`Git Tag:             ${answers.gitTag ? 'Yes' : 'No'}`);
     logger.info(`Git Push:            ${answers.gitPush ? 'Yes' : 'No'}`);
+
+    if (answers.configureTagNaming) {
+      logger.info('');
+      logger.info(`Tag Format:          ${answers.tagFormat}`);
+      logger.info(`Tag Prefix:          ${answers.tagPrefix || '(none)'}`);
+    }
+
+    if (answers.configureReleaseGroups && answers.releaseGroupsConfig && answers.releaseGroupsConfig.length > 0) {
+      logger.info('');
+      logger.info(`Release Groups:      ${answers.releaseGroupsConfig.length} configured`);
+      for (const group of answers.releaseGroupsConfig) {
+        logger.info(`  - ${group.groupName}: ${group.versioning} (${group.projectsPattern})`);
+      }
+    }
+
     logger.info('');
 
     // Update nx.json if requested
@@ -69,6 +85,13 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
       logger.info('');
       await setupGitHooks(tree, answers.hookOptions);
       hooksSetup = true;
+    }
+
+    // Set up GitHub workflows if requested
+    if (answers.setupGitHubWorkflows && answers.workflowType !== 'none') {
+      logger.info('');
+      logger.info('🔄 Setting up GitHub Actions workflows...');
+      createGitHubWorkflows(tree, answers.workflowType, answers.selectedProjects);
     }
 
     logger.info('');

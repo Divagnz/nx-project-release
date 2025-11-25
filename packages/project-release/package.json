@@ -1,6 +1,6 @@
 {
   "name": "nx-project-release",
-  "version": "0.0.0",
+  "version": "0.0.5",
   "description": "Polyglot Nx plugin for releasing any project type using project.json and conventional commits",
   "keywords": [
     "nx",
@@ -31,6 +31,8 @@
     "@nx/devkit": ">=21.0.0"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.0.0",
+    "axios": "^1.6.0",
     "enquirer": "^2.3.6",
     "rxjs": "^7.8.1",
     "semver": "^7.7.2",

@@ -1,5 +1,7 @@
 import { Tree, getProjects, logger } from '@nx/devkit';
-import { prompt } from 'enquirer';
+import Enquirer from 'enquirer';
+
+const { prompt } = Enquirer;
 
 export interface ConfigAnswers {
   executorType: 'individual' | 'all-in-one';
@@ -22,11 +24,25 @@ export interface ConfigAnswers {
   workspaceChangelog: boolean;
 
   // Publish executor options
-  registryType: 'npm' | 'github' | 'custom';
+  registryType: 'npm' | 'nexus' | 's3' | 'github' | 'custom';
   registryUrl: string;
   access: 'public' | 'restricted';
   distTag: string;
   buildTarget: string;
+  pathStrategy?: 'version' | 'hash' | 'flat';
+
+  // Tag naming options
+  configureTagNaming: boolean;
+  tagPrefix: string;
+  tagFormat: string;
+
+  // Release groups options
+  configureReleaseGroups: boolean;
+  releaseGroupsConfig?: {
+    groupName: string;
+    projectsPattern: string;
+    versioning: 'fixed' | 'independent';
+  }[];
 
   // Git hooks options
   setupHooks: boolean;
@@ -34,6 +50,12 @@ export interface ConfigAnswers {
     enablePreCommit: boolean;
     enablePrePush: boolean;
   };
+
+  // GitHub Workflows options
+  setupGitHubWorkflows: boolean;
+  workflowType: 'single' | 'two-step' | 'batch' | 'none';
+  createReleaseBranch: boolean;
+  autoCreatePR: boolean;
 }
 
 export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
@@ -187,14 +209,16 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
   logger.info('📦 Publish Configuration');
   logger.info('');
 
-  const { registryType } = await prompt<{ registryType: 'npm' | 'github' | 'custom' }>({
+  const { registryType } = await prompt<{ registryType: 'npm' | 'nexus' | 's3' | 'github' | 'custom' }>({
     type: 'select',
     name: 'registryType',
     message: 'Which registry type?',
     choices: [
-      { name: 'npm', message: 'NPM Registry (default)' },
-      { name: 'github', message: 'GitHub Packages' },
-      { name: 'custom', message: 'Custom Registry' }
+      { name: 'npm', message: 'NPM Registry (default)', hint: 'Publish to npmjs.org or private npm registry' },
+      { name: 'nexus', message: 'Nexus Repository', hint: 'Upload artifacts to Sonatype Nexus (raw repository)' },
+      { name: 's3', message: 'AWS S3', hint: 'Upload artifacts to Amazon S3 bucket' },
+      { name: 'github', message: 'GitHub Packages', hint: 'Publish to GitHub npm registry' },
+      { name: 'custom', message: 'Custom Registry', hint: 'Use a custom npm-compatible registry' }
     ]
   });
 
@@ -211,10 +235,26 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     registryUrl = response.registryUrl;
   }
 
+  // Path strategy for Nexus/S3
+  let pathStrategy: 'version' | 'hash' | 'flat' | undefined;
+  if (registryType === 'nexus' || registryType === 's3') {
+    const { selectedPathStrategy } = await prompt<{ selectedPathStrategy: 'version' | 'hash' | 'flat' }>({
+      type: 'select',
+      name: 'selectedPathStrategy',
+      message: 'Artifact path strategy:',
+      choices: [
+        { name: 'version', message: 'Version-based (recommended)', hint: 'e.g., 1.2.3/artifact.tgz' },
+        { name: 'hash', message: 'Hash-based', hint: 'e.g., abc123.../artifact.tgz (when semver not available)' },
+        ...(registryType === 's3' ? [{ name: 'flat' as const, message: 'Flat', hint: 'No subdirectories, just filename' }] : [])
+      ]
+    });
+    pathStrategy = selectedPathStrategy;
+  }
+
   const { access } = await prompt<{ access: 'public' | 'restricted' }>({
     type: 'select',
     name: 'access',
-    message: 'Package access level:',
+    message: 'Package access level (for NPM):',
     choices: [
       { name: 'public', message: 'Public' },
       { name: 'restricted', message: 'Restricted' }
@@ -224,7 +264,7 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
   const { distTag } = await prompt<{ distTag: string }>({
     type: 'input',
     name: 'distTag',
-    message: 'Dist tag for published packages:',
+    message: 'Dist tag for published packages (for NPM):',
     initial: 'latest'
   });
 
@@ -235,7 +275,110 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     initial: 'build'
   });
 
-  // 6. Configuration location
+  // 6. Tag Naming Configuration
+  logger.info('');
+  logger.info('🏷️  Tag Naming Configuration');
+  logger.info('');
+
+  const { configureTagNaming } = await prompt<{ configureTagNaming: boolean }>({
+    type: 'confirm',
+    name: 'configureTagNaming',
+    message: 'Configure custom git tag naming?',
+    initial: false
+  });
+
+  let tagPrefix = 'v';
+  let tagFormat = 'v{version}';
+
+  if (configureTagNaming) {
+    const tagPrefixResponse = await prompt<{ tagPrefix: string }>({
+      type: 'input',
+      name: 'tagPrefix',
+      message: 'Tag prefix (e.g., "v", "release-", or empty for no prefix):',
+      initial: 'v'
+    });
+    tagPrefix = tagPrefixResponse.tagPrefix;
+
+    const tagFormatResponse = await prompt<{ tagFormat: string }>({
+      type: 'select',
+      name: 'tagFormat',
+      message: 'Tag format pattern:',
+      choices: [
+        { name: 'v{version}', message: 'v{version} (e.g., v1.0.0)', hint: 'Standard semantic versioning' },
+        { name: '{projectName}-v{version}', message: '{projectName}-v{version} (e.g., my-lib-v1.0.0)', hint: 'Include project name' },
+        { name: '{projectName}@{version}', message: '{projectName}@{version} (e.g., my-lib@1.0.0)', hint: 'NPM-style format' },
+        { name: 'release-{version}', message: 'release-{version} (e.g., release-1.0.0)', hint: 'Custom prefix' }
+      ]
+    });
+    tagFormat = tagFormatResponse.tagFormat;
+  }
+
+  // 7. Release Groups Configuration
+  logger.info('');
+  logger.info('📦 Release Groups Configuration');
+  logger.info('');
+
+  const { configureReleaseGroups } = await prompt<{ configureReleaseGroups: boolean }>({
+    type: 'confirm',
+    name: 'configureReleaseGroups',
+    message: 'Set up release groups for organized versioning?',
+    initial: false
+  });
+
+  let releaseGroupsConfig: { groupName: string; projectsPattern: string; versioning: 'fixed' | 'independent' }[] | undefined;
+
+  if (configureReleaseGroups) {
+    logger.info('');
+    logger.info('Release groups allow you to organize projects with different versioning strategies.');
+    logger.info('Examples: backend (api, server), frontend (web-*, mobile-*), libs (libs/*)');
+    logger.info('');
+
+    releaseGroupsConfig = [];
+    let addMore = true;
+
+    while (addMore) {
+      const groupName = await prompt<{ groupName: string }>({
+        type: 'input',
+        name: 'groupName',
+        message: 'Release group name:',
+        validate: (value: string) => value.length > 0 || 'Group name is required'
+      });
+
+      const projectsPattern = await prompt<{ projectsPattern: string }>({
+        type: 'input',
+        name: 'projectsPattern',
+        message: 'Projects pattern (comma-separated, e.g., "api,server" or "web-*,mobile-*"):',
+        validate: (value: string) => value.length > 0 || 'At least one pattern is required'
+      });
+
+      const versioning = await prompt<{ versioning: 'fixed' | 'independent' }>({
+        type: 'select',
+        name: 'versioning',
+        message: 'Versioning strategy for this group:',
+        choices: [
+          { name: 'fixed', message: 'Fixed (all projects share the same version)', hint: 'Synchronized releases' },
+          { name: 'independent', message: 'Independent (each project has its own version)', hint: 'Separate releases' }
+        ]
+      });
+
+      releaseGroupsConfig.push({
+        groupName: groupName.groupName,
+        projectsPattern: projectsPattern.projectsPattern,
+        versioning: versioning.versioning
+      });
+
+      const addAnother = await prompt<{ addAnother: boolean }>({
+        type: 'confirm',
+        name: 'addAnother',
+        message: 'Add another release group?',
+        initial: false
+      });
+
+      addMore = addAnother.addAnother;
+    }
+  }
+
+  // 8. Configuration location
   logger.info('');
   logger.info('⚙️  Configuration Location');
   logger.info('');
@@ -263,7 +406,7 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     ]
   });
 
-  // 7. Git Hooks Setup
+  // 9. Git Hooks Setup
   logger.info('');
   logger.info('🪝 Git Hooks Setup');
   logger.info('');
@@ -315,6 +458,61 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     enablePrePush = selectedHooks.includes('pre-push');
   }
 
+  // 10. GitHub Workflows Setup
+  logger.info('');
+  logger.info('🔄 GitHub Workflows Setup');
+  logger.info('');
+
+  const { setupGitHubWorkflows } = await prompt<{ setupGitHubWorkflows: boolean }>({
+    type: 'confirm',
+    name: 'setupGitHubWorkflows',
+    message: 'Set up GitHub Actions workflows for automated releases?',
+    initial: false
+  });
+
+  let workflowType: 'single' | 'two-step' | 'batch' | 'none' = 'none';
+  let createReleaseBranch = false;
+  let autoCreatePR = false;
+
+  if (setupGitHubWorkflows) {
+    const { selectedWorkflowType } = await prompt<{ selectedWorkflowType: 'single' | 'two-step' | 'batch' }>({
+      type: 'select',
+      name: 'selectedWorkflowType',
+      message: 'Which workflow pattern?',
+      choices: [
+        {
+          name: 'batch',
+          message: 'Batch: Release multiple projects in one PR',
+          hint: 'Recommended for monorepos: One release branch for all affected projects'
+        },
+        {
+          name: 'two-step',
+          message: 'Two-step: PR creation + manual merge & publish',
+          hint: 'Creates PR for review, publishes after merge (one project at a time)'
+        },
+        {
+          name: 'single',
+          message: 'Single-step: Automated version bump & publish',
+          hint: 'Direct push to main with automated publishing'
+        }
+      ]
+    });
+
+    workflowType = selectedWorkflowType;
+
+    if (workflowType === 'batch') {
+      createReleaseBranch = true;
+      autoCreatePR = true;
+      logger.info('✓ Will create: batch release workflow (one branch for all projects) + publish workflow');
+    } else if (workflowType === 'two-step') {
+      createReleaseBranch = true;
+      autoCreatePR = true;
+      logger.info('✓ Will create: release branch workflow + publish workflow');
+    } else {
+      logger.info('✓ Will create: single automated release workflow');
+    }
+  }
+
   return {
     executorType,
     selectedProjects,
@@ -335,10 +533,20 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     access,
     distTag,
     buildTarget,
+    pathStrategy,
+    configureTagNaming,
+    tagPrefix,
+    tagFormat,
+    configureReleaseGroups,
+    releaseGroupsConfig,
     setupHooks,
     hookOptions: {
       enablePreCommit,
       enablePrePush
-    }
+    },
+    setupGitHubWorkflows,
+    workflowType,
+    createReleaseBranch,
+    autoCreatePR
   };
 }

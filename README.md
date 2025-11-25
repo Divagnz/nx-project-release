@@ -4,6 +4,12 @@
 
 [![npm version](https://badge.fury.io/js/@divagnz%2Fnx-project-release.svg)](https://www.npmjs.com/package/nx-project-release)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![CI/CD](https://github.com/Divagnz/nx-project-release/actions/workflows/release.yml/badge.svg)](https://github.com/Divagnz/nx-project-release/actions)
+
+![Coverage Lines](./coverage/packages/project-release/badge-lines.svg)
+![Coverage Statements](./coverage/packages/project-release/badge-statements.svg)
+![Coverage Functions](./coverage/packages/project-release/badge-functions.svg)
+![Coverage Branches](./coverage/packages/project-release/badge-branches.svg)
 
 A polyglot Nx plugin for releasing any project type using project.json and conventional commits, supporting multiple registries and flexible configuration.
 
@@ -12,7 +18,8 @@ A polyglot Nx plugin for releasing any project type using project.json and conve
 - ✅ **Polyglot Support** - Works with any project type (Node.js, Python, Go, Rust, Java, etc.)
 - ✅ **Modular Executors** - Use version, changelog, publish, and workflow independently
 - ✅ **Project.json Integration** - Works without package.json dependency
-- ✅ **Multiple Registries** - npm, Nexus, custom registries for any package type
+- ✅ **Multiple Registries** - npm, Nexus (Sonatype), AWS S3, GitHub Packages, custom registries
+- ✅ **Batch Releases** - Release multiple projects in one PR with smart `nx affected` detection
 - ✅ **Selective Releases** - Only affected projects, include/exclude patterns
 - ✅ **Custom Version Files** - project.json, package.json, version.txt, pyproject.toml, Cargo.toml, etc.
 - ✅ **Flexible Tag Naming** - Custom prefixes, formats, project names
@@ -22,6 +29,8 @@ A polyglot Nx plugin for releasing any project type using project.json and conve
 - ✅ **Dry-run Support** - Preview changes before execution
 - ✅ **Dependency Tracking** - Automatically version dependent projects when dependencies change
 - ✅ **Sync Versioning** - Synchronize versions across multiple projects in the workspace
+- ✅ **CI/CD Safety** - CI-only mode prevents accidental local releases (default: enabled)
+- ✅ **Release Branches** - Create release branches with automatic PR creation
 
 ## 🚀 Quick Start
 
@@ -130,12 +139,17 @@ npx nx run my-project:project-release --version=1.0.0 --gitCommit --gitTag --pub
 ### Workspace Release (All Projects)
 
 ```bash
-# Release all projects in workspace
-npx nx run project-release
+# Release all configured projects in workspace
+npx nx run-many --target=project-release --all
 
 # Release all with git operations
-npx nx run project-release --gitCommit --gitTag --publish
-npx nx run project-release --releaseAs=minor --dryRun
+npx nx run-many --target=project-release --all --gitCommit --gitTag --publish
+
+# Preview what would change across all projects
+npx nx run-many --target=project-release --all --dryRun --releaseAs=minor
+
+# Release only affected projects
+npx nx run-many --target=project-release --projects=affected --gitCommit --gitTag
 ```
 
 ### Modular Executors (Individual Projects)
@@ -148,6 +162,9 @@ npx nx run my-project:publish --registryType=npm
 
 # Complete workflow for single project
 npx nx run my-project:project-release --gitCommit --gitTag --publish
+
+# Run version target across all projects
+npx nx run-many --target=version --all --releaseAs=patch
 ```
 
 ### Single Project Release
@@ -587,12 +604,22 @@ npx nx run my-lib:project-release --versionFile=VERSION.txt
 
 ### GitHub Actions
 
-#### Automated Release on Push to Main
+This plugin supports a two-workflow pattern for automated releases:
+1. **release.yml** - Creates a PR with version bump and changelog
+2. **publish-release.yml** - Publishes the package after PR merge
+
+This pattern provides:
+- ✅ Review opportunity before publishing
+- ✅ Automated changelog generation included in PR
+- ✅ Clear separation between versioning and publishing
+- ✅ Safe rollback (just close the PR)
+
+#### Workflow 1: Create Release PR
 
 Create `.github/workflows/release.yml`:
 
 ```yaml
-name: Release
+name: Create Release PR
 
 on:
   push:
@@ -603,13 +630,16 @@ on:
 
 permissions:
   contents: write
-  packages: write
+  pull-requests: write
 
 jobs:
-  release:
+  create-release-pr:
     runs-on: ubuntu-latest
-    # Skip if commit message contains [skip ci] or is a release commit
-    if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, 'chore(release)')"
+    # Skip if PR title contains [skip ci], commit contains [skip ci], or is a release commit
+    if: |
+      !contains(github.event.pull_request.title, '[skip ci]') &&
+      !contains(github.event.head_commit.message, '[skip ci]') &&
+      !contains(github.event.head_commit.message, 'chore(release)')
 
     steps:
       - name: Checkout
@@ -623,7 +653,6 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-          registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
         run: npm ci
@@ -636,19 +665,79 @@ jobs:
       - name: Build
         run: npx nx build my-project
 
-      - name: Version and Tag
+      - name: Version Bump
+        id: version
         run: |
-          npx nx run my-project:version \
-            --gitCommit \
-            --gitTag \
-            --gitCommitMessage="chore(release): my-project version {version} [skip ci]" \
-            --gitTagMessage="Release v{version}"
+          # Bump version and commit (no push yet)
+          npx nx run my-project:version --gitCommit
+          NEW_VERSION=$(node -p "require('./packages/my-project/package.json').version")
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
 
       - name: Generate Changelog
-        run: npx nx run my-project:changelog
+        run: |
+          # Generate changelog and commit it
+          npx nx run my-project:changelog
+          git add .
+          git commit -m "docs: update CHANGELOG.md for v${{ steps.version.outputs.new_version }}" || echo "No changelog changes"
 
-      - name: Push changes
-        run: git push origin main --follow-tags
+      - name: Create Release PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH_NAME="release/v${{ steps.version.outputs.new_version }}"
+          git checkout -b "$BRANCH_NAME"
+          git push origin "$BRANCH_NAME"
+
+          gh pr create \
+            --title "chore(release): version ${{ steps.version.outputs.new_version }} [skip ci]" \
+            --body "Automated release PR for version ${{ steps.version.outputs.new_version }}" \
+            --base main \
+            --head "$BRANCH_NAME"
+```
+
+#### Workflow 2: Publish After PR Merge
+
+Create `.github/workflows/publish-release.yml`:
+
+```yaml
+name: Publish Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  publish:
+    # Only run if PR was merged and title contains "chore(release)"
+    if: |
+      github.event.pull_request.merged == true &&
+      contains(github.event.pull_request.title, 'chore(release)')
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npx nx build my-project
 
       - name: Get version
         id: version
@@ -656,13 +745,20 @@ jobs:
           VERSION=$(node -p "require('./packages/my-project/package.json').version")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
+      - name: Create Git Tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "v${{ steps.version.outputs.version }}" -m "Release v${{ steps.version.outputs.version }}"
+          git push origin "v${{ steps.version.outputs.version }}"
+
       - name: Create GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create "v${{ steps.version.outputs.version }}" \
             --title "Release v${{ steps.version.outputs.version }}" \
-            --notes-file CHANGELOG.md \
+            --notes-file packages/my-project/CHANGELOG.md \
             --target main
 
       - name: Publish to npm
@@ -671,40 +767,28 @@ jobs:
         run: npx nx run my-project:publish
 ```
 
-#### Manual Release Workflow
+#### Single Workflow (Alternative)
 
-Create `.github/workflows/manual-release.yml` for on-demand releases:
+If you prefer a single-workflow approach with immediate publishing:
+
+Create `.github/workflows/release.yml`:
 
 ```yaml
-name: Manual Release
+name: Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version (e.g., 1.2.0) or leave empty for auto-detect'
-        required: false
-      releaseAs:
-        description: 'Release type'
-        required: false
-        type: choice
-        options:
-          - ''
-          - major
-          - minor
-          - patch
-          - prerelease
-      dryRun:
-        description: 'Dry run (preview only)'
-        type: boolean
-        default: false
+  push:
+    branches: [main]
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -714,28 +798,31 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
 
       - run: npm ci
 
       - name: Configure Git
-        if: ${{ !inputs.dryRun }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+      - name: Build
+        run: npx nx build my-project
+
       - name: Release
         run: |
-          CMD="npx nx run my-project:project-release"
-          ${{ inputs.version && format('CMD="$CMD --version={0}"', inputs.version) || '' }}
-          ${{ inputs.releaseAs && format('CMD="$CMD --releaseAs={0}"', inputs.releaseAs) || '' }}
-          ${{ inputs.dryRun && 'CMD="$CMD --dryRun"' || 'CMD="$CMD --gitCommit --gitTag --publish"' }}
-          eval $CMD
+          npx nx run my-project:version --gitCommit --gitTag \
+            --gitCommitMessage="chore(release): version {version} [skip ci]"
+          npx nx run my-project:changelog
+          git add .
+          git commit --amend --no-edit
+          git push origin main --follow-tags
+
+      - name: Publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Push changes
-        if: ${{ !inputs.dryRun }}
-        run: git push origin main --follow-tags
+        run: npx nx run my-project:publish
 ```
 
 #### Release Affected Projects Only
@@ -780,14 +867,165 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 ```
 
+## 📦 Multi-Registry Publishing
+
+The plugin supports publishing to multiple registry types beyond NPM:
+
+### Supported Registries
+
+#### NPM Registry (Default)
+```bash
+npx nx run my-project:publish --registryType=npm --access=public
+```
+
+#### Nexus Repository (Sonatype)
+Upload artifacts to Nexus raw repositories with Basic Auth:
+
+```bash
+npx nx run my-project:publish \
+  --registryType=nexus \
+  --pathStrategy=version
+```
+
+**Environment variables:**
+- `NEXUS_URL`: Nexus server URL (e.g., `https://nexus.example.com`)
+- `NEXUS_REPOSITORY`: Repository name (e.g., `raw-releases`)
+- `NEXUS_USERNAME`: Basic auth username
+- `NEXUS_PASSWORD`: Basic auth password
+
+**Path strategies:**
+- `version`: `{url}/repository/{repo}/1.2.3/artifact.tgz` (recommended)
+- `hash`: `{url}/repository/{repo}/{sha1}/artifact.tgz`
+
+#### AWS S3
+Upload artifacts to S3 buckets with IAM/OIDC or explicit credentials:
+
+```bash
+npx nx run my-project:publish \
+  --registryType=s3 \
+  --pathStrategy=version
+```
+
+**Environment variables:**
+- `AWS_REGION`: AWS region (e.g., `us-east-1`)
+- `S3_BUCKET`: Bucket name
+- `S3_PREFIX`: Optional key prefix (e.g., `artifacts/`)
+- `AWS_ACCESS_KEY_ID`: Access key (optional if using IAM/OIDC)
+- `AWS_SECRET_ACCESS_KEY`: Secret key (optional if using IAM/OIDC)
+
+**Authentication methods:**
+1. **IAM/OIDC** (recommended): Configure GitHub OIDC provider, no credentials needed
+2. **Explicit credentials**: Provide access keys via environment variables
+
+**Path strategies:**
+- `version`: `s3://{bucket}/{prefix}/1.2.3/artifact.tgz`
+- `hash`: `s3://{bucket}/{prefix}/{sha1}/artifact.tgz`
+- `flat`: `s3://{bucket}/{prefix}/artifact.tgz` (no subdirectories)
+
+### Configuration Example
+
+Configure in `nx.json` or `project.json`:
+
+```json
+{
+  "targets": {
+    "publish": {
+      "executor": "nx-project-release:publish",
+      "options": {
+        "registryType": "nexus",
+        "pathStrategy": "version",
+        "skipExisting": true
+      }
+    }
+  }
+}
+```
+
+## 🔄 Batch Release Workflow
+
+For monorepos with multiple projects, use the batch release pattern to release all affected projects in a single PR:
+
+### How It Works
+
+1. **One release branch** for all affected projects (not per-project branches)
+2. Uses `nx affected` for smart project detection
+3. All version bumps in **one commit/PR**
+4. After merge: multiple tags + GitHub releases + publish
+
+### Setup
+
+Run the init generator and select "Batch" workflow:
+
+```bash
+nx g nx-project-release:init
+# Select: Workflow type → Batch
+```
+
+This creates three GitHub Actions workflows:
+- `batch-release-pr.yml`: Creates release branch + PR
+- `batch-publish.yml`: Publishes after merge
+- `pr-validation.yml`: Dry-run preview in PR comments
+
+### Usage
+
+**Trigger release via GitHub Actions:**
+```
+Actions → Create Batch Release PR → Run workflow
+- Release type: minor
+- Base branch: main
+```
+
+**Result:**
+- Creates branch: `release/batch-2024-01-15`
+- Versions all affected projects
+- Creates ONE pull request
+- After merge → creates multiple tags/releases, publishes to registries
+
+**Manual trigger:**
+```bash
+# Create release branch
+git checkout -b release/batch-$(date +%Y-%m-%d)
+
+# Version all affected projects
+npx nx affected --target=version \
+  --base=main \
+  --releaseAs=minor \
+  --gitCommit
+
+# Push and create PR
+git push origin HEAD
+gh pr create --title "chore(release): batch $(date +%Y-%m-%d)"
+```
+
 ### Required Secrets
 
 Add these secrets to your GitHub repository (`Settings` → `Secrets and variables` → `Actions`):
 
+#### NPM Registry
 - **`NPM_TOKEN`**: npm authentication token for publishing
   - Get from https://www.npmjs.com/settings/YOUR_USERNAME/tokens
   - Use "Automation" type token
   - Granular access token recommended for better security
+
+#### Nexus Repository
+- **`NEXUS_URL`**: Nexus server URL
+- **`NEXUS_REPOSITORY`**: Repository name
+- **`NEXUS_USERNAME`**: Basic auth username
+- **`NEXUS_PASSWORD`**: Basic auth password
+
+#### AWS S3
+Configure as **repository variables** (Settings → Secrets and variables → Actions → Variables):
+- `AWS_REGION`: AWS region
+- `S3_BUCKET`: Bucket name
+- `S3_PREFIX`: Key prefix (optional)
+
+**For OIDC (recommended):**
+- Configure AWS OIDC provider in repository settings
+- No credentials needed
+
+**For explicit credentials (not recommended):**
+- **`AWS_ACCESS_KEY_ID`**: Access key (secret)
+- **`AWS_SECRET_ACCESS_KEY`**: Secret key (secret)
 
 ### GitLab CI/CD
 

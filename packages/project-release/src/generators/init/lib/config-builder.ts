@@ -119,6 +119,46 @@ export function updateNxJsonConfiguration(tree: Tree, answers: ConfigAnswers): v
   const newTargetDefaults = buildNxJsonTargetDefaults(answers);
   Object.assign(nxJson.targetDefaults, newTargetDefaults);
 
+  // Add projectRelease configuration section if tag naming or release groups are configured
+  if (answers.configureTagNaming || answers.configureReleaseGroups) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const nxJsonAny = nxJson as any;
+
+    if (!nxJsonAny.projectRelease) {
+      nxJsonAny.projectRelease = {};
+    }
+
+    // Add tag naming configuration
+    if (answers.configureTagNaming) {
+      nxJsonAny.projectRelease.tagNaming = {
+        prefix: answers.tagPrefix,
+        format: answers.tagFormat
+      };
+      logger.info('✅ Added tag naming configuration to nx.json');
+    }
+
+    // Add release groups configuration
+    if (answers.configureReleaseGroups && answers.releaseGroupsConfig) {
+      nxJsonAny.projectRelease.releaseGroups = {};
+
+      for (const group of answers.releaseGroupsConfig) {
+        const projects = group.projectsPattern.split(',').map(p => p.trim());
+
+        nxJsonAny.projectRelease.releaseGroups[group.groupName] = {
+          projects,
+          projectsRelationship: group.versioning,
+          tagNaming: {
+            format: group.versioning === 'independent'
+              ? '{projectName}@{version}'
+              : `${group.groupName}-v{version}`
+          }
+        };
+      }
+
+      logger.info('✅ Added release groups configuration to nx.json');
+    }
+  }
+
   updateNxJson(tree, nxJson);
   logger.info('✅ Updated nx.json with targetDefaults');
 }
