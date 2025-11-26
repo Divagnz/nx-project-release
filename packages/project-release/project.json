@@ -45,6 +45,11 @@
             "input": "./packages/project-release/release",
             "glob": "schema.json",
             "output": "./release"
+          },
+          {
+            "input": "./packages/project-release/scripts",
+            "glob": "**/*.js",
+            "output": "./scripts"
           }
         ]
       }

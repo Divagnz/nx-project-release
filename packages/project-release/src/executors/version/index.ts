@@ -189,10 +189,11 @@ function mergeConfigWithNxJson(options: VersionExecutorSchema, context: Executor
                                   'fixed';
   }
 
-  // Version files (priority: options > project.json > release group > nx project config > nx global config)
-  if (!merged.versionFiles) {
+  // Version files - release group should override targetDefaults
+  if (releaseGroup?.versionFiles) {
+    merged.versionFiles = releaseGroup.versionFiles;
+  } else if (!merged.versionFiles) {
     merged.versionFiles = (projectJsonConfig.versionFiles as string[]) ||
-                         releaseGroup?.versionFiles ||
                          nxProjectConfig?.versionFiles ||
                          nxConfig.versionFiles ||
                          ['project.json', 'package.json'];

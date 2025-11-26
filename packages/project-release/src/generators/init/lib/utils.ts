@@ -54,6 +54,7 @@ export function getDefaultAnswers() {
     useReleaseGroups: false,
     releaseGroups: undefined,
     selectedProjects: [],
+    excludedProjects: [],
     configLocation: 'both' as const,
     versionStrategy: 'git-tag' as const,
     versionFiles: ['package.json'],
@@ -84,6 +85,12 @@ export function getDefaultAnswers() {
     hookOptions: {
       enablePreCommit: false,
       enablePrePush: false
+    },
+    setupCommitValidation: false,
+    commitValidationOptions: {
+      enableCommitizen: false,
+      enableCommitlint: false,
+      useNxScopes: false
     },
     setupGitHubWorkflows: false,
     workflowType: 'none' as const,

@@ -1,5 +1,6 @@
 import { PromiseExecutor, logger, ExecutorContext } from '@nx/devkit';
 import * as fs from 'fs';
+import { existsSync } from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
 import {
@@ -16,6 +17,7 @@ import {
 
 export interface ChangelogExecutorSchema {
   dryRun?: boolean;
+  suppressWarnings?: boolean;
   preset?: 'angular' | 'atom' | 'codemirror' | 'conventionalcommits' | 'ember' | 'eslint' | 'express' | 'jquery' | 'jshint';
   changelogFile?: string;
   from?: string;
@@ -30,7 +32,54 @@ export interface ChangelogExecutorSchema {
   interactive?: boolean | 'all' | 'workspace' | 'projects';
 }
 
+/**
+ * Check if commitlint is configured
+ */
+function hasCommitlint(root: string): boolean {
+  const configs = [
+    'commitlint.config.js',
+    'commitlint.config.ts',
+    '.commitlintrc.json',
+    '.commitlintrc.js',
+    '.commitlintrc'
+  ];
+  return configs.some(c => existsSync(path.join(root, c)));
+}
+
+/**
+ * Show warning if commitlint not configured
+ */
+function warnIfNoCommitlint(context: ExecutorContext, options: ChangelogExecutorSchema): void {
+  // Skip if warnings suppressed
+  if (options.suppressWarnings) {
+    return;
+  }
+
+  // Skip for workspace changelog
+  if (options.workspaceChangelog) {
+    return;
+  }
+
+  // Check if configured
+  if (!hasCommitlint(context.root)) {
+    logger.warn('');
+    logger.warn('⚠️  Commit validation not configured');
+    logger.warn('   Project changelogs require conventional commits with scopes matching project names.');
+    logger.warn('   Without validation, commits may not appear in changelogs.');
+    logger.warn('');
+    logger.warn('💡 Quick fix:');
+    logger.warn('   npx nx g nx-project-release:setup-commitlint');
+    logger.warn('');
+    logger.warn('💡 Suppress this warning:');
+    logger.warn('   Add "suppressWarnings": true to executor options in nx.json');
+    logger.warn('');
+  }
+}
+
 const runExecutor: PromiseExecutor<ChangelogExecutorSchema> = async (options, context: ExecutorContext) => {
+  // Warn if commitlint not configured
+  warnIfNoCommitlint(context, options);
+
   // Handle workspace changelog
   if (options.workspaceChangelog) {
     return await generateWorkspaceChangelogExecutor(options, context);

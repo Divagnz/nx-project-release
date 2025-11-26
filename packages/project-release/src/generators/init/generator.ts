@@ -4,6 +4,7 @@ import { promptForConfig } from './lib/prompts';
 import { updateNxJsonConfiguration, addTargetsToProjects } from './lib/config-builder';
 import { detectExistingConfiguration, getDefaultAnswers, getPublishableProjects } from './lib/utils';
 import { setupGitHooks } from './lib/hooks-setup';
+import { setupCommitValidation } from './lib/commit-validation-setup';
 import { createGitHubWorkflows } from './lib/workflows-setup';
 
 export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
@@ -15,6 +16,8 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
 
   // Track hooks setup for final instructions
   let hooksSetup = false;
+  let commitValidationSetup = false;
+  let commitizenEnabled = false;
   const hasHusky = tree.exists('.husky');
 
   // Detect existing configuration
@@ -87,6 +90,14 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
       hooksSetup = true;
     }
 
+    // Set up commit validation if requested
+    if (answers.setupCommitValidation) {
+      logger.info('');
+      await setupCommitValidation(tree, answers.commitValidationOptions);
+      commitValidationSetup = true;
+      commitizenEnabled = answers.commitValidationOptions.enableCommitizen;
+    }
+
     // Set up GitHub workflows if requested
     if (answers.setupGitHubWorkflows && answers.workflowType !== 'none') {
       logger.info('');
@@ -155,9 +166,15 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
   return () => {
     logger.info('');
 
-    // Remind about npm install for simple-git-hooks
-    if (hooksSetup && !hasHusky) {
+    // Remind about npm install for simple-git-hooks or commit validation
+    if ((hooksSetup && !hasHusky) || commitValidationSetup) {
       logger.warn('⚠️  Important: Run `npm install` to activate git hooks');
+      logger.info('');
+    }
+
+    // Remind about commitizen usage
+    if (commitizenEnabled) {
+      logger.info('💡 Tip: Use `npm run commit` for guided conventional commits');
       logger.info('');
     }
 

@@ -139,10 +139,10 @@ export function updateNxJsonConfiguration(tree: Tree, answers: ConfigAnswers): v
 
     // Add release groups configuration (new format)
     if (answers.useReleaseGroups && answers.releaseGroups && answers.releaseGroups.length > 0) {
-      nxJsonAny.projectRelease.groups = {};
+      nxJsonAny.projectRelease.releaseGroups = {};
 
       for (const group of answers.releaseGroups) {
-        nxJsonAny.projectRelease.groups[group.groupName] = {
+        nxJsonAny.projectRelease.releaseGroups[group.groupName] = {
           registryType: group.registryType,
           registryUrl: group.registryUrl,
           versionStrategy: group.versionStrategy,
@@ -153,6 +153,12 @@ export function updateNxJsonConfiguration(tree: Tree, answers: ConfigAnswers): v
       }
 
       logger.info(`✅ Added ${answers.releaseGroups.length} release groups to nx.json`);
+    }
+
+    // Add excluded projects configuration
+    if (answers.excludedProjects && answers.excludedProjects.length > 0) {
+      nxJsonAny.projectRelease.excludedProjects = answers.excludedProjects;
+      logger.info(`✅ Added ${answers.excludedProjects.length} excluded projects to nx.json`);
     }
 
     // Add release groups configuration (legacy format - for backward compatibility)
@@ -193,6 +199,11 @@ export function addTargetsToProjects(tree: Tree, answers: ConfigAnswers): void {
   }
 
   for (const projectName of answers.selectedProjects) {
+    // Skip if project is excluded
+    if (answers.excludedProjects?.includes(projectName)) {
+      continue;
+    }
+
     try {
       const projectConfig = readProjectConfiguration(tree, projectName);
 

@@ -49,6 +49,14 @@ export interface ConfigAnswers {
     enablePrePush: boolean;
   };
 
+  // Commit validation options
+  setupCommitValidation: boolean;
+  commitValidationOptions: {
+    enableCommitizen: boolean;
+    enableCommitlint: boolean;
+    useNxScopes: boolean;
+  };
+
   // GitHub Workflows options
   setupGitHubWorkflows: boolean;
   workflowType: 'single' | 'two-step' | 'none';
@@ -57,6 +65,7 @@ export interface ConfigAnswers {
 
   // Legacy fields for backward compatibility
   selectedProjects: string[];
+  excludedProjects: string[];
   configLocation: 'nx-json' | 'project-json' | 'both';
   versionStrategy: 'git-tag' | 'disk' | 'registry';
   versionFiles: string[];
@@ -363,7 +372,61 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     enablePrePush = selectedHooks.includes('pre-push');
   }
 
-  // 7. GitHub Workflows Setup
+  // 7. Commit Validation Setup
+  logger.info('');
+  logger.info('✅ Commit Validation Setup');
+  logger.info('');
+  logger.info('Enforce conventional commits with validated scopes');
+  logger.info('');
+
+  const { setupCommitValidation } = await prompt<{ setupCommitValidation: boolean }>({
+    type: 'confirm',
+    name: 'setupCommitValidation',
+    message: 'Set up commit validation (commitizen + commitlint)?',
+    initial: true
+  });
+
+  let enableCommitizen = false;
+  let enableCommitlint = false;
+  let useNxScopes = false;
+
+  if (setupCommitValidation) {
+    const { selectedTools } = await prompt<{ selectedTools: string[] }>({
+      type: 'multiselect',
+      name: 'selectedTools',
+      message: 'Which tools would you like to enable?',
+      // @ts-expect-error - enquirer types are incomplete
+      choices: [
+        {
+          name: 'commitizen',
+          message: 'commitizen: Interactive commit helper',
+          hint: 'Prompts for conventional commit format (use: npm run commit)'
+        },
+        {
+          name: 'commitlint',
+          message: 'commitlint: Commit message validation',
+          hint: 'Validates commit messages follow conventional format'
+        }
+      ],
+      initial: [0, 1], // Both selected by default
+      validate: (value: string[]) => value.length > 0 || 'Select at least one tool'
+    });
+
+    enableCommitizen = selectedTools.includes('commitizen');
+    enableCommitlint = selectedTools.includes('commitlint');
+
+    if (enableCommitlint) {
+      const { enableNxScopes } = await prompt<{ enableNxScopes: boolean }>({
+        type: 'confirm',
+        name: 'enableNxScopes',
+        message: 'Validate scopes against Nx project names?',
+        initial: true
+      });
+      useNxScopes = enableNxScopes;
+    }
+  }
+
+  // 8. GitHub Workflows Setup
   logger.info('');
   logger.info('🔄 GitHub Workflows Setup');
   logger.info('');
@@ -581,6 +644,7 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
 
   // Assign each project to a group
   const selectedProjects: string[] = [];
+  const excludedProjects: string[] = [];
 
   for (const project of projectList) {
     const validChoices = releaseGroups.map((_, index) => String(index + 1));
@@ -599,7 +663,9 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     });
 
     const choice = groupChoice.trim();
-    if (choice.toLowerCase() !== 'x') {
+    if (choice.toLowerCase() === 'x') {
+      excludedProjects.push(project.name);
+    } else {
       const groupIndex = parseInt(choice) - 1;
       releaseGroups[groupIndex].projects.push(project.name);
       selectedProjects.push(project.name);
@@ -624,6 +690,7 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     useReleaseGroups: true, // Always use release groups
     releaseGroups,
     selectedProjects,
+    excludedProjects,
     configLocation,
     // Legacy fields - use first group's settings as defaults
     versionStrategy: releaseGroups[0]?.versionStrategy || 'git-tag',
@@ -655,6 +722,12 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     hookOptions: {
       enablePreCommit,
       enablePrePush
+    },
+    setupCommitValidation,
+    commitValidationOptions: {
+      enableCommitizen,
+      enableCommitlint,
+      useNxScopes
     },
     setupGitHubWorkflows,
     workflowType,

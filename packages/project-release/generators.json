@@ -9,6 +9,11 @@
       "factory": "./src/generators/reset-config/generator",
       "schema": "./src/generators/reset-config/schema.json",
       "description": "Remove all nx-project-release configuration from the workspace"
+    },
+    "setup-commitlint": {
+      "factory": "./src/generators/setup-commitlint/generator",
+      "schema": "./src/generators/setup-commitlint/schema.json",
+      "description": "Set up commitlint with Nx scopes validation"
     }
   }
 }

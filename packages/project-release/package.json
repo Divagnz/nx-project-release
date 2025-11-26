@@ -1,6 +1,6 @@
 {
   "name": "nx-project-release",
-  "version": "0.0.13",
+  "version": "0.0.19",
   "description": "Polyglot Nx plugin for releasing any project type using project.json and conventional commits",
   "keywords": [
     "nx",
@@ -16,6 +16,9 @@
   "types": "./src/index.d.ts",
   "executors": "./executors.json",
   "generators": "./generators.json",
+  "scripts": {
+    "postinstall": "node scripts/postinstall.js"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Divagnz/nx-project-release.git"
