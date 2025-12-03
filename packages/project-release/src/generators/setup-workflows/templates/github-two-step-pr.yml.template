@@ -66,21 +66,35 @@ jobs:
       - name: Version (Single Project)
         if: steps.mode.outputs.mode == 'single'
         run: |
+          # Auto-detect bump from conventional commits (omit releaseAs for auto)
+          # Manual releaseAs input overrides auto-detection
           PROJECT="${{ steps.mode.outputs.project }}"
-          RELEASE_AS="${{ github.event.inputs.releaseAs || 'patch' }}"
+          RELEASE_AS="${{ github.event.inputs.releaseAs }}"
           DRY_RUN="${{ github.event.inputs.dryRun == 'true' && '--dryRun' || '' }}"
 
-          npx nx run ${PROJECT}:version --releaseAs=${RELEASE_AS} ${DRY_RUN}
+          if [ -n "${RELEASE_AS}" ]; then
+            npx nx run ${PROJECT}:version --releaseAs=${RELEASE_AS} ${DRY_RUN}
+          else
+            npx nx run ${PROJECT}:version ${DRY_RUN}
+          fi
 
       - name: Version (Affected Projects)
         if: steps.mode.outputs.mode == 'affected'
         run: |
-          RELEASE_AS="${{ github.event.inputs.releaseAs || 'patch' }}"
+          # Auto-detect bump from conventional commits (omit releaseAs for auto)
+          # Manual releaseAs input overrides auto-detection
+          RELEASE_AS="${{ github.event.inputs.releaseAs }}"
           DRY_RUN="${{ github.event.inputs.dryRun == 'true' && '--dryRun' || '' }}"
 
-          npx nx affected -t version \
-            --base=origin/<%= defaultBranch %>~1 \
-            --releaseAs=${RELEASE_AS} ${DRY_RUN}
+          if [ -n "${RELEASE_AS}" ]; then
+            npx nx affected -t version \
+              --base=origin/<%= defaultBranch %>~1 \
+              --releaseAs=${RELEASE_AS} ${DRY_RUN}
+          else
+            npx nx affected -t version \
+              --base=origin/<%= defaultBranch %>~1 \
+              ${DRY_RUN}
+          fi
 
       - name: Changelog (Single Project)
         if: steps.mode.outputs.mode == 'single' && github.event.inputs.dryRun != 'true'
@@ -139,7 +153,7 @@ jobs:
           if [ -n "${{ steps.mode.outputs.project }}" ]; then
             echo "**Project:** ${{ steps.mode.outputs.project }}" >> $GITHUB_STEP_SUMMARY
           fi
-          echo "**Release Type:** ${{ github.event.inputs.releaseAs || 'patch' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Release Type:** ${{ github.event.inputs.releaseAs || 'auto-detect' }}" >> $GITHUB_STEP_SUMMARY
           echo "**Dry Run:** ${{ github.event.inputs.dryRun || 'false' }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "✅ Release commit created. Publish workflow will run automatically." >> $GITHUB_STEP_SUMMARY

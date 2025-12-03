@@ -49,6 +49,8 @@ jobs:
 
       - name: Version project
         run: |
+          # Auto-detect from conventional commits by default
+          # Override with manual inputs if provided
           FLAGS=""
           if [ -n "${{ github.event.inputs.version }}" ]; then
             FLAGS="--version=${{ github.event.inputs.version }}"

@@ -41,9 +41,11 @@ jobs:
 
       - name: Version affected projects
         run: |
+          # Auto-detect bump from conventional commits (omit releaseAs for auto-detection)
+          # Manual workflow_dispatch can override with releaseAs input
           npx nx affected -t version \
             --base=origin/<%= defaultBranch %>~1 \
-            --releaseAs=${{ github.event.inputs.releaseAs || 'patch' }} \
+            ${{ github.event.inputs.releaseAs && format('--releaseAs={0}', github.event.inputs.releaseAs) || '' }} \
             ${{ github.event.inputs.dryRun == 'true' && '--dryRun' || '' }}
 
       - name: Generate changelogs for affected projects
