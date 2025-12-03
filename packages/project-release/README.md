@@ -60,11 +60,13 @@ nx run my-project:version --version=1.0.0 --firstRelease
 nx run my-project:changelog
 nx run my-project:publish
 
-# Subsequent releases (version bump only)
+# Subsequent releases (step-by-step - recommended)
 nx run my-project:version --releaseAs=minor
+nx run my-project:changelog
+nx run my-project:publish
 
-# Complete workflow (version + changelog + publish)
-nx run my-project:project-release --gitCommit --gitTag
+# Or use the release executor for orchestration (version + changelog + tag)
+nx run my-project:release --releaseAs=minor --gitPush
 
 # Preview changes
 nx run my-project:version --preview
@@ -73,7 +75,9 @@ nx run my-project:version --preview
 nx run my-project:validate
 
 # Batch release (all affected projects)
-nx affected --target=version --base=main --releaseAs=minor
+nx affected -t version --base=main --releaseAs=minor
+nx affected -t changelog --base=main
+nx affected -t publish --base=main
 ```
 
 > **Note**: The `version` executor only bumps version numbers in files. Git operations (commit, tag, push) are handled by the `release` executor or CI/CD workflows.
@@ -88,10 +92,26 @@ nx affected --target=version --base=main --releaseAs=minor
 
 - **version** - Bump project version based on conventional commits
 - **changelog** - Generate CHANGELOG.md from commits
+- **release** - Orchestrate version + changelog + tag creation (no publish)
 - **artifact** - Create distributable artifacts (zip, tar, tgz) from build output
 - **publish** - Publish to NPM, Nexus, S3, or custom registry
-- **project-release** - All-in-one executor (version + changelog + publish)
 - **validate** - Validate and display configuration summary
+
+### Recommended Workflow
+
+For maximum control, use individual executors in sequence:
+```bash
+nx run my-project:version --releaseAs=minor --gitCommit --gitTag
+nx run my-project:changelog
+nx run my-project:publish
+```
+
+For orchestration, use the `release` executor (handles version + changelog + tag):
+```bash
+nx run my-project:release --releaseAs=minor --gitPush
+# Then separately:
+nx run my-project:publish
+```
 
 ### Validate Executor
 
@@ -822,10 +842,20 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
       - run: npm ci
-      - run: |
-          npx nx run ${{ inputs.project }}:project-release \
-            --releaseAs=${{ inputs.releaseAs }} \
-            --gitCommit --gitTag --gitPush --githubRelease
+      - name: Version and Changelog
+        run: |
+          npx nx run ${{ inputs.project }}:version --releaseAs=${{ inputs.releaseAs }} --gitCommit --gitTag
+          npx nx run ${{ inputs.project }}:changelog
+      - name: Push and Create Release
+        run: |
+          npx nx run ${{ inputs.project }}:release --gitPush --createGitHubRelease
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish
+        run: |
+          npx nx run ${{ inputs.project }}:publish
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 ```
 
 Generate these automatically:
@@ -906,8 +936,13 @@ nx run my-project:version --releaseAs=minor
 
 ### Batch Release
 ```bash
-# Release all affected projects
-nx affected --target=project-release --base=main --gitCommit --gitTag
+# Release all affected projects (step-by-step)
+nx affected -t version --base=main --releaseAs=patch --gitCommit --gitTag
+nx affected -t changelog --base=main
+nx affected -t publish --base=main
+
+# Push changes
+git push origin main --tags
 ```
 
 ### Preview Mode
