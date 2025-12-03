@@ -4,6 +4,14 @@
   "description": "Polyglot package publishing to npm, Nexus, S3, or custom registries for any project type",
   "type": "object",
   "properties": {
+    "artifactPath": {
+      "type": "string",
+      "description": "Path to artifact file to publish (can be passed from artifact executor or specified manually). Supports template variables: {projectName}, {version}"
+    },
+    "releaseGroup": {
+      "type": "string",
+      "description": "Release group name to use for configuration (reads settings from nx.json projectRelease.releaseGroups)"
+    },
     "dryRun": {
       "type": "boolean",
       "default": false,
@@ -49,9 +57,8 @@
     },
     "pathStrategy": {
       "type": "string",
-      "enum": ["version", "hash", "flat"],
-      "default": "version",
-      "description": "Path strategy for artifact uploads (Nexus/S3). 'version' uses semver (1.2.3/file.tgz), 'hash' uses file hash, 'flat' no subdirectories"
+      "enum": ["flat", "version", "hash", "semver"],
+      "description": "Path strategy for artifact uploads (Nexus/S3). Overrides global pathStrategy from nx.json. 'flat': bucket/artifact.zip, 'version': bucket/1.2.3/artifact.zip, 'hash': bucket/a1b2c3d/artifact.zip, 'semver': bucket/v1/1.2/1.2.3/artifact.zip"
     },
     "skipExisting": {
       "type": "boolean",

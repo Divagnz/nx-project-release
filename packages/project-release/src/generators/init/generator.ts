@@ -75,7 +75,8 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
 
     // Update nx.json if requested
     if (answers.configLocation === 'nx-json' || answers.configLocation === 'both') {
-      updateNxJsonConfiguration(tree, answers);
+      // Pass true if user skipped wizard in prompts
+      updateNxJsonConfiguration(tree, answers, answers._wizardSkipped || false);
     }
 
     // Add targets to projects if requested
@@ -100,9 +101,7 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
 
     // Set up GitHub workflows if requested
     if (answers.setupGitHubWorkflows && answers.workflowType !== 'none') {
-      logger.info('');
-      logger.info('🔄 Setting up GitHub Actions workflows...');
-      createGitHubWorkflows(tree, answers.workflowType, answers.selectedProjects);
+      await createGitHubWorkflows(tree, answers.workflowType, answers.selectedProjects);
     }
 
     logger.info('');
@@ -147,8 +146,8 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
       logger.info('');
     }
 
-    // Apply default configuration
-    updateNxJsonConfiguration(tree, defaults);
+    // Apply default configuration (pass skipPrompts=true to add examples)
+    updateNxJsonConfiguration(tree, defaults, true);
 
     if (defaults.selectedProjects.length > 0) {
       addTargetsToProjects(tree, defaults);

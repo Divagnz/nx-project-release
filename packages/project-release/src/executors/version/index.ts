@@ -241,6 +241,17 @@ function matchesProjectPattern(projectName: string, patterns: string[]): boolean
 const runExecutor: PromiseExecutor<VersionExecutorSchema> = async (options, context: ExecutorContext) => {
   const mergedOptions = mergeConfigWithNxJson(options, context, context.projectName);
 
+  // Check if project is excluded from releases
+  if (context.projectName) {
+    const nxJson = context.nxJsonConfiguration as any;
+    const excludedProjects = nxJson?.projectRelease?.excludedProjects || [];
+
+    if (excludedProjects.includes(context.projectName)) {
+      logger.info(`⏭️  Skipping ${context.projectName}: excluded from releases`);
+      return { success: true, skipped: true, reason: 'Project excluded from releases' };
+    }
+  }
+
   // Handle sync versioning and dependency tracking
   if (mergedOptions.syncVersions || mergedOptions.trackDeps) {
     return await handleWorkspaceVersioning(mergedOptions, context);
@@ -466,7 +477,7 @@ async function versionSingleProject(options: VersionExecutorSchema, context: Exe
       // Automatic mode - analyze commits to determine version bump
       const recommendedReleaseType = await analyzeConventionalCommits(context);
 
-      if (recommendedReleaseType && recommendedReleaseType !== 'none' && recommendedReleaseType !== 'not-affected') {
+      if (recommendedReleaseType && recommendedReleaseType !== 'none') {
         // Found conventional commits (feat/fix/breaking)
         if (isFirstRelease) {
           const baseVersion = recommendedReleaseType === 'major' ? '1.0.0' :
@@ -485,12 +496,6 @@ async function versionSingleProject(options: VersionExecutorSchema, context: Exe
         logger.warn('⚠️  No conventional commits (feat/fix/breaking) found since last release');
         logger.info('💡 Defaulting to patch bump (use --releaseAs to specify different bump type)');
         newVersion = semver.inc(currentVersion, 'patch') || currentVersion;
-      } else if (recommendedReleaseType === 'not-affected') {
-        // Has commits, but none affect this project (monorepo)
-        // Just return current version (no bump, no release)
-        logger.info(`ℹ️  Project '${context.projectName}' not affected by recent changes`);
-        logger.info('💡 Skipping version bump (use --releaseAs to force a bump)');
-        return { success: true, skipped: true, reason: 'Project not affected by recent changes', version: currentVersion };
       } else {
         // No commits at all - don't bump, require explicit intent
         throw new Error(
@@ -513,12 +518,6 @@ async function versionSingleProject(options: VersionExecutorSchema, context: Exe
       return { success: true, version: newVersion };
     }
 
-    // Backward compatibility: map old skipCommit/skipTag to new gitCommit/gitTag
-    const shouldCommit = options.gitCommit ?? (options.skipCommit === false ? true : false);
-    const shouldTag = options.gitTag ?? (options.skipTag === false ? true : false);
-    const shouldStage = options.stageChanges ?? shouldCommit;
-    const shouldPush = options.gitPush ?? false;
-
     if (options.dryRun) {
       logger.info(`Would update version from ${currentVersion} to ${newVersion}`);
 
@@ -530,23 +529,6 @@ async function versionSingleProject(options: VersionExecutorSchema, context: Exe
           logger.info(`Would update lock file: ${existingLockFile}`);
         }
       }
-
-      if (shouldStage) {
-        logger.info(`Would stage changes: ${targetFilePath}`);
-      }
-      if (shouldCommit) {
-        const commitMsg = options.gitCommitMessage || generateConventionalCommitMessage(context.projectName, newVersion, isFirstRelease);
-        logger.info(`Would create git commit: "${commitMsg}"`);
-      }
-      if (shouldTag) {
-        const tag = generateTagName(context.projectName, newVersion, options);
-        const tagMsg = options.gitTagMessage || tag;
-        logger.info(`Would create git tag: ${tag} with message "${tagMsg}"`);
-      }
-      if (shouldPush) {
-        const remote = options.gitRemote || 'origin';
-        logger.info(`Would push to remote: ${remote}`);
-      }
       return { success: true, version: newVersion };
     }
 
@@ -554,181 +536,7 @@ async function versionSingleProject(options: VersionExecutorSchema, context: Exe
     await writeVersionToFile(context, projectRoot, options, newVersion, targetFilePath);
 
     // Update lock files if needed (unless explicitly skipped)
-    const lockFileUpdated = await updateLockFiles(context, options);
-
-    // Check ciOnly restriction before any git operations
-    const hasGitOperations = shouldCommit || shouldTag || shouldPush || options.githubRelease || options.createReleaseBranch;
-    if (options.ciOnly && hasGitOperations && !process.env.CI) {
-      logger.error('❌ Git operations are restricted to CI/CD environments only (ciOnly: true)');
-      logger.info('💡 Set CI environment variable or disable ciOnly to run locally');
-      return { success: false };
-    }
-
-    // Create release branch if requested
-    let releaseBranchName = '';
-    if (options.createReleaseBranch) {
-      try {
-        // Get current branch
-        const currentBranch = execSync('git rev-parse --abbrev-ref HEAD', {
-          cwd: context.root,
-          encoding: 'utf-8'
-        }).trim();
-
-        // Generate release branch name (default: semver only)
-        releaseBranchName = options.releaseBranchName || `release/v${newVersion}`;
-        releaseBranchName = releaseBranchName
-          .replace(/{version}/g, newVersion)
-          .replace(/{projectName}/g, context.projectName)
-          .replace(/{tag}/g, generateTagName(context.projectName, newVersion, options));
-
-        // Create and checkout release branch
-        execSync(`git checkout -b ${releaseBranchName}`, { cwd: context.root });
-        logger.info(`✅ Created release branch: ${releaseBranchName} (from ${currentBranch})`);
-      } catch (error) {
-        logger.error(`❌ Failed to create release branch: ${error instanceof Error ? error.message : String(error)}`);
-        throw error;
-      }
-    }
-
-    // Stage changes if requested
-    if (shouldStage) {
-      try {
-        const filesToStage = [targetFilePath];
-        if (lockFileUpdated) {
-          filesToStage.push(lockFileUpdated);
-        }
-        execSync(`git add ${filesToStage.join(' ')}`, { cwd: context.root });
-        logger.info(`📝 Staged changes: ${filesToStage.join(', ')}`);
-      } catch (error) {
-        logger.warn(`⚠️ Failed to stage changes: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    }
-
-    // Create git commit if requested
-    if (shouldCommit) {
-      try {
-        const commitMessage = options.gitCommitMessage ||
-                            generateConventionalCommitMessage(context.projectName, newVersion, isFirstRelease);
-
-        // Interpolate {version}, {projectName}, {releaseGroupName}
-        const interpolatedMessage = commitMessage
-          .replace(/{version}/g, newVersion)
-          .replace(/{projectName}/g, context.projectName)
-          .replace(/{releaseGroupName}/g, options.releaseGroup || '');
-
-        // Stage if not already staged
-        if (!shouldStage) {
-          const filesToStage = [targetFilePath];
-          if (lockFileUpdated) {
-            filesToStage.push(lockFileUpdated);
-          }
-          execSync(`git add ${filesToStage.join(' ')}`, { cwd: context.root });
-        }
-
-        // Build commit command
-        let commitCmd = `git commit -m "${interpolatedMessage}"`;
-        if (options.gitCommitArgs) {
-          commitCmd += ` ${options.gitCommitArgs}`;
-        }
-
-        execSync(commitCmd, { cwd: context.root });
-        logger.info(`✅ Created git commit: "${interpolatedMessage}"`);
-      } catch (error) {
-        logger.error(`❌ Failed to create commit: ${error instanceof Error ? error.message : String(error)}`);
-        throw error;
-      }
-    }
-
-    // Create git tag if requested
-    if (shouldTag) {
-      try {
-        const tag = generateTagName(context.projectName, newVersion, options);
-        const tagMessage = options.gitTagMessage || tag;
-
-        // Interpolate tokens in tag message
-        const interpolatedTagMessage = tagMessage
-          .replace(/{version}/g, newVersion)
-          .replace(/{projectName}/g, context.projectName)
-          .replace(/{releaseGroupName}/g, options.releaseGroup || '')
-          .replace(/{tag}/g, tag);
-
-        // Build tag command
-        let tagCmd = `git tag -a ${tag} -m "${interpolatedTagMessage}"`;
-        if (options.gitTagArgs) {
-          tagCmd += ` ${options.gitTagArgs}`;
-        }
-
-        execSync(tagCmd, { cwd: context.root });
-        logger.info(`✅ Created git tag: ${tag}`);
-      } catch (error) {
-        logger.error(`❌ Failed to create tag: ${error instanceof Error ? error.message : String(error)}`);
-        throw error;
-      }
-    }
-
-    // Push to remote if requested
-    if (shouldPush) {
-      // Add warning about push operation
-      const ciPlatform = getCIPlatform();
-      if (ciPlatform) {
-        logger.warn(`⚠️  About to push to remote (running in ${ciPlatform})`);
-      } else if (!options.ciOnly) {
-        logger.warn(`⚠️  About to push to remote from local environment`);
-        logger.warn(`💡 Consider setting ciOnly: true to prevent accidental local pushes`);
-      }
-
-      try {
-        const remote = options.gitRemote || 'origin';
-        let pushCmd = `git push ${remote}`;
-
-        // Push release branch or commits and/or tags
-        if (options.createReleaseBranch && releaseBranchName) {
-          // Push the release branch with upstream tracking
-          pushCmd += ` ${releaseBranchName} -u`;
-          logger.info(`Pushing release branch: ${releaseBranchName}`);
-        } else {
-          // Original behavior: push commits and/or tags
-          if (shouldCommit) {
-            pushCmd += ` HEAD`;
-          }
-          if (shouldTag) {
-            const tag = generateTagName(context.projectName, newVersion, options);
-            pushCmd += ` ${tag}`;
-          }
-        }
-
-        if (options.gitPushArgs) {
-          pushCmd += ` ${options.gitPushArgs}`;
-        }
-
-        execSync(pushCmd, { cwd: context.root });
-        logger.info(`✅ Pushed to remote: ${remote}`);
-      } catch (error) {
-        logger.error(`❌ Failed to push: ${error instanceof Error ? error.message : String(error)}`);
-        throw error;
-      }
-    }
-
-    // Create pull request if requested
-    if (options.createPR && options.createReleaseBranch && releaseBranchName) {
-      try {
-        await createPullRequest(context, releaseBranchName, newVersion, options);
-      } catch (error) {
-        logger.error(`❌ Failed to create PR: ${error instanceof Error ? error.message : String(error)}`);
-        // Don't fail the entire release if PR creation fails
-      }
-    }
-
-    // Create GitHub release if requested
-    if (options.githubRelease && shouldTag) {
-      try {
-        const tag = generateTagName(context.projectName, newVersion, options);
-        await createGitHubRelease(context, tag, newVersion, options);
-      } catch (error) {
-        logger.error(`❌ Failed to create GitHub release: ${error instanceof Error ? error.message : String(error)}`);
-        // Don't fail the entire release if GitHub release creation fails
-      }
-    }
+    await updateLockFiles(context, options);
 
     // Execute post-targets if specified
     if (options.postTargets && options.postTargets.length > 0) {
@@ -908,7 +716,7 @@ async function calculateNewVersionForProject(projectName: string, options: Versi
   } else {
     const recommendedReleaseType = await analyzeConventionalCommits(context);
 
-    if (recommendedReleaseType && recommendedReleaseType !== 'none' && recommendedReleaseType !== 'not-affected') {
+    if (recommendedReleaseType && recommendedReleaseType !== 'none') {
       // Found conventional commits (feat/fix/breaking)
       if (isFirstRelease) {
         return recommendedReleaseType === 'major' ? '1.0.0' :
@@ -922,12 +730,6 @@ async function calculateNewVersionForProject(projectName: string, options: Versi
       logger.warn('⚠️  No conventional commits (feat/fix/breaking) found since last release');
       logger.info('💡 Defaulting to patch bump (use --releaseAs to specify different bump type)');
       return semver.inc(currentVersion, 'patch') || currentVersion;
-    } else if (recommendedReleaseType === 'not-affected') {
-      // Has commits, but none affect this project (monorepo)
-      // Just return current version (no bump, no release)
-      logger.info(`ℹ️  Project '${projectName}' not affected by recent changes`);
-      logger.info('💡 Skipping version bump (use --releaseAs to force a bump)');
-      return currentVersion; // Return without bumping
     } else {
       // No commits at all - don't bump, require explicit intent
       throw new Error(
@@ -1125,12 +927,12 @@ function generateConventionalCommitMessage(projectName: string, version: string,
 }
 
 // Enhanced commit analysis with skip/target syntax support
+// Analyze commits using conventional commits to determine bump type
 // Returns:
 //   - ReleaseType (major/minor/patch) - Found conventional commits
-//   - 'none' - Has relevant commits but no conventional ones
-//   - 'not-affected' - Has commits but none affect this project
+//   - 'none' - Has commits but no conventional ones
 //   - null - No commits at all
-async function analyzeConventionalCommits(context: ExecutorContext): Promise<semver.ReleaseType | null | 'none' | 'not-affected'> {
+async function analyzeConventionalCommits(context: ExecutorContext): Promise<semver.ReleaseType | null | 'none'> {
   try {
     let gitCommand = 'git log --format="%s" --no-merges';
 
@@ -1159,46 +961,6 @@ async function analyzeConventionalCommits(context: ExecutorContext): Promise<sem
 
     const commitLines = commits.split('\n').filter(line => line.trim());
     const projectName = context.projectName || '';
-
-    // Check if project is actually affected using nx affected
-    // This is more accurate than git diff as it understands Nx dependencies
-    let isProjectAffected = false;
-    try {
-      // Determine base commit (last tag or HEAD)
-      let baseRef = 'HEAD';
-      try {
-        const lastTag = execSync(`git tag --list --sort=-version:refname | grep -E "^${projectName}-v|^v" | head -1`, {
-          cwd: context.root,
-          encoding: 'utf8',
-          stdio: 'pipe'
-        }).trim();
-
-        if (lastTag) {
-          baseRef = lastTag;
-        }
-      } catch {
-        // No previous tags found
-      }
-
-      // Use nx show projects --affected to check if this project is affected
-      const affectedOutput = execSync(
-        `npx nx show projects --affected --base=${baseRef} --head=HEAD`,
-        {
-          cwd: context.root,
-          encoding: 'utf8',
-          stdio: 'pipe'
-        }
-      ).trim();
-
-      const affectedProjects = affectedOutput.split('\n').filter(p => p.trim());
-      isProjectAffected = affectedProjects.includes(projectName);
-    } catch {
-      // If nx affected fails, assume project is affected (safer)
-      isProjectAffected = true;
-    }
-
-    // Has commits, but this project is not affected (monorepo scenario)
-    if (!isProjectAffected) return 'not-affected';
 
     // Filter commits using enhanced syntax (for commit message analysis)
     const relevantCommits = filterCommitsForProject(commitLines, projectName);

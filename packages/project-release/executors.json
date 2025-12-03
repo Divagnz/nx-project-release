@@ -15,10 +15,20 @@
       "schema": "./src/executors/publish/schema.json",
       "description": "Polyglot package publishing to npm, Nexus, or custom registries for any project type"
     },
-    "project-release": {
-      "implementation": "./src/executors/project-release/index",
-      "schema": "./src/executors/project-release/schema.json",
-      "description": "Complete polyglot release workflow (version+changelog+publish) for any project type"
+    "validate": {
+      "implementation": "./src/executors/validate/index",
+      "schema": "./src/executors/validate/schema.json",
+      "description": "Validate and display nx-project-release configuration summary"
+    },
+    "release": {
+      "implementation": "./src/executors/release/index",
+      "schema": "./src/executors/release/schema.json",
+      "description": "Handle git operations (commit, tag, push) and create GitHub/GitLab releases"
+    },
+    "artifact": {
+      "implementation": "./src/executors/artifact/index",
+      "schema": "./src/executors/artifact/schema.json",
+      "description": "Create distributable artifact (zip, tar, tgz) from build output"
     }
   }
 }

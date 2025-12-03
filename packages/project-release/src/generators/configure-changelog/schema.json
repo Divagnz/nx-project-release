@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "cli": "nx",
+  "$id": "ConfigureChangelog",
+  "title": "Configure Changelog Settings",
+  "description": "Configure changelog executor settings for one or multiple projects",
+  "type": "object",
+  "properties": {
+    "projects": {
+      "type": "array",
+      "description": "Projects to configure (multi-select)",
+      "items": {
+        "type": "string"
+      }
+    },
+    "changelogFile": {
+      "type": "string",
+      "description": "Changelog file name",
+      "default": "CHANGELOG.md"
+    },
+    "preset": {
+      "type": "string",
+      "description": "Conventional changelog preset",
+      "enum": ["angular", "conventionalcommits", "atom", "ember", "jshint"],
+      "default": "angular"
+    },
+    "infile": {
+      "type": "string",
+      "description": "Read existing changelog from this file"
+    },
+    "releaseCount": {
+      "type": "number",
+      "description": "Number of releases to generate changelog for (0 for all)",
+      "default": 0
+    },
+    "skipUnstable": {
+      "type": "boolean",
+      "description": "Skip unstable versions (pre-releases)",
+      "default": false
+    },
+    "includeCommitBody": {
+      "type": "boolean",
+      "description": "Include commit body in changelog",
+      "default": false
+    },
+    "interactive": {
+      "type": "boolean",
+      "description": "Use interactive mode",
+      "default": true
+    }
+  }
+}

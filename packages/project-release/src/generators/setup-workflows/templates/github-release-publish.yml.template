@@ -1,0 +1,196 @@
+name: Release and Publish
+
+on:
+  push:
+    branches: [<%= defaultBranch %>]
+<% if (triggerPaths && triggerPaths.length > 0) { %>    paths:
+<% triggerPaths.forEach(path => { %>      - '<%= path %>'
+<% }); %><% } %>
+<% if (enableWorkflowDispatch) { %>  workflow_dispatch:
+    inputs:
+      project:
+        description: 'Specific project (leave empty for all affected)'
+        required: false
+        type: string
+      releaseAs:
+        description: 'Release type'
+        required: false
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      skipPublish:
+        description: 'Skip publish step'
+        required: false
+        type: boolean
+        default: false
+      dryRun:
+        description: 'Dry run (no changes)'
+        required: false
+        type: boolean
+        default: false
+<% } %>
+jobs:
+  release-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: <%= nodeVersion %>
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Determine release mode
+        id: mode
+        run: |
+          if [ -n "${{ github.event.inputs.project }}" ]; then
+            echo "mode=single" >> $GITHUB_OUTPUT
+            echo "project=${{ github.event.inputs.project }}" >> $GITHUB_OUTPUT
+          else
+            echo "mode=affected" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Version (Single Project)
+        if: steps.mode.outputs.mode == 'single'
+        run: |
+          PROJECT="${{ steps.mode.outputs.project }}"
+          RELEASE_AS="${{ github.event.inputs.releaseAs || 'patch' }}"
+          DRY_RUN="${{ github.event.inputs.dryRun == 'true' && '--dryRun' || '' }}"
+
+          npx nx run ${PROJECT}:version --releaseAs=${RELEASE_AS} ${DRY_RUN}
+
+      - name: Version (Affected Projects)
+        if: steps.mode.outputs.mode == 'affected'
+        run: |
+          RELEASE_AS="${{ github.event.inputs.releaseAs || 'patch' }}"
+          DRY_RUN="${{ github.event.inputs.dryRun == 'true' && '--dryRun' || '' }}"
+
+          npx nx affected -t version \
+            --base=origin/<%= defaultBranch %>~1 \
+            --releaseAs=${RELEASE_AS} ${DRY_RUN}
+
+      - name: Changelog (Single Project)
+        if: steps.mode.outputs.mode == 'single' && github.event.inputs.dryRun != 'true'
+        run: |
+          PROJECT="${{ steps.mode.outputs.project }}"
+          npx nx run ${PROJECT}:changelog
+
+      - name: Changelog (Affected Projects)
+        if: steps.mode.outputs.mode == 'affected' && github.event.inputs.dryRun != 'true'
+        run: |
+          npx nx affected -t changelog \
+            --base=origin/<%= defaultBranch %>~1
+
+      - name: Commit and push version bumps and changelogs
+        if: github.event.inputs.dryRun != 'true'
+        run: |
+          git add .
+          git diff --staged --quiet || git commit -m "chore(release): version bumps and changelogs"
+          git push
+
+      - name: Build (Single Project)
+        if: steps.mode.outputs.mode == 'single' && github.event.inputs.dryRun != 'true'
+        run: |
+          PROJECT="${{ steps.mode.outputs.project }}"
+          npx nx run ${PROJECT}:build
+
+      - name: Build (Affected Projects)
+        if: steps.mode.outputs.mode == 'affected' && github.event.inputs.dryRun != 'true'
+        run: |
+          npx nx affected -t build \
+            --base=origin/<%= defaultBranch %>~1
+
+      - name: Artifact (Single Project)
+        if: steps.mode.outputs.mode == 'single' && github.event.inputs.dryRun != 'true'
+        run: |
+          PROJECT="${{ steps.mode.outputs.project }}"
+          npx nx run ${PROJECT}:artifact
+
+      - name: Artifact (Affected Projects)
+        if: steps.mode.outputs.mode == 'affected' && github.event.inputs.dryRun != 'true'
+        run: |
+          npx nx affected -t artifact \
+            --base=origin/<%= defaultBranch %>~1
+
+      - name: Create Tags and GitHub Releases (Single Project)
+        if: steps.mode.outputs.mode == 'single' && github.event.inputs.dryRun != 'true'
+        run: |
+          PROJECT="${{ steps.mode.outputs.project }}"
+          npx nx run ${PROJECT}:release --gitTag=true --gitPush=false<% if (createGitHubRelease) { %> --createGitHubRelease --assetPatterns='dist/artifacts/**/{projectName}*'<% } %>
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Tags and GitHub Releases (Affected Projects)
+        if: steps.mode.outputs.mode == 'affected' && github.event.inputs.dryRun != 'true'
+        run: |
+          npx nx affected -t release \
+            --base=origin/<%= defaultBranch %>~1 \
+            --gitTag=true \
+            --gitPush=false<% if (createGitHubRelease) { %> \
+            --createGitHubRelease \
+            --assetPatterns='dist/artifacts/**/{projectName}*'<% } %>
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push commits and tags
+        if: github.event.inputs.dryRun != 'true'
+        run: |
+          git push
+          git push --tags
+      - name: Publish (Single Project)
+        if: |
+          steps.mode.outputs.mode == 'single' &&
+          github.event.inputs.skipPublish != 'true' &&
+          github.event.inputs.dryRun != 'true'
+        run: |
+          PROJECT="${{ steps.mode.outputs.project }}"
+          npx nx run ${PROJECT}:publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish (Affected Projects)
+        if: |
+          steps.mode.outputs.mode == 'affected' &&
+          github.event.inputs.skipPublish != 'true' &&
+          github.event.inputs.dryRun != 'true'
+        run: |
+          npx nx affected --target=publish \
+            --base=origin/<%= defaultBranch %>~1
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Mode:** ${{ steps.mode.outputs.mode }}" >> $GITHUB_STEP_SUMMARY
+          if [ -n "${{ steps.mode.outputs.project }}" ]; then
+            echo "**Project:** ${{ steps.mode.outputs.project }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "**Release Type:** ${{ github.event.inputs.releaseAs || 'patch' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Dry Run:** ${{ github.event.inputs.dryRun || 'false' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Skip Publish:** ${{ github.event.inputs.skipPublish || 'false' }}" >> $GITHUB_STEP_SUMMARY

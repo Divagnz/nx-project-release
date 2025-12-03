@@ -1,4 +1,4 @@
-# nx-project-release
+artio# nx-project-release
 
 <a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
 
@@ -11,6 +11,16 @@
 ![Coverage Branches](./coverage/packages/project-release/badge-branches.svg)
 
 A polyglot Nx plugin for automated semantic versioning, changelog generation, and publishing for any project type in your monorepo.
+
+## 🆕 Latest Updates (v0.0.31+)
+
+- **📦 Optimized Artifact Handling** - Artifacts no longer committed to git, keeping repositories clean
+- **🎯 Project-Specific Artifacts** - GitHub releases automatically attach only matching artifacts per project
+- **🔄 Two-Step Workflows** - Optional workflow split: Step 1 (version/changelog/tag) → Step 2 (build/artifact/publish)
+- **🎯 Improved Version Detection** - Removed redundant affected checks, now trusts Nx's affected detection completely
+- **🚫 Project Exclusion** - Automatic skipping of excluded projects in `nx affected` workflows
+- **🔒 Security Updates** - Updated glob dependency to v13+ for improved security
+- **🐛 Bug Fixes** - Fixed ESM compatibility issues with fs-extra and artifact executor
 
 ## ✨ Features
 
@@ -80,7 +90,7 @@ nx run my-project:project-release --gitCommit --gitTag
 Bumps project version based on conventional commits or explicit input.
 
 ```bash
-# Automatic version bump
+# Automatic version bump (analyzes conventional commits)
 nx run my-project:version
 
 # Specific version
@@ -92,12 +102,18 @@ nx run my-project:version --releaseAs=minor
 # Prerelease
 nx run my-project:version --releaseAs=prerelease --preid=beta
 
-# With git operations
+# With git operations (handled by release executor or CI/CD)
 nx run my-project:version --gitCommit --gitTag
 
 # Preview changes
 nx run my-project:version --preview
 ```
+
+> **How Version Detection Works (v0.0.30+)**:
+> - When using `nx affected -t version`, Nx determines affected projects based on file changes
+> - Version executor analyzes conventional commits since last tag to determine bump type (major/minor/patch)
+> - Projects in `excludedProjects` list are automatically skipped
+> - Use `--releaseAs` to override automatic detection
 
 **Key options:**
 - `--version` - Explicit version (e.g., `1.2.3`)
@@ -124,6 +140,44 @@ nx run my-project:changelog --interactive
 nx run my-project:changelog --preset=conventionalcommits
 ```
 
+### artifact
+Creates distributable artifacts (zip, tar, tgz) from build output for non-npm projects.
+
+```bash
+# Create tar.gz artifact from build output
+nx run my-project:artifact
+
+# Create zip artifact
+nx run my-project:artifact --format=zip
+
+# Custom naming with variables
+nx run my-project:artifact --artifactName='{projectName}-{version}-{platform}-{arch}.tgz'
+
+# Exclude files
+nx run my-project:artifact --exclude='**/*.map' --exclude='**/*.spec.ts'
+```
+
+**Template variables:**
+- `{projectName}` - Project name
+- `{version}` - Current version
+- `{hash}` - Git short hash
+- `{timestamp}` - Unix timestamp
+- `{date}` - Current date (YYYY-MM-DD)
+- `{platform}` - OS platform (linux, darwin, win32)
+- `{arch}` - CPU architecture (x64, arm64)
+- `{extension}` - File extension based on format
+
+**Key options:**
+- `--sourceDir` - Source directory to archive (required)
+- `--outputDir` - Output directory (default: `dist/artifacts`)
+- `--artifactName` - Filename template (default: `{projectName}-{version}.{extension}`)
+- `--format` - Archive format: `zip | tar | tgz | tar.gz` (default: `tgz`)
+- `--include` - Glob patterns to include (default: `**/*`)
+- `--exclude` - Glob patterns to exclude
+- `--compressionLevel` - 0-9, where 9 is maximum (default: 6)
+- `--stripPrefix` - Remove prefix from archive paths
+- `--metadata` - Additional metadata for manifest
+
 ### publish
 Publishes built artifacts to configured registry.
 
@@ -145,6 +199,188 @@ All-in-one executor that runs version + changelog + publish.
 # Complete release workflow
 nx run my-project:project-release --gitCommit --gitTag
 ```
+
+## 🔄 CI/CD Workflows
+
+### Workflow Types
+
+The `setup-workflows` generator creates GitHub Actions workflows optimized for different release strategies:
+
+```bash
+nx g nx-project-release:setup-workflows
+```
+
+#### Single-Step Workflow (Default)
+Everything happens in one workflow run:
+```
+Version → Changelog → Build → Artifact → Tag → Push → GitHub Release → Publish
+```
+
+**Use when:** You want fast, simple releases in one step.
+
+```yaml
+# .github/workflows/release-affected.yml
+on:
+  push:
+    branches: [main]
+
+jobs:
+  release:
+    steps:
+      - Version affected projects
+      - Generate changelogs
+      - Commit & push
+      - Build projects
+      - Create artifacts (kept in memory, not committed)
+      - Create & push tags
+      - Create GitHub releases with artifacts
+      - Publish to npm
+```
+
+#### Two-Step Workflow (Recommended for Production)
+Splits release into two workflows:
+
+**Step 1: Release PR (on push to main)**
+```
+Version → Changelog → Tag → Push
+```
+
+**Step 2: Publish (triggered by release commit)**
+```
+Build → Artifact → GitHub Release → Publish
+```
+
+**Benefits:**
+- ✅ Faster feedback on version changes (no build/artifact wait)
+- ✅ Artifacts never committed to git (keeps repo clean)
+- ✅ Clear separation: versioning vs distribution
+- ✅ Can review version changes before build/publish
+- ✅ Avoids git lock file issues from concurrent pushes
+
+```yaml
+# .github/workflows/release-pr.yml
+on:
+  push:
+    branches: [main]
+
+jobs:
+  release-pr:
+    steps:
+      - Version affected projects
+      - Generate changelogs
+      - Create tags (locally)
+      - Commit & push (versions + changelogs + tags)
+
+# .github/workflows/publish-release.yml
+on:
+  push:
+    branches: [main]
+
+jobs:
+  publish:
+    if: contains(github.event.head_commit.message, 'chore(release):')
+    steps:
+      - Build projects
+      - Create artifacts
+      - Create GitHub releases with artifacts
+      - Publish to npm
+```
+
+**Enable two-step workflow:**
+```bash
+nx g nx-project-release:setup-workflows --twoStepRelease
+```
+
+### Artifact Handling
+
+**How it works:**
+1. **Artifacts are created** locally with `nx affected -t artifact`
+2. **Artifacts stay in `dist/artifacts/`** (never committed to git)
+3. **Project-specific artifacts** are attached to GitHub releases using pattern:
+   ```bash
+   --assetPatterns='dist/artifacts/**/{projectName}*'
+   ```
+
+**Example:** If you have projects `my-api` and `my-cli`:
+```
+dist/artifacts/
+  ├── my-api-v1.2.3.tgz
+  ├── my-cli-v2.0.1.tgz
+  └── my-cli-v2.0.1-linux-x64.tar.gz
+```
+
+**GitHub Releases:**
+- `my-api v1.2.3` gets `my-api-v1.2.3.tgz`
+- `my-cli v2.0.1` gets both `my-cli-v2.0.1.tgz` and `my-cli-v2.0.1-linux-x64.tar.gz`
+
+### Example Flow: Monorepo with Multiple Projects
+
+**Scenario:** You have a monorepo with 3 libraries and 2 applications.
+
+**1. Make changes and commit:**
+```bash
+# Feature development
+git checkout -b feature/user-auth
+# ... make changes to lib-auth and app-web ...
+git commit -m "feat(lib-auth): add JWT support"
+git commit -m "feat(app-web): integrate JWT auth"
+git push origin feature/user-auth
+```
+
+**2. Merge PR to main:**
+```bash
+gh pr merge feature/user-auth --squash
+```
+
+**3. Workflow automatically runs:**
+
+**Single-Step:**
+```
+✅ nx affected -t version → lib-auth: 1.2.0→1.3.0, app-web: 1.0.0→1.1.0
+✅ nx affected -t changelog → Updated CHANGELOG.md files
+✅ git commit + push → chore(release): version bumps and changelogs
+✅ nx affected -t build → Built lib-auth and app-web
+✅ nx affected -t artifact → Created dist/artifacts/lib-auth-v1.3.0.tgz, app-web-v1.1.0.tgz
+✅ nx affected -t release --gitTag → Created tags lib-auth-v1.3.0, app-web-v1.1.0
+✅ git push --tags → Pushed tags
+✅ nx affected -t release --createGitHubRelease → Created GitHub releases with artifacts
+✅ nx affected -t publish → Published to npm
+```
+
+**Two-Step:**
+```
+Workflow 1 (Release PR):
+✅ nx affected -t version → lib-auth: 1.2.0→1.3.0, app-web: 1.0.0→1.1.0
+✅ nx affected -t changelog → Updated CHANGELOG.md files
+✅ nx affected -t release --gitTag → Created tags
+✅ git push + git push --tags → Pushed commit and tags
+   └─→ Triggers Workflow 2 ↓
+
+Workflow 2 (Publish):
+✅ nx affected -t build → Built lib-auth and app-web
+✅ nx affected -t artifact → Created artifacts
+✅ nx affected -t release --createGitHubRelease → Created releases with artifacts
+✅ nx affected -t publish → Published to npm
+```
+
+**Result:**
+- ✅ 2 packages published to npm
+- ✅ 2 Git tags created
+- ✅ 2 GitHub releases created with artifacts
+- ✅ Repository stays clean (no binary artifacts in history)
+- ✅ Other projects unchanged
+
+### Workflow Comparison
+
+| Feature | Single-Step | Two-Step |
+|---------|-------------|----------|
+| **Speed** | ⚡ Fastest (one run) | 🐢 Two separate runs |
+| **Repo Size** | 🎯 Clean (no artifacts) | 🎯 Clean (no artifacts) |
+| **Feedback** | 🐌 Wait for full build | ⚡ Fast version feedback |
+| **Complexity** | ✅ Simple | ⚠️ Two workflows |
+| **Rollback** | ⚠️ Hard (all-or-nothing) | ✅ Easy (stop at version) |
+| **Lock Issues** | ✅ Manual push (no issues) | ✅ Manual push (no issues) |
+| **Best For** | Small teams, simple projects | Production, large monorepos |
 
 ## 🔐 CI/CD Safety
 
@@ -259,7 +495,9 @@ gh pr create --title "chore(release): batch $(date +%Y-%m-%d)"
 
 ### Skipped Projects
 
-Projects without version configuration are automatically skipped (not failed) in batch mode:
+Projects are automatically skipped (not failed) in batch mode when:
+- No version configuration exists
+- Project is in the `excludedProjects` list (nx.json)
 
 ```
 ⚠️  Skipping project 'unconfigured-lib': No version found

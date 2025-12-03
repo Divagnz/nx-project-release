@@ -1,0 +1,108 @@
+name: Release Affected Projects
+
+on:
+  push:
+    branches: [<%= defaultBranch %>]
+<% if (triggerPaths && triggerPaths.length > 0) { %>    paths:
+<% triggerPaths.forEach(path => { %>      - '<%= path %>'
+<% }); %><% } %>
+<% if (enableWorkflowDispatch) { %>  workflow_dispatch:
+    inputs:
+      releaseAs:
+        description: 'Release type'
+        required: false
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      dryRun:
+        description: 'Dry run'
+        required: false
+        type: boolean
+        default: false
+<% } %>
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: <%= nodeVersion %>
+
+      - run: npm ci
+
+      - name: Version affected projects
+        run: |
+          npx nx affected -t version \
+            --base=origin/<%= defaultBranch %>~1 \
+            --releaseAs=${{ github.event.inputs.releaseAs || 'patch' }} \
+            ${{ github.event.inputs.dryRun == 'true' && '--dryRun' || '' }}
+
+      - name: Generate changelogs for affected projects
+        run: |
+          npx nx affected -t changelog \
+            --base=origin/<%= defaultBranch %>~1
+
+      - name: Commit and push version bumps and changelogs
+        if: ${{ github.event.inputs.dryRun != 'true' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git diff --staged --quiet || git commit -m "chore(release): version bumps and changelogs"
+          git push
+
+      - name: Build affected projects
+        run: |
+          npx nx affected -t build \
+            --base=origin/<%= defaultBranch %>~1
+
+      - name: Create artifacts for affected projects
+        run: |
+          npx nx affected -t artifact \
+            --base=origin/<%= defaultBranch %>~1
+
+      - name: Create tags for affected projects
+        run: |
+          npx nx affected -t release \
+            --base=origin/<%= defaultBranch %>~1 \
+            --gitTag=true \
+            --gitPush=false \
+            ${{ github.event.inputs.dryRun == 'true' && '--dryRun' || '' }}
+
+      - name: Push commits and tags
+        if: ${{ github.event.inputs.dryRun != 'true' }}
+        run: |
+          git push
+          git push --tags
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+<% if (createGitHubRelease) { %>
+      - name: Create GitHub releases with artifacts
+        if: ${{ github.event.inputs.dryRun != 'true' }}
+        run: |
+          npx nx affected -t release \
+            --base=origin/<%= defaultBranch %>~1 \
+            --createGitHubRelease \
+            --gitPush=false \
+            --assetPatterns='dist/artifacts/**/{projectName}*'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+<% } %>
+
+      - name: Publish to npm
+        if: ${{ github.event.inputs.dryRun != 'true' }}
+        run: |
+          npx nx affected -t publish \
+            --base=origin/<%= defaultBranch %>~1
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

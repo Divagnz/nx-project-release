@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "cli": "nx",
+  "title": "Validate Release Configuration",
+  "description": "Validate and display nx-project-release configuration summary",
+  "type": "object",
+  "properties": {
+    "verbose": {
+      "type": "boolean",
+      "description": "Show detailed configuration",
+      "default": false
+    },
+    "json": {
+      "type": "boolean",
+      "description": "Output as JSON",
+      "default": false
+    },
+    "checkHealth": {
+      "type": "boolean",
+      "description": "Check for common configuration issues",
+      "default": true
+    }
+  }
+}

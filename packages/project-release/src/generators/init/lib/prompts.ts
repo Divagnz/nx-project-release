@@ -3,6 +3,58 @@ import Enquirer from 'enquirer';
 
 const { prompt } = Enquirer;
 
+function getMinimalDefaults(tree: Tree): ConfigAnswers {
+  const projects = getProjects(tree);
+  const allProjects = Array.from(projects.keys());
+
+  return {
+    executorType: 'individual',
+    useReleaseGroups: false,
+    selectedProjects: allProjects,
+    excludedProjects: [],
+    configLocation: 'both',
+    versionStrategy: 'git-tag',
+    versionFiles: ['package.json'],
+    mergeAfterRelease: false,
+    mergeToBranches: [],
+    mergeStrategy: 'merge',
+    trackDeps: false,
+    syncVersions: false,
+    // Git options - defaults for all-in-one executor (not used by individual executors)
+    gitCommit: true,
+    gitTag: true,
+    ciOnly: true,
+    commitMessage: 'chore(release): {projectName} version {version}',
+    preset: 'angular',
+    projectChangelogs: true,
+    workspaceChangelog: false,
+    registryType: 'npm',
+    registryUrl: 'https://registry.npmjs.org',
+    access: 'public',
+    distTag: 'latest',
+    buildTarget: 'build',
+    configureTagNaming: false,
+    tagPrefix: 'v',
+    tagFormat: 'v{version}',
+    configureReleaseGroups: false,
+    setupHooks: false,
+    hookOptions: {
+      enablePreCommit: false,
+      enablePrePush: false
+    },
+    setupCommitValidation: false,
+    commitValidationOptions: {
+      enableCommitizen: false,
+      enableCommitlint: false,
+      useNxScopes: false
+    },
+    setupGitHubWorkflows: false,
+    workflowType: 'none',
+    createReleaseBranch: false,
+    autoCreatePR: false
+  };
+}
+
 export interface ReleaseGroup {
   groupName: string;
   registryType: 'npm' | 'nexus' | 's3' | 'github' | 'custom' | 'none';
@@ -23,14 +75,16 @@ export interface ConfigAnswers {
   releaseGroups?: ReleaseGroup[];
 
   // Global settings
-  gitCommit: boolean;
-  gitTag: boolean;
-  ciOnly: boolean;
   mergeAfterRelease: boolean;
   mergeToBranches: string[];
   mergeStrategy: 'merge' | 'squash' | 'rebase';
-  commitMessage: string;
   trackDeps: boolean;
+
+  // Git options (only for all-in-one project-release executor)
+  gitCommit?: boolean;
+  gitTag?: boolean;
+  ciOnly?: boolean;
+  commitMessage?: string;
 
   // Changelog options
   preset: string;
@@ -59,7 +113,7 @@ export interface ConfigAnswers {
 
   // GitHub Workflows options
   setupGitHubWorkflows: boolean;
-  workflowType: 'single' | 'two-step' | 'none';
+  workflowType: 'release-publish' | 'affected' | 'manual' | 'on-merge' | 'pr-validation' | 'all' | 'none';
   createReleaseBranch: boolean;
   autoCreatePR: boolean;
 
@@ -82,52 +136,53 @@ export interface ConfigAnswers {
     projectsPattern: string;
     versioning: 'fixed' | 'independent';
   }[];
+
+  // Internal flag to track if wizard was skipped
+  _wizardSkipped?: boolean;
 }
 
 export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
   logger.info('');
   logger.info('🚀 Welcome to nx-project-release interactive setup!');
   logger.info('');
-
-  // 1. Global Git Configuration
-  logger.info('');
-  logger.info('⚙️  Git Configuration');
+  logger.info('This wizard will guide you through configuring your release process.');
+  logger.info('You can navigate back at any time or skip the wizard for minimal setup.');
   logger.info('');
 
-  const { gitCommit } = await prompt<{ gitCommit: boolean }>({
+  // Ask if user wants to skip wizard
+  const { skipWizard } = await prompt<{ skipWizard: boolean }>({
     type: 'confirm',
-    name: 'gitCommit',
-    message: 'Create git commits for version changes?',
-    initial: true
+    name: 'skipWizard',
+    message: 'Skip configuration wizard and use minimal defaults?',
+    initial: false
   });
 
-  const { gitTag } = await prompt<{ gitTag: boolean }>({
-    type: 'confirm',
-    name: 'gitTag',
-    message: 'Create git tags for releases?',
-    initial: true
-  });
+  if (skipWizard) {
+    logger.info('');
+    logger.info('⚡ Using minimal default configuration');
+    logger.info('');
+    logger.info('You can always run these generators later:');
+    logger.info('  • npx nx g nx-project-release:setup-commitlint');
+    logger.info('  • npx nx g nx-project-release:setup-workflows');
+    logger.info('');
 
-  const { ciOnly } = await prompt<{ ciOnly: boolean }>({
-    type: 'confirm',
-    name: 'ciOnly',
-    message: 'Enforce CI-only releases (prevent accidental local releases)?',
-    initial: true
-  });
-
-  if (ciOnly) {
-    logger.info('');
-    logger.info('✓ CI-only mode enabled (recommended for safety)');
-    logger.info('  Git operations (commit/tag/push) will only run in CI environments.');
-    logger.info('  Commits and tags will be automatically pushed in CI.');
-    logger.info('  Set --ciOnly=false to test locally (use --gitPush=false to prevent push).');
-    logger.info('');
-  } else {
-    logger.info('');
-    logger.info('⚠ CI-only mode disabled');
-    logger.info('  Git operations can run locally. Use --gitPush flag to control push behavior.');
-    logger.info('');
+    // Return minimal defaults with flag indicating wizard was skipped
+    const defaults = getMinimalDefaults(tree);
+    defaults._wizardSkipped = true;
+    return defaults;
   }
+
+  logger.info('');
+  logger.info('💡 Tip: Type "back" at any prompt to go to the previous step');
+  logger.info('');
+
+  // 1. Version Configuration
+  logger.info('');
+  logger.info('⚙️  Version Configuration');
+  logger.info('');
+  logger.info('ℹ️  Git operations (commit, tag, push) are handled by the release executor,');
+  logger.info('   not the version executor. Configure these in your CI/CD workflows.');
+  logger.info('');
 
   const { mergeAfterRelease } = await prompt<{ mergeAfterRelease: boolean }>({
     type: 'confirm',
@@ -165,17 +220,6 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
       ]
     });
     mergeStrategy = strategy;
-  }
-
-  let commitMessage = 'chore(release): {projectName} version {version}';
-  if (gitCommit) {
-    const response = await prompt<{ commitMessage: string }>({
-      type: 'input',
-      name: 'commitMessage',
-      message: 'Commit message template (use {version}, {projectName} placeholders):',
-      initial: 'chore(release): {projectName} version {version}'
-    });
-    commitMessage = response.commitMessage;
   }
 
   const { trackDeps } = await prompt<{ trackDeps: boolean }>({
@@ -438,37 +482,67 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     initial: false
   });
 
-  let workflowType: 'single' | 'two-step' | 'none' = 'none';
+  let workflowType: 'release-publish' | 'affected' | 'manual' | 'on-merge' | 'pr-validation' | 'all' | 'none' = 'none';
   let createReleaseBranch = false;
   let autoCreatePR = false;
 
   if (setupGitHubWorkflows) {
-    const { selectedWorkflowType } = await prompt<{ selectedWorkflowType: 'single' | 'two-step' }>({
+    const { selectedWorkflowType } = await prompt<{ selectedWorkflowType: 'release-publish' | 'affected' | 'manual' | 'on-merge' | 'pr-validation' | 'all' }>({
       type: 'select',
       name: 'selectedWorkflowType',
-      message: 'Which workflow pattern?',
+      message: 'Which workflow type?',
       choices: [
         {
-          name: 'two-step',
-          message: 'Two-step: PR creation + manual merge & publish',
-          hint: 'Creates release branch + PR for review, publishes after merge'
+          name: 'release-publish',
+          message: 'Release & Publish (Complete Flow)',
+          hint: 'Version + Changelog + GitHub Release + Publish in one workflow'
         },
         {
-          name: 'single',
-          message: 'Single-step: Automated version bump & publish',
-          hint: 'Direct push to main with automated publishing'
+          name: 'affected',
+          message: 'Affected Projects (Auto-release on push)',
+          hint: 'Automatically release all affected projects when pushing to main'
+        },
+        {
+          name: 'manual',
+          message: 'Manual Release (workflow_dispatch)',
+          hint: 'Manually trigger releases from GitHub Actions UI with inputs'
+        },
+        {
+          name: 'on-merge',
+          message: 'Release on PR Merge',
+          hint: 'Auto-publish when release PR is merged to main'
+        },
+        {
+          name: 'pr-validation',
+          message: 'PR Validation (Dry-run Preview)',
+          hint: 'Show release preview as comment when release PR is opened'
+        },
+        {
+          name: 'all',
+          message: 'All Workflows',
+          hint: 'Create all workflow types above'
         }
       ]
     });
 
     workflowType = selectedWorkflowType;
 
-    if (workflowType === 'two-step') {
+    // Log what will be created
+    const workflowNames = {
+      'release-publish': 'release-publish.yml',
+      'affected': 'release-affected.yml',
+      'manual': 'release-manual.yml',
+      'on-merge': 'release-on-merge.yml',
+      'pr-validation': 'pr-validation.yml',
+      'all': 'release-publish.yml, release-affected.yml, release-manual.yml, release-on-merge.yml, pr-validation.yml'
+    };
+
+    logger.info(`✓ Will create: ${workflowNames[workflowType]}`);
+
+    // For on-merge workflow, we need release branch config
+    if (workflowType === 'on-merge' || workflowType === 'all') {
       createReleaseBranch = true;
       autoCreatePR = true;
-      logger.info('✓ Will create: release branch workflow + publish workflow');
-    } else {
-      logger.info('✓ Will create: single automated release workflow');
     }
   }
 
@@ -695,15 +769,16 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     // Legacy fields - use first group's settings as defaults
     versionStrategy: releaseGroups[0]?.versionStrategy || 'git-tag',
     versionFiles: releaseGroups[0]?.versionFiles || ['package.json'],
-    gitCommit,
-    gitTag,
-    ciOnly,
     mergeAfterRelease,
     mergeToBranches,
     mergeStrategy,
-    commitMessage,
     trackDeps,
     syncVersions,
+    // Git options - defaults for all-in-one executor (not prompted, not used by individual executors)
+    gitCommit: true,
+    gitTag: true,
+    ciOnly: true,
+    commitMessage: 'chore(release): {projectName} version {version}',
     preset,
     projectChangelogs,
     workspaceChangelog,

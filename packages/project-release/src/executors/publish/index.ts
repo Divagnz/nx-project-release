@@ -6,6 +6,10 @@ import { uploadToNexus, validateNexusConfig } from './lib/nexus-client';
 import { uploadToS3, validateS3Config } from './lib/s3-client';
 
 export interface PublishExecutorSchema {
+  // NEW: Artifact path input
+  artifactPath?: string;
+  releaseGroup?: string;
+
   dryRun?: boolean;
   registry?: string;
   registryType?: 'npm' | 'nexus' | 's3' | 'custom';
@@ -17,7 +21,7 @@ export interface PublishExecutorSchema {
   otp?: string;
 
   // Multi-registry support
-  pathStrategy?: 'version' | 'hash' | 'flat';
+  pathStrategy?: 'flat' | 'version' | 'hash' | 'semver';
   skipExisting?: boolean;
 
   // Nexus options

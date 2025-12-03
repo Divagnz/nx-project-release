@@ -20,7 +20,7 @@
     "firstRelease": {
       "type": "boolean",
       "default": false,
-      "description": "Indicates this is the first release. Uses git tags or registry to determine current version if version cannot be found in files. Useful when version sources are only available after first release."
+      "description": "Interactive first release setup. Checks for existing git tags, prompts for initial version, and creates version file if needed. Respects versionFiles and versionPath configuration from nx.json or project.json."
     },
     "dryRun": {
       "type": "boolean",
@@ -256,6 +256,17 @@
       "type": "boolean",
       "default": true,
       "description": "Explicitly control whether to update lock files. Set to false to skip lock file updates (same as skipLockFileUpdate). By default, lock files are automatically updated if they exist."
+    },
+    "currentVersionResolver": {
+      "type": "string",
+      "enum": ["disk", "git-tag", "registry"],
+      "default": "disk",
+      "description": "Strategy for resolving current version: 'disk' (read from version files), 'git-tag' (find latest git tag), 'registry' (query package registry)"
+    },
+    "fallbackCurrentVersionResolver": {
+      "type": "string",
+      "enum": ["disk", "git-tag", "registry"],
+      "description": "Fallback strategy if primary resolver fails. Common combinations: git-tag with disk fallback, registry with git-tag fallback"
     }
   }
 }

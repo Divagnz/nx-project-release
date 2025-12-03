@@ -1,0 +1,97 @@
+name: Manual Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      project:
+        description: 'Project to release'
+        required: true
+        type: string
+      version:
+        description: 'Version (leave empty for auto)'
+        required: false
+        type: string
+      releaseAs:
+        description: 'Release type'
+        required: false
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      createRelease:
+        description: 'Create GitHub release'
+        required: false
+        type: boolean
+        default: <%= createGitHubRelease %>
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: <%= nodeVersion %>
+
+      - run: npm ci
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Version project
+        run: |
+          FLAGS=""
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            FLAGS="--version=${{ github.event.inputs.version }}"
+          elif [ -n "${{ github.event.inputs.releaseAs }}" ]; then
+            FLAGS="--releaseAs=${{ github.event.inputs.releaseAs }}"
+          fi
+          npx nx run ${{ github.event.inputs.project }}:version $FLAGS
+
+      - name: Generate changelog
+        run: npx nx run ${{ github.event.inputs.project }}:changelog
+
+      - name: Commit changes
+        run: |
+          git add .
+          git diff --staged --quiet || git commit -m "chore(release): ${{ github.event.inputs.project }} version bump"
+
+      - name: Build project
+        run: npx nx run ${{ github.event.inputs.project }}:build
+
+      - name: Create artifact
+        run: npx nx run ${{ github.event.inputs.project }}:artifact
+
+      - name: Create tag
+        run: npx nx run ${{ github.event.inputs.project }}:release
+
+      - name: Publish project
+        run: npx nx run ${{ github.event.inputs.project }}:publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Push changes and tags
+        run: |
+          git push
+          git push --tags
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub release
+        if: ${{ github.event.inputs.createRelease == 'true' }}
+        run: |
+          npx nx run ${{ github.event.inputs.project }}:release \
+            --createGitHubRelease \
+            --gitPush=false \
+            --assetPatterns='dist/artifacts/**/{projectName}*'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

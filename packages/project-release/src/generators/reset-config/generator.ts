@@ -84,29 +84,51 @@ export async function resetGenerator(tree: Tree, options: ResetGeneratorSchema) 
   const projects = getProjects(tree);
   const releaseTargets = ['version', 'changelog', 'publish', 'project-release'];
   let projectsModified = 0;
+  let versionsRemoved = 0;
 
   for (const [projectName, projectConfig] of projects) {
-    if (projectConfig.targets) {
-      let hasReleaseTargets = false;
+    let modified = false;
 
+    // Remove release targets
+    if (projectConfig.targets) {
       for (const targetName of releaseTargets) {
         const target = projectConfig.targets[targetName];
         if (target && typeof target.executor === 'string' && target.executor.startsWith('nx-project-release:')) {
           delete projectConfig.targets[targetName];
-          hasReleaseTargets = true;
+          modified = true;
           itemsRemoved++;
         }
       }
+    }
 
-      if (hasReleaseTargets) {
-        updateProjectConfiguration(tree, projectName, projectConfig);
-        projectsModified++;
+    // Remove version field from project.json (but NOT from package.json)
+    // We need to directly manipulate the project.json file to remove the version field
+    const projectJsonPath = `${projectConfig.root}/project.json`;
+    if (tree.exists(projectJsonPath)) {
+      const projectJsonContent = tree.read(projectJsonPath, 'utf-8');
+      if (projectJsonContent) {
+        const projectJson = JSON.parse(projectJsonContent);
+        if (projectJson.version) {
+          delete projectJson.version;
+          tree.write(projectJsonPath, JSON.stringify(projectJson, null, 2) + '\n');
+          versionsRemoved++;
+          modified = true;
+        }
       }
+    }
+
+    if (modified) {
+      updateProjectConfiguration(tree, projectName, projectConfig);
+      projectsModified++;
     }
   }
 
   if (projectsModified > 0) {
     logger.info(`✅ Removed release targets from ${projectsModified} projects`);
+  }
+
+  if (versionsRemoved > 0) {
+    logger.info(`✅ Removed version field from ${versionsRemoved} project.json files`);
   }
 
   // 3. Clean git hooks (carefully!)

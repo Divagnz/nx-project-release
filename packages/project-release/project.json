@@ -21,6 +21,7 @@
         "tsConfig": "packages/project-release/tsconfig.lib.json",
         "assets": [
           "packages/project-release/*.md",
+          "packages/project-release/.npmignore",
           {
             "input": "./packages/project-release/src",
             "glob": "**/!(*.ts)",

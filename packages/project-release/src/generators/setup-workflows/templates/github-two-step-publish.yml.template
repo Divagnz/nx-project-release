@@ -1,0 +1,132 @@
+name: Publish Release
+
+on:
+  push:
+    branches: [<%= defaultBranch %>]
+<% if (enableWorkflowDispatch) { %>  workflow_dispatch:
+    inputs:
+      project:
+        description: 'Specific project (leave empty for all affected)'
+        required: false
+        type: string
+<% } %>
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    # Only run if this is a release commit
+    if: contains(github.event.head_commit.message, 'chore(release):')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: <%= defaultBranch %>
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: <%= nodeVersion %>
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Determine publish mode
+        id: mode
+        run: |
+          if [ -n "${{ github.event.inputs.project }}" ]; then
+            echo "mode=single" >> $GITHUB_OUTPUT
+            echo "project=${{ github.event.inputs.project }}" >> $GITHUB_OUTPUT
+          else
+            echo "mode=affected" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build (Single Project)
+        if: steps.mode.outputs.mode == 'single'
+        run: |
+          PROJECT="${{ steps.mode.outputs.project }}"
+          npx nx run ${PROJECT}:build
+
+      - name: Build (Affected Projects)
+        if: steps.mode.outputs.mode == 'affected'
+        run: |
+          npx nx affected -t build \
+            --base=origin/<%= defaultBranch %>~1
+
+      - name: Artifact (Single Project)
+        if: steps.mode.outputs.mode == 'single'
+        run: |
+          PROJECT="${{ steps.mode.outputs.project }}"
+          npx nx run ${PROJECT}:artifact
+
+      - name: Artifact (Affected Projects)
+        if: steps.mode.outputs.mode == 'affected'
+        run: |
+          npx nx affected -t artifact \
+            --base=origin/<%= defaultBranch %>~1
+<% if (createGitHubRelease) { %>
+      - name: Create GitHub Releases with Artifacts (Single Project)
+        if: steps.mode.outputs.mode == 'single'
+        run: |
+          PROJECT="${{ steps.mode.outputs.project }}"
+          npx nx run ${PROJECT}:release \
+            --createGitHubRelease \
+            --gitPush=false \
+            --assetPatterns='dist/artifacts/**/{projectName}*'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub Releases with Artifacts (Affected Projects)
+        if: steps.mode.outputs.mode == 'affected'
+        run: |
+          npx nx affected -t release \
+            --base=origin/<%= defaultBranch %>~1 \
+            --createGitHubRelease \
+            --gitPush=false \
+            --assetPatterns='dist/artifacts/**/{projectName}*'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+<% } %>
+      - name: Publish (Single Project)
+        if: steps.mode.outputs.mode == 'single'
+        run: |
+          PROJECT="${{ steps.mode.outputs.project }}"
+          npx nx run ${PROJECT}:publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish (Affected Projects)
+        if: steps.mode.outputs.mode == 'affected'
+        run: |
+          npx nx affected -t publish \
+            --base=origin/<%= defaultBranch %>~1
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Publish Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Mode:** ${{ steps.mode.outputs.mode }}" >> $GITHUB_STEP_SUMMARY
+          if [ -n "${{ steps.mode.outputs.project }}" ]; then
+            echo "**Project:** ${{ steps.mode.outputs.project }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Build, artifact creation, and publishing completed." >> $GITHUB_STEP_SUMMARY

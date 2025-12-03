@@ -1,0 +1,20 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "cli": "nx",
+  "$id": "SetupCommitlint",
+  "title": "Setup Commitlint",
+  "description": "Set up commitlint with Nx scopes validation",
+  "type": "object",
+  "properties": {
+    "useNxScopes": {
+      "type": "boolean",
+      "description": "Validate scopes against Nx project names",
+      "default": true
+    },
+    "skipHooks": {
+      "type": "boolean",
+      "description": "Skip setting up commit-msg hook",
+      "default": false
+    }
+  }
+}

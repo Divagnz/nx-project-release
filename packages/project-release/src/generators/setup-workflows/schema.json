@@ -1,0 +1,84 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "cli": "nx",
+  "$id": "SetupWorkflows",
+  "title": "Setup CI/CD Workflows",
+  "description": "Configure CI/CD workflows for automated releases",
+  "type": "object",
+  "properties": {
+    "platform": {
+      "type": "string",
+      "enum": ["github", "gitlab", "circleci"],
+      "description": "CI/CD platform",
+      "default": "github",
+      "x-prompt": {
+        "message": "Which CI/CD platform?",
+        "type": "list",
+        "items": [
+          { "value": "github", "label": "GitHub Actions" },
+          { "value": "gitlab", "label": "GitLab CI (coming soon)" },
+          { "value": "circleci", "label": "CircleCI (coming soon)" }
+        ]
+      }
+    },
+    "workflowType": {
+      "type": "string",
+      "enum": ["release-publish", "affected", "manual", "on-merge", "pr-validation", "all"],
+      "description": "Type of workflow to create",
+      "default": "release-publish",
+      "x-prompt": {
+        "message": "Which workflow type?",
+        "type": "list",
+        "items": [
+          { "value": "release-publish", "label": "Release & Publish (complete flow)" },
+          { "value": "affected", "label": "Affected projects (auto-release on push)" },
+          { "value": "manual", "label": "Manual release (workflow_dispatch)" },
+          { "value": "on-merge", "label": "Release on PR merge" },
+          { "value": "pr-validation", "label": "PR validation (dry-run preview)" },
+          { "value": "all", "label": "All workflows" }
+        ]
+      }
+    },
+    "defaultBranch": {
+      "type": "string",
+      "default": "main",
+      "description": "Default branch for releases",
+      "x-prompt": "Default branch for releases?"
+    },
+    "enableWorkflowDispatch": {
+      "type": "boolean",
+      "default": true,
+      "description": "Enable manual workflow triggers",
+      "x-prompt": "Enable manual workflow triggers (workflow_dispatch)?"
+    },
+    "createGitHubRelease": {
+      "type": "boolean",
+      "default": true,
+      "description": "Create GitHub release on tag push",
+      "x-prompt": "Create GitHub releases automatically?"
+    },
+    "autoMergeReleasePR": {
+      "type": "boolean",
+      "default": false,
+      "description": "Auto-merge release PRs after checks pass",
+      "x-prompt": "Auto-merge release PRs after checks pass?"
+    },
+    "triggerPaths": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Only trigger on changes to these paths (optional)"
+    },
+    "nodeVersion": {
+      "type": "string",
+      "default": "20",
+      "description": "Node.js version for CI",
+      "x-prompt": "Node.js version for CI?"
+    },
+    "twoStepRelease": {
+      "type": "boolean",
+      "default": false,
+      "description": "Split release into two workflows: PR (version/changelog/tag) and Publish (build/artifact/publish)",
+      "x-prompt": "Use two-step release workflow (PR for version, separate workflow for publish)?"
+    }
+  }
+}
