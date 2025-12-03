@@ -52,7 +52,7 @@ export default async function releaseExecutor(
     const group = projectGroup ? releaseGroups[projectGroup] : undefined;
     const tagFormat = options.tagPrefix
       ? `${options.tagPrefix}{version}`
-      : (group as any)?.tagNamingFormat || '{projectName}-v{version}';
+      : (group as any)?.tagNaming?.format || '{projectName}-v{version}';
 
     const tag = tagFormat
       .replace('{projectName}', projectName)
