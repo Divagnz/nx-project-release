@@ -54,5 +54,10 @@
   "overrides": {
     "js-yaml": "^4.1.0",
     "glob": "^13.0.0"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^20.1.0",
+    "@commitlint/config-conventional": "^20.0.0",
+    "@commitlint/config-nx-scopes": "^20.0.0"
   }
 }
