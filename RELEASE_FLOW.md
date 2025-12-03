@@ -17,12 +17,12 @@ Complete guide for releasing and publishing with nx-project-release.
 ### Single Project Release
 
 ```bash
-# 1. Make changes and commit
+# 1. Make changes and commit with conventional commits
 git add .
 git commit -m "feat(my-project): add new feature"
 
-# 2. Version the project
-nx run my-project:version --releaseAs=minor --gitCommit --gitTag
+# 2. Version the project (auto-detects bump from commits)
+nx run my-project:version --gitCommit --gitTag
 
 # 3. Generate changelog
 nx run my-project:changelog
@@ -32,30 +32,39 @@ nx run my-project:publish
 
 # 5. Push to remote
 git push origin main --tags
+
+# Note: --releaseAs is optional to override auto-detection
+# nx run my-project:version --releaseAs=major --gitCommit --gitTag
 ```
 
 ### Streamlined Release
 
 ```bash
-# Run version, changelog, and publish sequentially
-nx run my-project:version --releaseAs=minor --gitCommit --gitTag
+# Auto-detect bump from conventional commits (recommended)
+nx run my-project:version --gitCommit --gitTag
 nx run my-project:changelog
 nx run my-project:publish
 
 # Push to remote
 git push origin main --tags
+
+# Override auto-detection if needed
+# nx run my-project:version --releaseAs=minor --gitCommit --gitTag
 ```
 
 ### Batch Release (Multiple Projects)
 
 ```bash
-# Release all affected projects - run each step for all affected projects
-nx affected -t version --base=main --releaseAs=patch --gitCommit --gitTag
+# Auto-detect bump for all affected projects (recommended)
+nx affected -t version --base=main --gitCommit --gitTag
 nx affected -t changelog --base=main
 nx affected -t publish --base=main
 
 # Push to remote
 git push origin main --tags
+
+# Or force specific bump for all
+# nx affected -t version --base=main --releaseAs=patch --gitCommit --gitTag
 ```
 
 ---

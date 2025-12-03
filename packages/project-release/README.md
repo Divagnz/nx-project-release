@@ -53,12 +53,16 @@ nx run my-project:changelog
 nx run my-project:publish
 
 # Subsequent releases (step-by-step - recommended)
-nx run my-project:version --releaseAs=minor
+# Automatic bump detection from conventional commits
+nx run my-project:version --gitCommit --gitTag
 nx run my-project:changelog
 nx run my-project:publish
 
+# Or manually specify bump type (override auto-detection)
+nx run my-project:version --releaseAs=minor --gitCommit --gitTag
+
 # Or use the release executor for orchestration (version + changelog + tag)
-nx run my-project:release --releaseAs=minor --gitPush
+nx run my-project:release --gitPush
 
 # Preview changes
 nx run my-project:version --preview
@@ -66,10 +70,13 @@ nx run my-project:version --preview
 # Validate configuration
 nx run my-project:validate
 
-# Batch release (all affected projects)
-nx affected -t version --base=main --releaseAs=minor
+# Batch release (all affected projects - auto-detect bump from commits)
+nx affected -t version --base=main --gitCommit --gitTag
 nx affected -t changelog --base=main
 nx affected -t publish --base=main
+
+# Or force specific bump type for all affected
+nx affected -t version --base=main --releaseAs=patch --gitCommit --gitTag
 ```
 
 > **Note**: The `version` executor only bumps version numbers in files. Git operations (commit, tag, push) are handled by the `release` executor or CI/CD workflows.
@@ -93,16 +100,24 @@ nx affected -t publish --base=main
 
 For maximum control, use individual executors in sequence:
 ```bash
-nx run my-project:version --releaseAs=minor --gitCommit --gitTag
+# Auto-detect bump from conventional commits (recommended)
+nx run my-project:version --gitCommit --gitTag
 nx run my-project:changelog
 nx run my-project:publish
+
+# Or override with specific bump type
+nx run my-project:version --releaseAs=minor --gitCommit --gitTag
 ```
 
 For orchestration, use the `release` executor (handles version + changelog + tag):
 ```bash
-nx run my-project:release --releaseAs=minor --gitPush
+# Auto-detect bump from commits
+nx run my-project:release --gitPush
 # Then separately:
 nx run my-project:publish
+
+# Or force specific bump
+nx run my-project:release --releaseAs=major --gitPush
 ```
 
 ### Validate Executor
@@ -804,14 +819,19 @@ jobs:
       - uses: actions/setup-node@v4
       - run: npm ci
       - run: |
-          # Version bump affected projects
-          npx nx affected --target=version \
+          # Auto-detect version bump from conventional commits
+          npx nx affected -t version \
             --base=origin/main~1 \
-            --releaseAs=patch
-          # Use release executor for git operations
-          npx nx affected --target=release \
-            --base=origin/main~1 \
-            --gitPush --githubRelease
+            --gitCommit --gitTag
+
+          npx nx affected -t changelog \
+            --base=origin/main~1
+
+          npx nx affected -t publish \
+            --base=origin/main~1
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - run: git push --follow-tags
 ```
 
 **Manual Release Workflow:**
@@ -836,7 +856,10 @@ jobs:
       - run: npm ci
       - name: Version and Changelog
         run: |
-          npx nx run ${{ inputs.project }}:version --releaseAs=${{ inputs.releaseAs }} --gitCommit --gitTag
+          # Use manual input to override auto-detection
+          npx nx run ${{ inputs.project }}:version \
+            --releaseAs=${{ inputs.releaseAs }} \
+            --gitCommit --gitTag
           npx nx run ${{ inputs.project }}:changelog
       - name: Push and Create Release
         run: |
@@ -919,22 +942,29 @@ nx run my-project:publish
 
 ### Feature Release
 ```bash
-# Automatic detection from commits (version bump only)
-nx run my-project:version
+# Automatic detection from conventional commits (recommended)
+nx run my-project:version --gitCommit --gitTag
+nx run my-project:changelog
+nx run my-project:publish
 
-# OR manual bump
-nx run my-project:version --releaseAs=minor
+# OR override with manual bump type
+nx run my-project:version --releaseAs=minor --gitCommit --gitTag
+nx run my-project:changelog
+nx run my-project:publish
 ```
 
 ### Batch Release
 ```bash
-# Release all affected projects (step-by-step)
-nx affected -t version --base=main --releaseAs=patch --gitCommit --gitTag
+# Release all affected projects - auto-detect from commits (recommended)
+nx affected -t version --base=main --gitCommit --gitTag
 nx affected -t changelog --base=main
 nx affected -t publish --base=main
 
 # Push changes
 git push origin main --tags
+
+# OR force specific bump type for all affected
+nx affected -t version --base=main --releaseAs=patch --gitCommit --gitTag
 ```
 
 ### Preview Mode
