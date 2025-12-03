@@ -26,7 +26,6 @@ nx g nx-project-release:init
 
 ## Features
 
-### Core Features
 - **🚀 Polyglot Support** - Works with any project type (Node.js, Python, Go, Rust, Java, etc.)
 - **📦 Multiple Registries** - NPM, Nexus (Sonatype), AWS S3, GitHub Packages
 - **🔄 Batch Releases** - Release multiple projects in one PR with `nx affected`
@@ -35,22 +34,15 @@ nx g nx-project-release:init
 - **🔐 CI/CD Safety** - CI-only mode prevents accidental local releases
 - **🌿 Release Branches** - Automatic PR creation for review workflow
 - **🔗 Dependency Tracking** - Auto-version dependent projects
-
-### New in v0.0.20+
 - **✅ Commit Validation** - Automatic setup of commitlint with Nx scopes
-- **🏷️ Release Groups** - Organize projects by type/registry/deployment
+- **🏷️ Release Groups** - Organize projects by type/registry/deployment with pattern matching
 - **🎯 Smart Tag Naming** - Customizable tag templates with full config hierarchy
 - **⚙️ CI/CD Workflows** - Auto-generate GitHub Actions workflows
 - **📋 Project Exclusion** - Track and exclude projects from versioning
-
-### Latest Updates (v0.0.31+)
-- **📦 Optimized Artifact Handling** - Artifacts no longer committed to git, keeping repositories clean
+- **📦 Artifact Creation** - Create distributable artifacts (zip, tar, tgz) from build output
 - **🎯 Project-Specific Artifacts** - GitHub releases automatically attach only matching artifacts per project
 - **🔄 Two-Step Workflows** - Optional workflow split: Step 1 (version/changelog/tag) → Step 2 (build/artifact/publish)
-- **🎯 Improved Version Detection** - Removed redundant affected checks, now trusts Nx's affected detection completely
-- **🚫 Project Exclusion** - Automatic skipping of excluded projects in `nx affected` workflows
-- **🔒 Security Updates** - Updated glob dependency to v13+ for improved security
-- **🐛 Bug Fixes** - Fixed ESM compatibility issues with fs-extra and artifact executor
+- **🔒 Security & Compatibility** - Updated dependencies for improved security and ESM compatibility
 
 ## Quick Usage
 
