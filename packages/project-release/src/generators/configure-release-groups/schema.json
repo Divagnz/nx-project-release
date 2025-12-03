@@ -1,0 +1,93 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "cli": "nx",
+  "$id": "ConfigureReleaseGroups",
+  "title": "Configure Release Groups",
+  "description": "Create or update release groups configuration in nx.json",
+  "type": "object",
+  "properties": {
+    "groupName": {
+      "type": "string",
+      "description": "Name of the release group to create/update",
+      "x-prompt": "Enter a name for the release group:"
+    },
+    "registryType": {
+      "type": "string",
+      "description": "Registry type for this group",
+      "enum": ["npm", "nexus", "s3", "github", "docker", "custom", "none"],
+      "x-prompt": {
+        "message": "Which registry type?",
+        "type": "list",
+        "items": [
+          { "value": "npm", "label": "NPM (npmjs.org or private)" },
+          { "value": "docker", "label": "Docker (container registry)" },
+          { "value": "nexus", "label": "Nexus (Sonatype)" },
+          { "value": "s3", "label": "AWS S3" },
+          { "value": "github", "label": "GitHub Releases" },
+          { "value": "custom", "label": "Custom registry" },
+          { "value": "none", "label": "No publishing (version & tag only)" }
+        ]
+      }
+    },
+    "registryUrl": {
+      "type": "string",
+      "description": "Registry URL",
+      "x-prompt": "Registry URL? (Press Enter to use default for selected registry type)"
+    },
+    "versionStrategy": {
+      "type": "string",
+      "description": "Versioning strategy",
+      "enum": ["independent", "fixed"],
+      "default": "independent",
+      "x-prompt": {
+        "message": "Versioning strategy?",
+        "type": "list",
+        "items": [
+          { "value": "independent", "label": "Independent (each project has its own version)" },
+          { "value": "fixed", "label": "Fixed (all projects share the same version)" }
+        ]
+      }
+    },
+    "versionFiles": {
+      "type": "array",
+      "description": "Files to update with version",
+      "items": {
+        "type": "string"
+      }
+    },
+    "projects": {
+      "type": "array",
+      "description": "Specific projects to include",
+      "items": {
+        "type": "string"
+      }
+    },
+    "projectPatterns": {
+      "type": "array",
+      "description": "Glob patterns to match projects (e.g., '*-lib', 'app-*')",
+      "items": {
+        "type": "string"
+      }
+    },
+    "tagNamingFormat": {
+      "type": "string",
+      "description": "Tag naming format for this group"
+    },
+    "pathStrategy": {
+      "type": "string",
+      "description": "Path strategy for artifact storage",
+      "enum": ["version", "hash", "flat", "semver"]
+    },
+    "interactive": {
+      "type": "boolean",
+      "description": "Use interactive mode",
+      "default": true
+    },
+    "action": {
+      "type": "string",
+      "description": "Action to perform",
+      "enum": ["create", "update", "delete", "list"],
+      "default": "create"
+    }
+  }
+}

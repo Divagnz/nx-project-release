@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "cli": "nx",
+  "$id": "ConfigureRelease",
+  "title": "Configure Project Release",
+  "description": "Add or update release configuration for a specific project",
+  "type": "object",
+  "properties": {
+    "projects": {
+      "type": "array",
+      "description": "Project names to configure (interactive multi-select)",
+      "items": {
+        "type": "string"
+      }
+    },
+    "project": {
+      "type": "string",
+      "description": "Single project name (for CLI usage - will be converted to projects array)"
+    },
+    "registryType": {
+      "type": "string",
+      "enum": ["npm", "nexus", "s3", "github", "docker", "custom", "none"],
+      "description": "Registry type for publishing",
+      "default": "npm",
+      "x-prompt": {
+        "message": "Which registry type?",
+        "type": "list",
+        "items": [
+          { "value": "npm", "label": "NPM (npmjs.org or private)" },
+          { "value": "docker", "label": "Docker (container registry)" },
+          { "value": "nexus", "label": "Nexus (Sonatype)" },
+          { "value": "s3", "label": "AWS S3" },
+          { "value": "github", "label": "GitHub Releases" },
+          { "value": "custom", "label": "Custom registry" },
+          { "value": "none", "label": "No publishing (version & tag only)" }
+        ]
+      }
+    },
+    "registryUrl": {
+      "type": "string",
+      "description": "Registry URL (optional - will use default for registry type if not provided)",
+      "x-prompt": {
+        "message": "Registry URL? (Press Enter to use default for selected registry type)",
+        "type": "input"
+      }
+    },
+    "versionFiles": {
+      "type": "array",
+      "description": "Files to update with version",
+      "items": {
+        "type": "string"
+      },
+      "default": ["package.json"]
+    },
+    "initialVersion": {
+      "type": "string",
+      "description": "Initial version if not set (default: 0.1.0)",
+      "default": "0.1.0"
+    },
+    "addToReleaseGroup": {
+      "type": "boolean",
+      "description": "Add to an existing release group? (set programmatically)",
+      "default": false
+    },
+    "releaseGroupName": {
+      "type": "string",
+      "description": "Name of release group to add project to (set programmatically or via CLI)"
+    },
+    "createNewGroup": {
+      "type": "boolean",
+      "description": "Create a new release group?",
+      "default": false
+    },
+    "skipInstall": {
+      "type": "boolean",
+      "description": "Skip npm install",
+      "default": false
+    }
+  },
+  "required": []
+}

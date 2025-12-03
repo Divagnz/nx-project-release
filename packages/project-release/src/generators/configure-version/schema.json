@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "cli": "nx",
+  "$id": "ConfigureVersion",
+  "title": "Configure Version Settings",
+  "description": "Configure version executor settings for one or multiple projects",
+  "type": "object",
+  "properties": {
+    "projects": {
+      "type": "array",
+      "description": "Projects to configure (multi-select)",
+      "items": {
+        "type": "string"
+      }
+    },
+    "versionFiles": {
+      "type": "array",
+      "description": "Files containing version (e.g., package.json, project.json)",
+      "items": {
+        "type": "string"
+      }
+    },
+    "versionStrategy": {
+      "type": "string",
+      "description": "Versioning strategy",
+      "enum": ["independent", "fixed"],
+      "default": "independent"
+    },
+    "initialVersion": {
+      "type": "string",
+      "description": "Initial version for projects without version",
+      "default": "0.1.0"
+    },
+    "tagNamingFormat": {
+      "type": "string",
+      "description": "Git tag naming format (e.g., v{version}, {projectName}@{version})"
+    },
+    "tagNamingPrefix": {
+      "type": "string",
+      "description": "Tag prefix (e.g., v, release-)"
+    },
+    "tagNamingSuffix": {
+      "type": "string",
+      "description": "Tag suffix"
+    },
+    "includeProjectName": {
+      "type": "boolean",
+      "description": "Include project name in tag"
+    },
+    "bumpDependents": {
+      "type": "boolean",
+      "description": "Automatically bump dependent projects"
+    },
+    "interactive": {
+      "type": "boolean",
+      "description": "Use interactive mode",
+      "default": true
+    }
+  }
+}

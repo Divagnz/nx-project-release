@@ -36,9 +36,9 @@ jobs:
       - name: Install dependencies
         run: |
           # Remove local file dependency temporarily for CI
-          if grep -q '"@divagnz/nx-project-release": "file:' package.json; then
+          if grep -q '"nx-project-release": "file:' package.json; then
             echo "Removing local file dependency for CI..."
-            npm pkg delete devDependencies.@divagnz/nx-project-release
+            npm pkg delete devDependencies.nx-project-release
           fi
           npm ci
 
@@ -79,7 +79,7 @@ jobs:
         run: |
           npx nx run @nx-project-release:version \
             --gitCommit \
-            --gitCommitMessage="chore(release): @nx-project-release version {version} [skip ci]"
+            --gitCommitMessage="chore(release): nx-project-release version {version} [skip ci]"
 
           npx nx run @nx-project-release:changelog \
             --projectChangelogs

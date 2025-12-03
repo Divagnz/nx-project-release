@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "cli": "nx",
+  "$id": "ConfigureArtifact",
+  "title": "Configure Artifact Creation",
+  "description": "Add artifact creation target to a project",
+  "type": "object",
+  "properties": {
+    "project": {
+      "type": "string",
+      "description": "Project name",
+      "x-prompt": "Which project do you want to configure artifact creation for?",
+      "$default": {
+        "$source": "projectName"
+      }
+    },
+    "projects": {
+      "type": "array",
+      "description": "Multiple projects to configure (batch mode)",
+      "items": {
+        "type": "string"
+      }
+    },
+    "sourceDir": {
+      "type": "string",
+      "description": "Source directory to archive (supports {projectName} template variable)",
+      "x-prompt": "Source directory to archive? (use {projectName} as placeholder)"
+    },
+    "format": {
+      "type": "string",
+      "description": "Archive format",
+      "enum": ["zip", "tar", "tgz", "tar.gz"],
+      "default": "tgz",
+      "x-prompt": {
+        "message": "Which archive format?",
+        "type": "list",
+        "items": [
+          { "value": "zip", "label": "ZIP (.zip)" },
+          { "value": "tgz", "label": "Gzipped Tar (.tgz)" },
+          { "value": "tar.gz", "label": "Gzipped Tar (.tar.gz)" },
+          { "value": "tar", "label": "Tar (.tar)" }
+        ]
+      }
+    },
+    "artifactName": {
+      "type": "string",
+      "description": "Artifact filename template",
+      "default": "{projectName}-{version}.{extension}"
+    },
+    "dependsOn": {
+      "type": "array",
+      "description": "Targets to run before artifact creation",
+      "items": {
+        "type": "string"
+      },
+      "default": ["build"]
+    },
+    "exclude": {
+      "type": "array",
+      "description": "Patterns to exclude from artifact",
+      "items": {
+        "type": "string"
+      },
+      "examples": [
+        ["**/*.map", "**/*.spec.ts"],
+        ["**/test/**", "**/*.test.js"]
+      ]
+    },
+    "updatePublish": {
+      "type": "boolean",
+      "description": "Update publish target to depend on artifact target",
+      "default": true
+    }
+  }
+}

@@ -20,17 +20,17 @@
     "firstRelease": {
       "type": "boolean",
       "default": false,
-      "description": "Indicates this is the first release. Uses git tags or registry to determine current version if version cannot be found in files. Useful when version sources are only available after first release."
+      "description": "Interactive first release setup. Checks for existing git tags, prompts for initial version, and creates version file if needed. Respects versionFiles and versionPath configuration from nx.json or project.json."
     },
     "dryRun": {
       "type": "boolean",
       "default": false,
       "description": "Preview changes without making modifications"
     },
-    "show": {
+    "preview": {
       "type": "boolean",
       "default": false,
-      "description": "Show detailed information about what would change (version analysis, files affected, git operations)"
+      "description": "Preview detailed information about what would change (version analysis, files affected, git operations)"
     },
     "gitCommit": {
       "type": "boolean",
@@ -60,8 +60,8 @@
     },
     "ciOnly": {
       "type": "boolean",
-      "default": false,
-      "description": "Only allow git operations (commit, tag, push, GitHub release) in CI/CD environments. Checks for CI environment variable. Prevents accidental releases from local development."
+      "default": true,
+      "description": "Only allow git operations (commit, tag, push, GitHub release) in CI/CD environments. Checks for CI environment variables (CI, GITHUB_ACTIONS, GITLAB_CI, etc.). Set to false to allow local releases."
     },
     "gitPush": {
       "type": "boolean",
@@ -95,6 +95,59 @@
       "type": "boolean",
       "default": false,
       "description": "Mark the GitHub release as a prerelease"
+    },
+    "createReleaseBranch": {
+      "type": "boolean",
+      "default": false,
+      "description": "Create a release branch from current branch and push version bump commit there (e.g., release/v1.0.0)"
+    },
+    "releaseBranchName": {
+      "type": "string",
+      "description": "Custom release branch name. Supports {version}, {projectName}, {tag} placeholders. Default: 'release/v{version}'"
+    },
+    "createPR": {
+      "type": "boolean",
+      "default": false,
+      "description": "Automatically create a pull request for the release branch using GitHub CLI (requires 'gh' to be installed and authenticated)"
+    },
+    "prTitle": {
+      "type": "string",
+      "description": "Custom PR title. Supports {version}, {projectName}, {tag} placeholders. Default: 'chore(release): {projectName} v{version}'"
+    },
+    "prBody": {
+      "type": "string",
+      "description": "Custom PR body. Supports {version}, {projectName}, {tag}, {changelog} placeholders. Default: generated from changelog"
+    },
+    "prBaseBranch": {
+      "type": "string",
+      "description": "Base branch to target for PR. Default: main branch detected from git"
+    },
+    "prDraft": {
+      "type": "boolean",
+      "default": false,
+      "description": "Create the PR as a draft"
+    },
+    "prLabels": {
+      "type": "string",
+      "description": "Comma-separated list of labels to add to the PR (e.g., 'release,automated')"
+    },
+    "mergeAfterRelease": {
+      "type": "boolean",
+      "default": false,
+      "description": "Automatically merge version bumps and changelog to target branches after successful release. Keeps version numbers synchronized across branches (e.g., release on main → merge to develop)"
+    },
+    "mergeToBranches": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of branches to merge version bump and changelog to (e.g., ['develop', 'staging']). Syncs release metadata across branches. Only applies when mergeAfterRelease is true"
+    },
+    "mergeStrategy": {
+      "type": "string",
+      "enum": ["merge", "squash", "rebase"],
+      "default": "merge",
+      "description": "Git merge strategy to use when merging to target branches"
     },
     "stageChanges": {
       "type": "boolean",
@@ -203,6 +256,17 @@
       "type": "boolean",
       "default": true,
       "description": "Explicitly control whether to update lock files. Set to false to skip lock file updates (same as skipLockFileUpdate). By default, lock files are automatically updated if they exist."
+    },
+    "currentVersionResolver": {
+      "type": "string",
+      "enum": ["disk", "git-tag", "registry"],
+      "default": "disk",
+      "description": "Strategy for resolving current version: 'disk' (read from version files), 'git-tag' (find latest git tag), 'registry' (query package registry)"
+    },
+    "fallbackCurrentVersionResolver": {
+      "type": "string",
+      "enum": ["disk", "git-tag", "registry"],
+      "description": "Fallback strategy if primary resolver fails. Common combinations: git-tag with disk fallback, registry with git-tag fallback"
     }
   }
 }

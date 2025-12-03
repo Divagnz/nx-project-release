@@ -1,0 +1,224 @@
+name: Validate Release PR
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - <%= defaultBranch %>
+  workflow_dispatch:
+    inputs:
+      verbose:
+        description: 'Show detailed output'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  validate-and-preview:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '<%= nodeVersion %>'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run dry-run preview
+        id: dryrun
+        run: |
+          # Skip if last commit is a release commit
+          LAST_COMMIT_MSG=$(git log -1 --pretty=%B)
+          if echo "$LAST_COMMIT_MSG" | grep -qE "^chore\\(release\\):"; then
+            echo "Skipping: Last commit is a release commit"
+            echo "output=Skipped (release commit)" >> $GITHUB_OUTPUT
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Run dry-run with --preview for affected projects
+          OUTPUT=$(npx nx affected --target=version \
+            --base=origin/<%= defaultBranch %> \
+            --dryRun --preview 2>&1 || echo "Failed to run version preview")
+
+          # Save output to file
+          echo "$OUTPUT" > /tmp/dryrun-output.txt
+          echo "output_file=/tmp/dryrun-output.txt" >> $GITHUB_OUTPUT
+
+      - name: Extract project information
+        if: steps.dryrun.outputs.skip != 'true'
+        id: extract
+        run: |
+          # Create a Node.js script to parse the output
+          cat > /tmp/parse-output.js << 'ENDOFSCRIPT'
+          const fs = require('fs');
+
+          const outputFile = process.argv[2];
+          if (!fs.existsSync(outputFile)) {
+            console.log('[]');
+            process.exit(0);
+          }
+
+          const output = fs.readFileSync(outputFile, 'utf8');
+          const projects = [];
+
+          // Parse output line by line to extract project information
+          const lines = output.split('\n');
+          let currentProject = {};
+
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+
+            // Extract project name
+            if (line.includes('📦 Project:') || line.startsWith('Project:')) {
+              if (Object.keys(currentProject).length > 0) {
+                projects.push(currentProject);
+              }
+              currentProject = {
+                project: line.split(':')[1]?.trim() || '',
+                current: '',
+                new: '',
+                registry: 'npm',
+                tag: ''
+              };
+            }
+
+            // Extract current version
+            if (line.includes('Current:') && currentProject.project) {
+              currentProject.current = line.split('Current:')[1]?.trim().split(/\s+/)[0] || '';
+            }
+
+            // Extract new version
+            if (line.includes('New:') && currentProject.project) {
+              currentProject.new = line.split('New:')[1]?.trim().split(/\s+/)[0] || '';
+            }
+
+            // Extract tag
+            if (line.includes('✓ Tag:') || line.includes('Tag:')) {
+              currentProject.tag = line.split('Tag:')[1]?.trim().split(/\s+/)[0] || '';
+            }
+
+            // Success indicator for this project
+            if (line.includes('✅') && line.includes(':') && currentProject.project) {
+              // Try to extract version from success line if we don't have new version yet
+              if (!currentProject.new) {
+                const versionMatch = line.match(/(\d+\.\d+\.\d+)/);
+                if (versionMatch) {
+                  currentProject.new = versionMatch[1];
+                }
+              }
+            }
+          }
+
+          // Add last project if exists
+          if (Object.keys(currentProject).length > 0 && currentProject.project) {
+            projects.push(currentProject);
+          }
+
+          // Filter out incomplete entries
+          const validProjects = projects.filter(p =>
+            p.project && p.new && p.current !== p.new
+          );
+
+          console.log(JSON.stringify(validProjects, null, 2));
+          ENDOFSCRIPT
+
+          # Run the parser
+          node /tmp/parse-output.js "${{ steps.dryrun.outputs.output_file }}" > /tmp/projects.json
+
+          echo "projects_file=/tmp/projects.json" >> $GITHUB_OUTPUT
+
+      - name: Comment PR with preview
+        if: steps.dryrun.outputs.skip != 'true'
+        uses: actions/github-script@v7
+        env:
+          VERBOSE: ${{ github.event.inputs.verbose || 'false' }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const outputFile = '${{ steps.dryrun.outputs.output_file }}';
+            const projectsFile = '${{ steps.extract.outputs.projects_file }}';
+            const verbose = process.env.VERBOSE === 'true';
+
+            let body = '# 🎯 Release Preview\n\n';
+
+            if (verbose) {
+              // Verbose mode: show detailed output
+              body += 'This PR will make the following changes:\n\n';
+
+              if (fs.existsSync(outputFile)) {
+                const output = fs.readFileSync(outputFile, 'utf8');
+                body += '```\n' + output + '\n```';
+              } else {
+                body += 'No version changes detected.';
+              }
+            } else {
+              // Table mode: show concise summary
+              body += '## Version Changes Summary\n\n';
+
+              if (fs.existsSync(projectsFile)) {
+                try {
+                  const projects = JSON.parse(fs.readFileSync(projectsFile, 'utf8'));
+
+                  if (projects.length === 0) {
+                    body += 'No version changes detected.\n';
+                  } else {
+                    body += '| Project | Current Version | New Version | Registry | Tag Name |\n';
+                    body += '|---------|----------------|-------------|----------|----------|\n';
+
+                    projects.forEach(p => {
+                      body += `| ${p.project} | ${p.current} | ${p.new} | ${p.registry} | ${p.tag} |\n`;
+                    });
+                  }
+                } catch (e) {
+                  body += 'Error parsing project information.\n';
+                  body += `\nRaw output:\n\`\`\`\n${fs.readFileSync(outputFile, 'utf8')}\n\`\`\`\n`;
+                }
+              } else {
+                body += 'No version changes detected.\n';
+              }
+
+              body += '\n💡 *Run workflow manually with `verbose: true` for detailed output*\n';
+            }
+
+            body += '\n---\n*This comment was automatically generated by nx-project-release*';
+
+            // Find and update existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('Release Preview')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body
+              });
+            }

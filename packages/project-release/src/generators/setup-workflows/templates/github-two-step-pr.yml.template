@@ -1,0 +1,159 @@
+name: Release PR (Version & Changelog)
+
+on:
+  push:
+    branches: [<%= defaultBranch %>]
+<% if (triggerPaths && triggerPaths.length > 0) { %>    paths:
+<% triggerPaths.forEach(path => { %>      - '<%= path %>'
+<% }); %><% } %>
+<% if (enableWorkflowDispatch) { %>  workflow_dispatch:
+    inputs:
+      project:
+        description: 'Specific project (leave empty for all affected)'
+        required: false
+        type: string
+      releaseAs:
+        description: 'Release type'
+        required: false
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      dryRun:
+        description: 'Dry run (no changes)'
+        required: false
+        type: boolean
+        default: false
+<% } %>
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: <%= nodeVersion %>
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Determine release mode
+        id: mode
+        run: |
+          if [ -n "${{ github.event.inputs.project }}" ]; then
+            echo "mode=single" >> $GITHUB_OUTPUT
+            echo "project=${{ github.event.inputs.project }}" >> $GITHUB_OUTPUT
+          else
+            echo "mode=affected" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Version (Single Project)
+        if: steps.mode.outputs.mode == 'single'
+        run: |
+          # Auto-detect bump from conventional commits (omit releaseAs for auto)
+          # Manual releaseAs input overrides auto-detection
+          PROJECT="${{ steps.mode.outputs.project }}"
+          RELEASE_AS="${{ github.event.inputs.releaseAs }}"
+          DRY_RUN="${{ github.event.inputs.dryRun == 'true' && '--dryRun' || '' }}"
+
+          if [ -n "${RELEASE_AS}" ]; then
+            npx nx run ${PROJECT}:version --releaseAs=${RELEASE_AS} ${DRY_RUN}
+          else
+            npx nx run ${PROJECT}:version ${DRY_RUN}
+          fi
+
+      - name: Version (Affected Projects)
+        if: steps.mode.outputs.mode == 'affected'
+        run: |
+          # Auto-detect bump from conventional commits (omit releaseAs for auto)
+          # Manual releaseAs input overrides auto-detection
+          RELEASE_AS="${{ github.event.inputs.releaseAs }}"
+          DRY_RUN="${{ github.event.inputs.dryRun == 'true' && '--dryRun' || '' }}"
+
+          if [ -n "${RELEASE_AS}" ]; then
+            npx nx affected -t version \
+              --base=origin/<%= defaultBranch %>~1 \
+              --releaseAs=${RELEASE_AS} ${DRY_RUN}
+          else
+            npx nx affected -t version \
+              --base=origin/<%= defaultBranch %>~1 \
+              ${DRY_RUN}
+          fi
+
+      - name: Changelog (Single Project)
+        if: steps.mode.outputs.mode == 'single' && github.event.inputs.dryRun != 'true'
+        run: |
+          PROJECT="${{ steps.mode.outputs.project }}"
+          npx nx run ${PROJECT}:changelog
+
+      - name: Changelog (Affected Projects)
+        if: steps.mode.outputs.mode == 'affected' && github.event.inputs.dryRun != 'true'
+        run: |
+          npx nx affected -t changelog \
+            --base=origin/<%= defaultBranch %>~1
+
+      - name: Create Tags (Single Project)
+        if: steps.mode.outputs.mode == 'single' && github.event.inputs.dryRun != 'true'
+        run: |
+          PROJECT="${{ steps.mode.outputs.project }}"
+          npx nx run ${PROJECT}:release --gitTag=true --gitPush=false
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Tags (Affected Projects)
+        if: steps.mode.outputs.mode == 'affected' && github.event.inputs.dryRun != 'true'
+        run: |
+          npx nx affected -t release \
+            --base=origin/<%= defaultBranch %>~1 \
+            --gitTag=true \
+            --gitPush=false
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit version bumps and changelogs
+        if: github.event.inputs.dryRun != 'true'
+        run: |
+          git add .
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            echo "has_changes=false" >> $GITHUB_ENV
+          else
+            git commit -m "chore(release): version bumps and changelogs"
+            echo "has_changes=true" >> $GITHUB_ENV
+          fi
+
+      - name: Push commits and tags
+        if: github.event.inputs.dryRun != 'true' && env.has_changes == 'true'
+        run: |
+          git push
+          git push --tags
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Release PR Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Mode:** ${{ steps.mode.outputs.mode }}" >> $GITHUB_STEP_SUMMARY
+          if [ -n "${{ steps.mode.outputs.project }}" ]; then
+            echo "**Project:** ${{ steps.mode.outputs.project }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "**Release Type:** ${{ github.event.inputs.releaseAs || 'auto-detect' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Dry Run:** ${{ github.event.inputs.dryRun || 'false' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Release commit created. Publish workflow will run automatically." >> $GITHUB_STEP_SUMMARY

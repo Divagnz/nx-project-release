@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "cli": "nx",
+  "$id": "ExcludeProjects",
+  "title": "Exclude Projects from Versioning",
+  "description": "Manage which projects are excluded from versioning and releases",
+  "type": "object",
+  "properties": {
+    "projects": {
+      "type": "array",
+      "description": "Projects to exclude (multi-select)",
+      "items": {
+        "type": "string"
+      }
+    },
+    "add": {
+      "type": "boolean",
+      "description": "Add to existing excluded projects (default: replace)",
+      "default": false
+    },
+    "remove": {
+      "type": "boolean",
+      "description": "Remove from excluded projects",
+      "default": false
+    },
+    "interactive": {
+      "type": "boolean",
+      "description": "Use interactive multi-select (default: true)",
+      "default": true
+    },
+    "pattern": {
+      "type": "string",
+      "description": "Pattern to match projects (e.g., '*-e2e', 'tool-*')"
+    }
+  }
+}

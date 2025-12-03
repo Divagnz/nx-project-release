@@ -1,0 +1,53 @@
+name: Release on Merge
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [<%= defaultBranch %>]
+
+jobs:
+  release:
+    if: github.event.pull_request.merged == true && startsWith(github.head_ref, 'release/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: <%= defaultBranch %>
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: <%= nodeVersion %>
+
+      - run: npm ci
+
+      - name: Build affected projects
+        run: |
+          npx nx affected -t build \
+            --base=origin/<%= defaultBranch %>~1
+
+      - name: Create artifacts for affected projects
+        run: |
+          npx nx affected -t artifact \
+            --base=origin/<%= defaultBranch %>~1
+
+      - name: Publish released projects
+        run: |
+          npx nx affected -t publish \
+            --base=origin/<%= defaultBranch %>~1
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+<% if (createGitHubRelease) { %>
+      - name: Create GitHub releases
+        run: |
+          npx nx affected -t release \
+            --base=origin/<%= defaultBranch %>~1 \
+            --createGitHubRelease \
+            --gitPush=false \
+            --assetPatterns='dist/artifacts/**/{projectName}*'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+<% } %>

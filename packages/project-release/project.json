@@ -21,6 +21,7 @@
         "tsConfig": "packages/project-release/tsconfig.lib.json",
         "assets": [
           "packages/project-release/*.md",
+          "packages/project-release/.npmignore",
           {
             "input": "./packages/project-release/src",
             "glob": "**/!(*.ts)",
@@ -45,6 +46,11 @@
             "input": "./packages/project-release/release",
             "glob": "schema.json",
             "output": "./release"
+          },
+          {
+            "input": "./packages/project-release/scripts",
+            "glob": "**/*.js",
+            "output": "./scripts"
           }
         ]
       }
@@ -57,20 +63,20 @@
       }
     },
     "version": {
-      "executor": "@divagnz/nx-project-release:version",
+      "executor": "nx-project-release:version",
       "options": {
         "versionFiles": ["package.json"],
         "versionPath": "version"
       }
     },
     "changelog": {
-      "executor": "@divagnz/nx-project-release:changelog",
+      "executor": "nx-project-release:changelog",
       "options": {
         "preset": "angular"
       }
     },
     "publish": {
-      "executor": "@divagnz/nx-project-release:publish",
+      "executor": "nx-project-release:publish",
       "dependsOn": ["fix-esm"],
       "options": {
         "publishDir": "dist/project-release",
@@ -82,7 +88,7 @@
       }
     },
     "project-release": {
-      "executor": "@divagnz/nx-project-release:project-release",
+      "executor": "nx-project-release:project-release",
       "dependsOn": ["fix-esm"],
       "options": {
         "packageRoot": "dist/project-release",

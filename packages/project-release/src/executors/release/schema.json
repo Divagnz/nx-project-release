@@ -1,0 +1,161 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "cli": "nx",
+  "$id": "Release",
+  "title": "Create Release",
+  "description": "Handle git operations (commit, tag, push) and create GitHub/GitLab releases. Reads global git workflow config from nx.json.",
+  "type": "object",
+  "properties": {
+    "projects": {
+      "type": "array",
+      "description": "List of projects being released with their versions: [{name: 'api', version: '1.2.3', group: 'backend'}]",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {"type": "string"},
+          "version": {"type": "string"},
+          "group": {"type": "string"}
+        }
+      }
+    },
+    "detectAffected": {
+      "type": "boolean",
+      "description": "Auto-detect affected projects that were versioned/changelogged",
+      "default": false
+    },
+    "version": {
+      "type": "string",
+      "description": "Version to release (for single-project mode - auto-detected from package.json/project.json if not provided)"
+    },
+    "gitCommit": {
+      "type": "boolean",
+      "description": "Create git commit for version and changelog changes",
+      "default": true
+    },
+    "gitCommitMessage": {
+      "type": "string",
+      "description": "Commit message template",
+      "default": "chore(release): {projectName} version {version}"
+    },
+    "gitTag": {
+      "type": "boolean",
+      "description": "Create git tag for the release",
+      "default": true
+    },
+    "tagPrefix": {
+      "type": "string",
+      "description": "Prefix for git tags",
+      "default": "v"
+    },
+    "gitPush": {
+      "type": "boolean",
+      "description": "Push changes and tags to remote",
+      "default": false
+    },
+    "releaseBranch": {
+      "type": "string",
+      "description": "Branch strategy: 'current' to commit to current branch, or branch name to create new branch",
+      "default": "current"
+    },
+    "createPR": {
+      "type": "boolean",
+      "description": "Create a pull request (only if releaseBranch is not 'current')",
+      "default": false
+    },
+    "prTarget": {
+      "type": "string",
+      "description": "Target branch for pull request",
+      "default": "main"
+    },
+    "prTitle": {
+      "type": "string",
+      "description": "Pull request title template",
+      "default": "Release {projectName} {version}"
+    },
+    "createGitHubRelease": {
+      "type": "boolean",
+      "description": "Create a GitHub release",
+      "default": false
+    },
+    "createGitLabRelease": {
+      "type": "boolean",
+      "description": "Create a GitLab release",
+      "default": false
+    },
+    "releaseName": {
+      "type": "string",
+      "description": "Name of the release (defaults to tag)"
+    },
+    "changelogFile": {
+      "type": "string",
+      "description": "Path to changelog file to use for release notes",
+      "default": "CHANGELOG.md"
+    },
+    "draft": {
+      "type": "boolean",
+      "description": "Create GitHub/GitLab release as draft",
+      "default": false
+    },
+    "prerelease": {
+      "type": "boolean",
+      "description": "Mark GitHub/GitLab release as prerelease",
+      "default": false
+    },
+    "generateNotes": {
+      "type": "boolean",
+      "description": "Auto-generate release notes from commits (if changelog not found)",
+      "default": true
+    },
+    "filesToCommit": {
+      "type": "array",
+      "description": "Additional files to include in the release commit",
+      "items": {
+        "type": "string"
+      },
+      "default": ["package.json", "project.json", "CHANGELOG.md"]
+    },
+    "assets": {
+      "type": "array",
+      "description": "Paths to files/directories to attach as release assets",
+      "items": {
+        "type": "string"
+      }
+    },
+    "assetPatterns": {
+      "type": "array",
+      "description": "Glob patterns for assets to attach",
+      "items": {
+        "type": "string"
+      },
+      "examples": [
+        ["dist/**/*.tgz", "build/**/*.zip"]
+      ]
+    },
+    "owner": {
+      "type": "string",
+      "description": "Repository owner/organization (auto-detected from git remote)"
+    },
+    "repo": {
+      "type": "string",
+      "description": "Repository name (auto-detected from git remote)"
+    },
+    "token": {
+      "type": "string",
+      "description": "GitHub/GitLab token (uses GITHUB_TOKEN or GITLAB_TOKEN env var if not provided)"
+    },
+    "targetCommitish": {
+      "type": "string",
+      "description": "Target branch or commit SHA (defaults to current branch)"
+    },
+    "discussionCategory": {
+      "type": "string",
+      "description": "GitHub discussion category for the release"
+    },
+    "dryRun": {
+      "type": "boolean",
+      "description": "Show what would be released without creating it",
+      "default": false
+    }
+  },
+  "required": []
+}

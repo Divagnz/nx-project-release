@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "cli": "nx",
+  "$id": "ConfigureGlobal",
+  "title": "Configure Global Settings",
+  "description": "Configure global nx-project-release settings in nx.json",
+  "type": "object",
+  "properties": {
+    "projectsRelationship": {
+      "type": "string",
+      "description": "Default versioning strategy for all projects",
+      "enum": ["independent", "fixed"]
+    },
+    "versionFiles": {
+      "type": "array",
+      "description": "Default version files for all projects",
+      "items": {
+        "type": "string"
+      }
+    },
+    "tagNamingFormat": {
+      "type": "string",
+      "description": "Global tag naming format"
+    },
+    "tagNamingPrefix": {
+      "type": "string",
+      "description": "Global tag prefix"
+    },
+    "tagNamingSuffix": {
+      "type": "string",
+      "description": "Global tag suffix"
+    },
+    "includeProjectName": {
+      "type": "boolean",
+      "description": "Include project name in tag globally"
+    },
+    "changelogPreset": {
+      "type": "string",
+      "description": "Default changelog preset",
+      "enum": ["angular", "conventionalcommits", "atom", "ember", "jshint"]
+    },
+    "registryType": {
+      "type": "string",
+      "description": "Default registry type",
+      "enum": ["npm", "nexus", "s3", "github", "docker", "custom", "none"]
+    },
+    "registryUrl": {
+      "type": "string",
+      "description": "Default registry URL"
+    },
+    "interactive": {
+      "type": "boolean",
+      "description": "Use interactive mode",
+      "default": true
+    }
+  }
+}

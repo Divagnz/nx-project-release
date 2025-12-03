@@ -1,0 +1,266 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/divagnz/nx-project-release/main/packages/project-release/src/nx-json-schema.json",
+  "title": "nx-project-release Configuration",
+  "description": "Configuration schema for nx-project-release in nx.json",
+  "type": "object",
+  "properties": {
+    "projectsRelationship": {
+      "type": "string",
+      "enum": ["independent", "fixed"],
+      "description": "Global versioning strategy: 'independent' (each project has own version) or 'fixed' (all projects share same version)",
+      "default": "independent"
+    },
+    "versionFiles": {
+      "type": "array",
+      "description": "Default files to update with version (e.g., package.json, project.json)",
+      "items": {
+        "type": "string"
+      },
+      "default": ["package.json"]
+    },
+    "versionPath": {
+      "type": "string",
+      "description": "JSON path to version field (default: 'version')",
+      "default": "version"
+    },
+    "changelogPreset": {
+      "type": "string",
+      "enum": ["angular", "conventionalcommits", "atom", "ember", "eslint", "express", "jquery"],
+      "description": "Conventional commits preset for changelog generation",
+      "default": "angular"
+    },
+    "gitCommit": {
+      "type": "boolean",
+      "description": "Automatically commit version and changelog changes",
+      "default": true
+    },
+    "gitCommitMessage": {
+      "type": "string",
+      "description": "Commit message template. Variables: {releases} (list of projects), {version} (fixed versioning only), {count} (number of projects)",
+      "default": "chore(release): {releases}"
+    },
+    "filesToCommit": {
+      "type": "array",
+      "description": "Files to include in release commit",
+      "items": {
+        "type": "string"
+      },
+      "default": ["package.json", "CHANGELOG.md", "project.json"]
+    },
+    "releaseBranch": {
+      "type": "string",
+      "description": "Release branch strategy: 'current' (commit to current branch) or template like 'release/{version}'",
+      "default": "current"
+    },
+    "createPR": {
+      "type": "boolean",
+      "description": "Create pull request for releases (only if releaseBranch is not 'current')",
+      "default": false
+    },
+    "prTarget": {
+      "type": "string",
+      "description": "Target branch for pull request",
+      "default": "main"
+    },
+    "prTitle": {
+      "type": "string",
+      "description": "Pull request title template. Variables: same as gitCommitMessage",
+      "default": "chore(release): {releases}"
+    },
+    "gitPush": {
+      "type": "boolean",
+      "description": "Automatically push commits and tags to remote",
+      "default": false
+    },
+    "gitTag": {
+      "type": "boolean",
+      "description": "Create git tags for releases",
+      "default": true
+    },
+    "pathStrategy": {
+      "type": "string",
+      "enum": ["flat", "version", "hash", "semver"],
+      "description": "Default path strategy for artifacts in registries. flat: bucket/artifact.zip, version: bucket/1.2.3/artifact.zip, hash: bucket/a1b2c3d/artifact.zip, semver: bucket/v1/1.2/1.2.3/artifact.zip",
+      "default": "version"
+    },
+    "defaultArtifactDir": {
+      "type": "string",
+      "description": "Default directory for created artifacts",
+      "default": "dist/artifacts"
+    },
+    "defaultArtifactFormat": {
+      "type": "string",
+      "enum": ["zip", "tar", "tgz", "tar.gz"],
+      "description": "Default artifact archive format",
+      "default": "tgz"
+    },
+    "defaultRegistry": {
+      "type": "object",
+      "description": "Default registry configuration for all projects (optional)",
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "Registry URL (e.g., https://registry.npmjs.org)"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["npm", "nexus", "s3", "github", "docker", "custom", "none"],
+          "description": "Registry type"
+        }
+      }
+    },
+    "releaseGroups": {
+      "type": "object",
+      "description": "Release groups configuration - organize projects by deployment target/registry",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "projects": {
+            "type": "array",
+            "description": "Projects in this release group",
+            "items": {
+              "type": "string"
+            }
+          },
+          "projectPatterns": {
+            "type": "array",
+            "description": "Glob patterns to match projects (e.g., '*-lib', 'app-*')",
+            "items": {
+              "type": "string"
+            },
+            "examples": [
+              ["*-lib", "*-package"],
+              ["app-*", "service-*"]
+            ]
+          },
+          "registryType": {
+            "type": "string",
+            "enum": ["npm", "nexus", "s3", "github", "docker", "custom", "none"],
+            "description": "Registry type for this group"
+          },
+          "registryUrl": {
+            "type": "string",
+            "description": "Registry URL for this group"
+          },
+          "tagNamingFormat": {
+            "type": "string",
+            "description": "Tag format template. Variables: {projectName}, {version}, {groupName}",
+            "default": "{projectName}-v{version}",
+            "examples": [
+              "{projectName}-v{version}",
+              "{groupName}-{projectName}-v{version}",
+              "v{version}",
+              "{projectName}:{version}"
+            ]
+          },
+          "artifactDir": {
+            "type": "string",
+            "description": "Directory where artifacts are located. Overrides global defaultArtifactDir. Variables: {projectName}, {version}",
+            "examples": [
+              "dist/artifacts",
+              "dist/{projectName}/artifacts"
+            ]
+          },
+          "artifactName": {
+            "type": "string",
+            "description": "Artifact filename template. Variables: {projectName}, {version}, {hash}, {timestamp}, {date}, {platform}, {arch}",
+            "examples": [
+              "{projectName}-{version}.tgz",
+              "{projectName}-{version}-{hash}.zip",
+              "{projectName}-{version}-{platform}-{arch}.tar.gz"
+            ]
+          },
+          "prePublishTarget": {
+            "type": "string",
+            "description": "Nx target to run before publishing (e.g., 'build', 'build:prod')"
+          },
+          "pathStrategy": {
+            "type": "string",
+            "enum": ["flat", "version", "hash", "semver"],
+            "description": "Path strategy for artifact storage. Overrides global pathStrategy"
+          },
+          "createGitHubRelease": {
+            "type": "boolean",
+            "description": "Create GitHub release for projects in this group",
+            "default": false
+          },
+          "createGitLabRelease": {
+            "type": "boolean",
+            "description": "Create GitLab release for projects in this group",
+            "default": false
+          },
+          "draft": {
+            "type": "boolean",
+            "description": "Create GitHub/GitLab release as draft",
+            "default": false
+          },
+          "prerelease": {
+            "type": "boolean",
+            "description": "Mark GitHub/GitLab release as prerelease",
+            "default": false
+          },
+          "assets": {
+            "type": "array",
+            "description": "Additional files to attach to GitHub/GitLab releases",
+            "items": {
+              "type": "string"
+            }
+          },
+          "assetPatterns": {
+            "type": "array",
+            "description": "Glob patterns for additional assets to attach",
+            "items": {
+              "type": "string"
+            }
+          },
+          "versionFiles": {
+            "type": "array",
+            "description": "Files to update with version (overrides global)",
+            "items": {
+              "type": "string"
+            }
+          },
+          "versionStrategy": {
+            "type": "string",
+            "enum": ["git-tag", "disk", "registry"],
+            "description": "How to determine current version",
+            "default": "git-tag"
+          }
+        }
+      }
+    },
+    "excludedProjects": {
+      "type": "array",
+      "description": "Projects to exclude from versioning (e.g., E2E test projects, internal tools)",
+      "items": {
+        "type": "string"
+      },
+      "examples": [
+        ["my-app-e2e", "another-app-e2e"],
+        ["analytics-platform-e2e", "internal-tool"]
+      ]
+    },
+    "projectConfigs": {
+      "type": "object",
+      "description": "Per-project configuration overrides",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "versionFiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "versionPath": {
+            "type": "string"
+          },
+          "tagNamingFormat": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

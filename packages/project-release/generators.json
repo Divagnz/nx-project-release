@@ -1,0 +1,59 @@
+{
+  "generators": {
+    "init": {
+      "factory": "./src/generators/init/generator",
+      "schema": "./src/generators/init/schema.json",
+      "description": "Initialize nx-project-release in your workspace with interactive configuration"
+    },
+    "reset-config": {
+      "factory": "./src/generators/reset-config/generator",
+      "schema": "./src/generators/reset-config/schema.json",
+      "description": "Remove all nx-project-release configuration from the workspace"
+    },
+    "setup-commitlint": {
+      "factory": "./src/generators/setup-commitlint/generator",
+      "schema": "./src/generators/setup-commitlint/schema.json",
+      "description": "Set up commitlint with Nx scopes validation"
+    },
+    "setup-workflows": {
+      "factory": "./src/generators/setup-workflows/generator",
+      "schema": "./src/generators/setup-workflows/schema.json",
+      "description": "Configure CI/CD workflows for automated releases"
+    },
+    "configure-release": {
+      "factory": "./src/generators/configure-release/generator",
+      "schema": "./src/generators/configure-release/schema.json",
+      "description": "Add or update release configuration for a specific project"
+    },
+    "exclude-projects": {
+      "factory": "./src/generators/exclude-projects/generator",
+      "schema": "./src/generators/exclude-projects/schema.json",
+      "description": "Manage which projects are excluded from versioning and releases"
+    },
+    "configure-version": {
+      "factory": "./src/generators/configure-version/generator",
+      "schema": "./src/generators/configure-version/schema.json",
+      "description": "Configure version settings for one or multiple projects"
+    },
+    "configure-changelog": {
+      "factory": "./src/generators/configure-changelog/generator",
+      "schema": "./src/generators/configure-changelog/schema.json",
+      "description": "Configure changelog settings for one or multiple projects"
+    },
+    "configure-global": {
+      "factory": "./src/generators/configure-global/generator",
+      "schema": "./src/generators/configure-global/schema.json",
+      "description": "Configure global nx-project-release settings in nx.json"
+    },
+    "configure-release-groups": {
+      "factory": "./src/generators/configure-release-groups/generator",
+      "schema": "./src/generators/configure-release-groups/schema.json",
+      "description": "Create or update release groups configuration with pattern matching"
+    },
+    "configure-artifact": {
+      "factory": "./src/generators/configure-artifact/generator",
+      "schema": "./src/generators/configure-artifact/schema.json",
+      "description": "Configure artifact creation for one or multiple projects"
+    }
+  }
+}

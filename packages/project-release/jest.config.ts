@@ -19,13 +19,15 @@ export default {
   ],
   coverageReporters: ['text', 'lcov', 'json-summary'],
 
-  // Coverage thresholds (starting low, will increase as more comprehensive tests are added)
+  // Coverage thresholds (Phase 1 & 2 partially completed)
+  // Phase 1: Utility functions (ci-detection, checksum, commit-parser, markdown-generator)
+  // Phase 2: Executors (changelog, publish completed; project-release, version pending)
   coverageThreshold: {
     global: {
-      branches: 0,
-      functions: 0,
-      lines: 3,
-      statements: 3
+      branches: 23,
+      functions: 30,
+      lines: 29,
+      statements: 30
     }
   }
 };

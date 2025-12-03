@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "cli": "nx",
+  "$id": "Artifact",
+  "title": "Create Artifact",
+  "description": "Create distributable artifact (zip, tar, tgz) from build output",
+  "type": "object",
+  "properties": {
+    "sourceDir": {
+      "type": "string",
+      "description": "Source directory to archive (supports template variables: {projectName}, {version})",
+      "examples": [
+        "dist/apps/{projectName}",
+        "dist/packages/{projectName}",
+        "build/output"
+      ]
+    },
+    "outputDir": {
+      "type": "string",
+      "description": "Where to place the artifact (supports template variables)",
+      "default": "dist/artifacts"
+    },
+    "artifactName": {
+      "type": "string",
+      "description": "Artifact filename template (supports: {projectName}, {version}, {hash}, {timestamp}, {date}, {platform}, {arch}, {extension})",
+      "default": "{projectName}-{version}.{extension}",
+      "examples": [
+        "{projectName}-{version}.zip",
+        "{projectName}-{version}-{hash}.tar.gz",
+        "{projectName}-{version}-{platform}-{arch}.zip"
+      ]
+    },
+    "format": {
+      "type": "string",
+      "description": "Archive format",
+      "enum": ["zip", "tar", "tgz", "tar.gz"],
+      "default": "tgz"
+    },
+    "include": {
+      "type": "array",
+      "description": "Glob patterns to include",
+      "items": {
+        "type": "string"
+      },
+      "default": ["**/*"]
+    },
+    "exclude": {
+      "type": "array",
+      "description": "Glob patterns to exclude",
+      "items": {
+        "type": "string"
+      },
+      "examples": [
+        ["**/*.map", "**/*.spec.ts", "**/node_modules/**"]
+      ]
+    },
+    "compressionLevel": {
+      "type": "number",
+      "description": "Compression level (0-9, where 9 is maximum compression)",
+      "default": 6,
+      "minimum": 0,
+      "maximum": 9
+    },
+    "preservePermissions": {
+      "type": "boolean",
+      "description": "Preserve file permissions (Unix-based systems)",
+      "default": true
+    },
+    "stripPrefix": {
+      "type": "string",
+      "description": "Remove prefix from archive paths",
+      "examples": ["dist/apps/web-app", "build/output"]
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional metadata to include in artifact manifest (.artifact-metadata.json)",
+      "additionalProperties": true
+    }
+  },
+  "required": ["sourceDir", "outputDir"]
+}
