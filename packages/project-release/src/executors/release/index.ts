@@ -74,7 +74,7 @@ export default async function releaseExecutor(
       `${projectName} ${version}`,
       `Release ${projectName} ${version}`,
       projectRoot,
-      options.useSubtreeSplit || (group as any)?.useSubtreeSplit || false,
+      (group as any)?.useSubtreeSplit || false,
       projectName,
       context
     );
