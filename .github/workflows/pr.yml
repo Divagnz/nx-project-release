@@ -37,7 +37,7 @@ jobs:
         run: npx nx lint @nx-project-release
 
       - name: Build
-        run: npx nx run @nx-project-release:build
+        run: npx nx run-manu -t build
 
       - name: Test
         run: npx nx test @nx-project-release
