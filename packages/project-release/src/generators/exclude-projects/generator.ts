@@ -70,7 +70,7 @@ export default async function excludeProjectsGenerator(
               : 'Select projects to EXCLUDE from versioning:',
           choices: choices,
           initial: action === 'set' ? currentExcluded : [],
-          // @ts-ignore - enquirer types are incomplete
+          // @ts-expect-error - enquirer types are incomplete
           hint: 'Space to select, Enter to confirm',
         }
       );
@@ -94,7 +94,7 @@ export default async function excludeProjectsGenerator(
           name: 'selectedProjects',
           message: 'Select projects to REMOVE from excluded list:',
           choices: choices,
-          // @ts-ignore - enquirer types are incomplete
+          // @ts-expect-error - enquirer types are incomplete
           hint: 'Space to select, Enter to confirm',
         }
       );

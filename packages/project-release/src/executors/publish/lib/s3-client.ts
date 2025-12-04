@@ -94,13 +94,14 @@ export async function uploadToS3(
       key = `${config.prefix || ''}${version}/${filename}`;
       break;
 
-    case 'hash':
+    case 'hash': {
       const sha1Hash = calculateChecksum(artifactPath, 'sha1');
       if (!sha1Hash) {
         throw new Error('Failed to calculate SHA1 hash for artifact');
       }
       key = `${config.prefix || ''}${sha1Hash}/${filename}`;
       break;
+    }
 
     case 'flat':
       key = `${config.prefix || ''}${filename}`;

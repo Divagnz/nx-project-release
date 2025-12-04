@@ -244,7 +244,7 @@ function evaluateCondition(
   }
 
   // Handle simple variable truthiness
-  const cleanCondition = condition.replace(/^\!/, '').trim();
+  const cleanCondition = condition.replace(/^!/, '').trim();
   const isNegated = condition.startsWith('!');
   const value = context[cleanCondition];
 

@@ -28,7 +28,7 @@ export default async function configureVersionGenerator(
       name: 'selectedProjects',
       message: 'Select projects to configure version settings:',
       choices: allProjects,
-      // @ts-ignore - enquirer types are incomplete
+      // @ts-expect-error - enquirer types are incomplete
       hint: 'Space to select, Enter to confirm',
     });
 

@@ -9,7 +9,7 @@ import {
   readFileSync,
   mkdirSync,
 } from 'fs';
-import { join, basename, dirname } from 'path';
+import { join } from 'path';
 import { glob } from 'glob';
 import { execSync } from 'child_process';
 
@@ -206,7 +206,7 @@ async function createTarArchive(
   const gzip = format === 'tgz' || format === 'tar.gz';
 
   // Prepare files list, applying stripPrefix if needed
-  let filesToArchive = files;
+  const filesToArchive = files;
 
   if (options.stripPrefix) {
     // For tar, we can't easily strip prefix, so we'll need to use cwd cleverly

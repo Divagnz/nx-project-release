@@ -110,7 +110,7 @@ export default async function configureArtifactGenerator(
   }
   logger.info('');
 
-  return () => {};
+  return;
 }
 
 function configureProjectArtifact(
