@@ -4,7 +4,7 @@ import {
   updateProjectConfiguration,
   formatFiles,
   getProjects,
-  logger
+  logger,
 } from '@nx/devkit';
 import { ConfigureArtifactSchema } from './schema';
 import Enquirer from 'enquirer';
@@ -29,7 +29,7 @@ export default async function configureArtifactGenerator(
       type: 'multiselect',
       name: 'selectedProjects',
       message: 'Select projects to configure artifact creation for:',
-      choices: allProjects
+      choices: allProjects,
     } as any);
     projectsToConfig = selectedProjects;
   }
@@ -50,8 +50,8 @@ export default async function configureArtifactGenerator(
         { name: 'ZIP (.zip)', value: 'zip' },
         { name: 'Gzipped Tar (.tgz)', value: 'tgz' },
         { name: 'Gzipped Tar (.tar.gz)', value: 'tar.gz' },
-        { name: 'Tar (.tar)', value: 'tar' }
-      ]
+        { name: 'Tar (.tar)', value: 'tar' },
+      ],
     });
     format = selectedFormat as any;
   }
@@ -65,8 +65,9 @@ export default async function configureArtifactGenerator(
     const { dir } = await prompt<{ dir: string }>({
       type: 'input',
       name: 'dir',
-      message: 'Source directory to archive? (use {projectName} as placeholder)',
-      initial: suggestedDir
+      message:
+        'Source directory to archive? (use {projectName} as placeholder)',
+      initial: suggestedDir,
     } as any);
     sourceDir = dir;
   }
@@ -76,7 +77,7 @@ export default async function configureArtifactGenerator(
     configureProjectArtifact(tree, projectName, {
       ...options,
       sourceDir: sourceDir || `dist/{projectName}`,
-      format
+      format,
     });
   }
 
@@ -93,11 +94,19 @@ export default async function configureArtifactGenerator(
   logger.info('');
   logger.info('Usage:');
   if (projectsToConfig.length === 1) {
-    logger.info(`  nx run ${projectsToConfig[0]}:artifact              # Create artifact`);
-    logger.info(`  nx run ${projectsToConfig[0]}:publish              # Build → Artifact → Publish`);
+    logger.info(
+      `  nx run ${projectsToConfig[0]}:artifact              # Create artifact`
+    );
+    logger.info(
+      `  nx run ${projectsToConfig[0]}:publish              # Build → Artifact → Publish`
+    );
   } else {
-    logger.info(`  nx run <project>:artifact                         # Create artifact`);
-    logger.info(`  nx run <project>:publish                          # Build → Artifact → Publish`);
+    logger.info(
+      `  nx run <project>:artifact                         # Create artifact`
+    );
+    logger.info(
+      `  nx run <project>:publish                          # Build → Artifact → Publish`
+    );
   }
   logger.info('');
 
@@ -116,7 +125,9 @@ function configureProjectArtifact(
   const extension = format === 'tar.gz' ? 'tar.gz' : format;
 
   // Resolve source directory for this specific project
-  const sourceDir = options.sourceDir?.replace('{projectName}', projectName) || `dist/${projectConfig.root}`;
+  const sourceDir =
+    options.sourceDir?.replace('{projectName}', projectName) ||
+    `dist/${projectConfig.root}`;
 
   // Add artifact target
   projectConfig.targets = projectConfig.targets || {};
@@ -126,11 +137,13 @@ function configureProjectArtifact(
     options: {
       sourceDir,
       outputDir: 'dist/artifacts',
-      artifactName: options.artifactName || `{projectName}-{version}.${extension}`,
+      artifactName:
+        options.artifactName || `{projectName}-{version}.${extension}`,
       format: format,
-      ...(options.exclude && options.exclude.length > 0 && { exclude: options.exclude })
+      ...(options.exclude &&
+        options.exclude.length > 0 && { exclude: options.exclude }),
     },
-    outputs: ['{workspaceRoot}/dist/artifacts']
+    outputs: ['{workspaceRoot}/dist/artifacts'],
   };
 
   // Update publish target if it exists and updatePublish is true

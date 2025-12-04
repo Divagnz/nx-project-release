@@ -6,14 +6,17 @@ import {
   groupCommitsByType,
   getCommitTypeTitle,
   COMMIT_TYPE_ORDER,
-  ParsedCommit
+  ParsedCommit,
 } from './commit-parser.js';
 
 describe('Commit Parser', () => {
   describe('parseConventionalCommit()', () => {
     describe('Valid conventional commits', () => {
       it('should parse basic commit with type and subject', () => {
-        const commit = parseConventionalCommit('feat: add new feature', 'abc123');
+        const commit = parseConventionalCommit(
+          'feat: add new feature',
+          'abc123'
+        );
         expect(commit).not.toBeNull();
         expect(commit?.type).toBe('feat');
         expect(commit?.subject).toBe('add new feature');
@@ -23,7 +26,10 @@ describe('Commit Parser', () => {
       });
 
       it('should parse commit with scope', () => {
-        const commit = parseConventionalCommit('feat(core): add new feature', 'abc123');
+        const commit = parseConventionalCommit(
+          'feat(core): add new feature',
+          'abc123'
+        );
         expect(commit).not.toBeNull();
         expect(commit?.type).toBe('feat');
         expect(commit?.scope).toBe('core');
@@ -31,7 +37,10 @@ describe('Commit Parser', () => {
       });
 
       it('should parse commit with breaking change indicator (!)', () => {
-        const commit = parseConventionalCommit('feat!: breaking change', 'abc123');
+        const commit = parseConventionalCommit(
+          'feat!: breaking change',
+          'abc123'
+        );
         expect(commit).not.toBeNull();
         expect(commit?.type).toBe('feat');
         expect(commit?.subject).toBe('breaking change');
@@ -39,7 +48,10 @@ describe('Commit Parser', () => {
       });
 
       it('should parse commit with scope and breaking change indicator', () => {
-        const commit = parseConventionalCommit('feat(api)!: breaking change', 'abc123');
+        const commit = parseConventionalCommit(
+          'feat(api)!: breaking change',
+          'abc123'
+        );
         expect(commit).not.toBeNull();
         expect(commit?.type).toBe('feat');
         expect(commit?.scope).toBe('api');
@@ -88,9 +100,20 @@ describe('Commit Parser', () => {
       });
 
       it('should handle various commit types', () => {
-        const types = ['feat', 'fix', 'docs', 'style', 'refactor', 'perf', 'test', 'build', 'ci', 'chore'];
+        const types = [
+          'feat',
+          'fix',
+          'docs',
+          'style',
+          'refactor',
+          'perf',
+          'test',
+          'build',
+          'ci',
+          'chore',
+        ];
 
-        types.forEach(type => {
+        types.forEach((type) => {
           const commit = parseConventionalCommit(`${type}: test`, 'abc123');
           expect(commit).not.toBeNull();
           expect(commit?.type).toBe(type);
@@ -100,19 +123,30 @@ describe('Commit Parser', () => {
 
     describe('Subject parsing', () => {
       it('should trim whitespace from subject', () => {
-        const commit = parseConventionalCommit('feat:   add feature   ', 'abc123');
+        const commit = parseConventionalCommit(
+          'feat:   add feature   ',
+          'abc123'
+        );
         expect(commit).not.toBeNull();
         expect(commit?.subject).toBe('add feature');
       });
 
       it('should handle subject with special characters', () => {
-        const commit = parseConventionalCommit('feat: add feature with "quotes" & special chars', 'abc123');
+        const commit = parseConventionalCommit(
+          'feat: add feature with "quotes" & special chars',
+          'abc123'
+        );
         expect(commit).not.toBeNull();
-        expect(commit?.subject).toBe('add feature with "quotes" & special chars');
+        expect(commit?.subject).toBe(
+          'add feature with "quotes" & special chars'
+        );
       });
 
       it('should handle subject with colons', () => {
-        const commit = parseConventionalCommit('feat: add feature: additional context', 'abc123');
+        const commit = parseConventionalCommit(
+          'feat: add feature: additional context',
+          'abc123'
+        );
         expect(commit).not.toBeNull();
         expect(commit?.subject).toBe('add feature: additional context');
       });
@@ -120,22 +154,34 @@ describe('Commit Parser', () => {
 
     describe('Scope parsing', () => {
       it('should parse single-word scope', () => {
-        const commit = parseConventionalCommit('feat(core): add feature', 'abc123');
+        const commit = parseConventionalCommit(
+          'feat(core): add feature',
+          'abc123'
+        );
         expect(commit?.scope).toBe('core');
       });
 
       it('should parse kebab-case scope', () => {
-        const commit = parseConventionalCommit('feat(my-module): add feature', 'abc123');
+        const commit = parseConventionalCommit(
+          'feat(my-module): add feature',
+          'abc123'
+        );
         expect(commit?.scope).toBe('my-module');
       });
 
       it('should parse scope with numbers', () => {
-        const commit = parseConventionalCommit('feat(v2-api): add feature', 'abc123');
+        const commit = parseConventionalCommit(
+          'feat(v2-api): add feature',
+          'abc123'
+        );
         expect(commit?.scope).toBe('v2-api');
       });
 
       it('should parse scope with underscores', () => {
-        const commit = parseConventionalCommit('feat(my_module): add feature', 'abc123');
+        const commit = parseConventionalCommit(
+          'feat(my_module): add feature',
+          'abc123'
+        );
         expect(commit?.scope).toBe('my_module');
       });
     });
@@ -152,7 +198,10 @@ describe('Commit Parser', () => {
       });
 
       it('should return null for non-conventional format', () => {
-        const commit = parseConventionalCommit('Random commit message', 'abc123');
+        const commit = parseConventionalCommit(
+          'Random commit message',
+          'abc123'
+        );
         expect(commit).toBeNull();
       });
 
@@ -199,7 +248,7 @@ describe('Commit Parser', () => {
     it('should parse array of commit blocks', () => {
       const blocks = [
         'abc123|feat: add feature\nBody text',
-        'def456|fix: fix bug\nAnother body'
+        'def456|fix: fix bug\nAnother body',
       ];
       const commits = parseCommits(blocks);
       expect(commits).toHaveLength(2);
@@ -213,7 +262,7 @@ describe('Commit Parser', () => {
       const blocks = [
         'abc123|feat: add feature',
         'invalid-block-without-pipe',
-        'def456|fix: fix bug'
+        'def456|fix: fix bug',
       ];
       const commits = parseCommits(blocks);
       expect(commits).toHaveLength(2);
@@ -225,7 +274,7 @@ describe('Commit Parser', () => {
       const blocks = [
         'abc123|feat: add feature',
         'def456|Random commit message',
-        'ghi789|fix: fix bug'
+        'ghi789|fix: fix bug',
       ];
       const commits = parseCommits(blocks);
       expect(commits).toHaveLength(2);
@@ -246,7 +295,7 @@ describe('Commit Parser', () => {
 
     it('should handle multiline commit bodies', () => {
       const blocks = [
-        'abc123|feat: add feature\n\nThis is a longer body\nwith multiple lines\n\nAnd a footer'
+        'abc123|feat: add feature\n\nThis is a longer body\nwith multiple lines\n\nAnd a footer',
       ];
       const commits = parseCommits(blocks);
       expect(commits).toHaveLength(1);
@@ -267,35 +316,35 @@ describe('Commit Parser', () => {
         type: 'feat',
         scope: 'project-a',
         subject: 'feature for A',
-        breaking: false
+        breaking: false,
       },
       {
         hash: '2',
         type: 'fix',
         scope: 'project-b',
         subject: 'fix for B',
-        breaking: false
+        breaking: false,
       },
       {
         hash: '3',
         type: 'feat',
         subject: 'feature for all',
-        breaking: false
+        breaking: false,
       },
       {
         hash: '4',
         type: 'feat',
         scope: 'project-a,project-c',
         subject: 'feature for A and C',
-        breaking: false
+        breaking: false,
       },
       {
         hash: '5',
         type: 'feat',
         scope: '*',
         subject: 'feature for all (wildcard)',
-        breaking: false
-      }
+        breaking: false,
+      },
     ];
 
     it('should return all commits when no project name provided', () => {
@@ -306,36 +355,38 @@ describe('Commit Parser', () => {
     it('should filter commits by exact scope match', () => {
       const filtered = filterCommitsByScope(commits, 'project-a');
       expect(filtered).toHaveLength(4); // project-a, no scope, multi-scope, wildcard
-      expect(filtered.map(c => c.hash)).toContain('1');
-      expect(filtered.map(c => c.hash)).toContain('3');
-      expect(filtered.map(c => c.hash)).toContain('4');
-      expect(filtered.map(c => c.hash)).toContain('5');
+      expect(filtered.map((c) => c.hash)).toContain('1');
+      expect(filtered.map((c) => c.hash)).toContain('3');
+      expect(filtered.map((c) => c.hash)).toContain('4');
+      expect(filtered.map((c) => c.hash)).toContain('5');
     });
 
     it('should include commits with no scope', () => {
       const filtered = filterCommitsByScope(commits, 'project-a');
-      expect(filtered.map(c => c.hash)).toContain('3');
+      expect(filtered.map((c) => c.hash)).toContain('3');
     });
 
     it('should include commits with wildcard scope', () => {
       const filtered = filterCommitsByScope(commits, 'project-x');
-      expect(filtered.map(c => c.hash)).toContain('5'); // wildcard
-      expect(filtered.map(c => c.hash)).toContain('3'); // no scope
+      expect(filtered.map((c) => c.hash)).toContain('5'); // wildcard
+      expect(filtered.map((c) => c.hash)).toContain('3'); // no scope
     });
 
     it('should handle comma-separated scopes', () => {
       const filtered = filterCommitsByScope(commits, 'project-c');
-      expect(filtered.map(c => c.hash)).toContain('4'); // multi-scope includes project-c
+      expect(filtered.map((c) => c.hash)).toContain('4'); // multi-scope includes project-c
     });
 
     it('should handle scope with whitespace', () => {
-      const commitsWithSpaces: ParsedCommit[] = [{
-        hash: '1',
-        type: 'feat',
-        scope: 'project-a, project-b',
-        subject: 'test',
-        breaking: false
-      }];
+      const commitsWithSpaces: ParsedCommit[] = [
+        {
+          hash: '1',
+          type: 'feat',
+          scope: 'project-a, project-b',
+          subject: 'test',
+          breaking: false,
+        },
+      ];
       const filtered = filterCommitsByScope(commitsWithSpaces, 'project-b');
       expect(filtered).toHaveLength(1);
     });
@@ -344,8 +395,8 @@ describe('Commit Parser', () => {
       const filtered = filterCommitsByScope(commits, 'non-existent-project');
       // Should still include commits with no scope and wildcard
       expect(filtered).toHaveLength(2);
-      expect(filtered.map(c => c.hash)).toContain('3'); // no scope
-      expect(filtered.map(c => c.hash)).toContain('5'); // wildcard
+      expect(filtered.map((c) => c.hash)).toContain('3'); // no scope
+      expect(filtered.map((c) => c.hash)).toContain('5'); // wildcard
     });
   });
 
@@ -355,7 +406,7 @@ describe('Commit Parser', () => {
       { hash: '2', type: 'feat', subject: 'feature 2', breaking: false },
       { hash: '3', type: 'fix', subject: 'fix 1', breaking: false },
       { hash: '4', type: 'docs', subject: 'doc 1', breaking: false },
-      { hash: '5', type: 'fix', subject: 'fix 2', breaking: false }
+      { hash: '5', type: 'fix', subject: 'fix 2', breaking: false },
     ];
 
     it('should group commits by type', () => {
@@ -429,8 +480,20 @@ describe('Commit Parser', () => {
     });
 
     it('should include all standard types', () => {
-      const expectedTypes = ['feat', 'fix', 'perf', 'refactor', 'docs', 'style', 'test', 'build', 'ci', 'chore', 'revert'];
-      expectedTypes.forEach(type => {
+      const expectedTypes = [
+        'feat',
+        'fix',
+        'perf',
+        'refactor',
+        'docs',
+        'style',
+        'test',
+        'build',
+        'ci',
+        'chore',
+        'revert',
+      ];
+      expectedTypes.forEach((type) => {
         expect(COMMIT_TYPE_ORDER).toContain(type);
       });
     });

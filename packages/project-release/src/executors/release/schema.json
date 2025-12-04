@@ -12,9 +12,9 @@
       "items": {
         "type": "object",
         "properties": {
-          "name": {"type": "string"},
-          "version": {"type": "string"},
-          "group": {"type": "string"}
+          "name": { "type": "string" },
+          "version": { "type": "string" },
+          "group": { "type": "string" }
         }
       }
     },
@@ -127,9 +127,7 @@
       "items": {
         "type": "string"
       },
-      "examples": [
-        ["dist/**/*.tgz", "build/**/*.zip"]
-      ]
+      "examples": [["dist/**/*.tgz", "build/**/*.zip"]]
     },
     "owner": {
       "type": "string",

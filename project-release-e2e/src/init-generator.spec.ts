@@ -12,7 +12,7 @@ describe('init generator', () => {
     execSync(`npm install -D nx-project-release@e2e`, {
       cwd: projectDirectory,
       stdio: 'inherit',
-      env: process.env
+      env: process.env,
     });
   });
 
@@ -21,7 +21,7 @@ describe('init generator', () => {
       // Cleanup the test project
       rmSync(projectDirectory, {
         recursive: true,
-        force: true
+        force: true,
       });
     }
   });
@@ -31,7 +31,7 @@ describe('init generator', () => {
       // Run init generator in non-interactive mode
       execSync('npx nx g nx-project-release:init --skipPrompts --skipFormat', {
         cwd: projectDirectory,
-        stdio: 'inherit'
+        stdio: 'inherit',
       });
 
       // Verify nx.json was updated with targetDefaults
@@ -42,9 +42,12 @@ describe('init generator', () => {
 
       // Check for all-in-one executor configuration (default)
       expect(nxJson.targetDefaults).toBeDefined();
-      expect(nxJson.targetDefaults['nx-project-release:project-release']).toBeDefined();
+      expect(
+        nxJson.targetDefaults['nx-project-release:project-release']
+      ).toBeDefined();
 
-      const config = nxJson.targetDefaults['nx-project-release:project-release'];
+      const config =
+        nxJson.targetDefaults['nx-project-release:project-release'];
       expect(config.cache).toBe(false);
       expect(config.dependsOn).toContain('build');
       expect(config.options).toBeDefined();
@@ -59,13 +62,13 @@ describe('init generator', () => {
       // Create a test library with package.json
       execSync('npx nx g @nx/js:library test-lib --bundler=tsc', {
         cwd: projectDirectory,
-        stdio: 'inherit'
+        stdio: 'inherit',
       });
 
       // Run init generator
       execSync('npx nx g nx-project-release:init --skipPrompts --skipFormat', {
         cwd: projectDirectory,
-        stdio: 'inherit'
+        stdio: 'inherit',
       });
 
       // Check if the library got release targets added
@@ -75,7 +78,9 @@ describe('init generator', () => {
 
         // Should have project-release target
         expect(projectJson.targets['project-release']).toBeDefined();
-        expect(projectJson.targets['project-release'].executor).toBe('nx-project-release:project-release');
+        expect(projectJson.targets['project-release'].executor).toBe(
+          'nx-project-release:project-release'
+        );
       }
     });
   });
@@ -89,7 +94,7 @@ describe('init generator', () => {
       // Run with dry-run
       execSync('npx nx g nx-project-release:init --skipPrompts --dry-run', {
         cwd: projectDirectory,
-        stdio: 'inherit'
+        stdio: 'inherit',
       });
 
       // Verify nx.json was not changed
@@ -102,13 +107,14 @@ describe('init generator', () => {
     it('should create valid nx.json targetDefaults structure', () => {
       execSync('npx nx g nx-project-release:init --skipPrompts --skipFormat', {
         cwd: projectDirectory,
-        stdio: 'inherit'
+        stdio: 'inherit',
       });
 
       const nxJsonPath = join(projectDirectory, 'nx.json');
       const nxJson = JSON.parse(readFileSync(nxJsonPath, 'utf-8'));
 
-      const targetDefaults = nxJson.targetDefaults['nx-project-release:project-release'];
+      const targetDefaults =
+        nxJson.targetDefaults['nx-project-release:project-release'];
 
       // Verify required fields
       expect(targetDefaults.options.versionFiles).toBeDefined();
@@ -120,7 +126,9 @@ describe('init generator', () => {
       expect(targetDefaults.options.preset).toBeDefined();
       expect(typeof targetDefaults.options.preset).toBe('string');
       expect(targetDefaults.options.registryType).toBeDefined();
-      expect(['npm', 'github', 'custom']).toContain(targetDefaults.options.registryType);
+      expect(['npm', 'github', 'custom']).toContain(
+        targetDefaults.options.registryType
+      );
     });
   });
 
@@ -128,7 +136,7 @@ describe('init generator', () => {
     it('should be listed in available generators', () => {
       const output = execSync('npx nx list nx-project-release', {
         cwd: projectDirectory,
-        encoding: 'utf-8'
+        encoding: 'utf-8',
       });
 
       // Should show init generator
@@ -138,7 +146,7 @@ describe('init generator', () => {
     it('should show generator help', () => {
       const output = execSync('npx nx g nx-project-release:init --help', {
         cwd: projectDirectory,
-        encoding: 'utf-8'
+        encoding: 'utf-8',
       });
 
       // Should show description and options
@@ -152,19 +160,21 @@ describe('init generator', () => {
       // Run init twice
       execSync('npx nx g nx-project-release:init --skipPrompts --skipFormat', {
         cwd: projectDirectory,
-        stdio: 'inherit'
+        stdio: 'inherit',
       });
 
       execSync('npx nx g nx-project-release:init --skipPrompts --skipFormat', {
         cwd: projectDirectory,
-        stdio: 'inherit'
+        stdio: 'inherit',
       });
 
       // Should still have valid configuration
       const nxJsonPath = join(projectDirectory, 'nx.json');
       const nxJson = JSON.parse(readFileSync(nxJsonPath, 'utf-8'));
 
-      expect(nxJson.targetDefaults['nx-project-release:project-release']).toBeDefined();
+      expect(
+        nxJson.targetDefaults['nx-project-release:project-release']
+      ).toBeDefined();
     });
   });
 });
@@ -180,10 +190,10 @@ function createTestProject() {
   // Ensure projectDirectory is empty
   rmSync(projectDirectory, {
     recursive: true,
-    force: true
+    force: true,
   });
   mkdirSync(dirname(projectDirectory), {
-    recursive: true
+    recursive: true,
   });
 
   execSync(
@@ -191,7 +201,7 @@ function createTestProject() {
     {
       cwd: dirname(projectDirectory),
       stdio: 'inherit',
-      env: process.env
+      env: process.env,
     }
   );
   console.log(`Created test project in "${projectDirectory}"`);

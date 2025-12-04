@@ -43,8 +43,14 @@
         "message": "Versioning strategy?",
         "type": "list",
         "items": [
-          { "value": "independent", "label": "Independent (each project has its own version)" },
-          { "value": "fixed", "label": "Fixed (all projects share the same version)" }
+          {
+            "value": "independent",
+            "label": "Independent (each project has its own version)"
+          },
+          {
+            "value": "fixed",
+            "label": "Fixed (all projects share the same version)"
+          }
         ]
       }
     },

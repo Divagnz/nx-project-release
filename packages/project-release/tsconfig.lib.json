@@ -6,5 +6,11 @@
     "types": ["node"]
   },
   "include": ["src/**/*.ts", "release/**/*.ts"],
-  "exclude": ["jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts", "release/**/*.spec.ts", "release/**/*.test.ts"]
+  "exclude": [
+    "jest.config.ts",
+    "src/**/*.spec.ts",
+    "src/**/*.test.ts",
+    "release/**/*.spec.ts",
+    "release/**/*.test.ts"
+  ]
 }

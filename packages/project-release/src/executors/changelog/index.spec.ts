@@ -1,4 +1,11 @@
-import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
+import {
+  describe,
+  it,
+  expect,
+  jest,
+  beforeEach,
+  afterEach,
+} from '@jest/globals';
 import { ExecutorContext, logger } from '@nx/devkit';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -12,19 +19,36 @@ jest.mock('@nx/devkit', () => ({
   logger: {
     info: jest.fn(),
     warn: jest.fn(),
-    error: jest.fn()
-  }
+    error: jest.fn(),
+  },
 }));
 
 jest.mock('./commit-parser.js');
 jest.mock('./markdown-generator.js');
 
-const mockGetCommitsFromGit = commitParser.getCommitsFromGit as jest.MockedFunction<typeof commitParser.getCommitsFromGit>;
-const mockParseCommits = commitParser.parseCommits as jest.MockedFunction<typeof commitParser.parseCommits>;
-const mockFilterCommitsByScope = commitParser.filterCommitsByScope as jest.MockedFunction<typeof commitParser.filterCommitsByScope>;
-const mockGenerateChangelogMarkdown = markdownGenerator.generateChangelogMarkdown as jest.MockedFunction<typeof markdownGenerator.generateChangelogMarkdown>;
-const mockGenerateWorkspaceChangelog = markdownGenerator.generateWorkspaceChangelog as jest.MockedFunction<typeof markdownGenerator.generateWorkspaceChangelog>;
-const mockGetRepositoryUrl = markdownGenerator.getRepositoryUrl as jest.MockedFunction<typeof markdownGenerator.getRepositoryUrl>;
+const mockGetCommitsFromGit =
+  commitParser.getCommitsFromGit as jest.MockedFunction<
+    typeof commitParser.getCommitsFromGit
+  >;
+const mockParseCommits = commitParser.parseCommits as jest.MockedFunction<
+  typeof commitParser.parseCommits
+>;
+const mockFilterCommitsByScope =
+  commitParser.filterCommitsByScope as jest.MockedFunction<
+    typeof commitParser.filterCommitsByScope
+  >;
+const mockGenerateChangelogMarkdown =
+  markdownGenerator.generateChangelogMarkdown as jest.MockedFunction<
+    typeof markdownGenerator.generateChangelogMarkdown
+  >;
+const mockGenerateWorkspaceChangelog =
+  markdownGenerator.generateWorkspaceChangelog as jest.MockedFunction<
+    typeof markdownGenerator.generateWorkspaceChangelog
+  >;
+const mockGetRepositoryUrl =
+  markdownGenerator.getRepositoryUrl as jest.MockedFunction<
+    typeof markdownGenerator.getRepositoryUrl
+  >;
 
 describe('Changelog Executor', () => {
   let tempDir: string;
@@ -45,25 +69,29 @@ describe('Changelog Executor', () => {
         version: 2,
         projects: {
           'test-project': {
-            root: 'projects/test-project'
+            root: 'projects/test-project',
           },
           'other-project': {
-            root: 'projects/other-project'
-          }
-        }
+            root: 'projects/other-project',
+          },
+        },
       },
       cwd: tempDir,
       isVerbose: false,
       nxJsonConfiguration: {},
       projectGraph: {
         nodes: {},
-        dependencies: {}
-      }
+        dependencies: {},
+      },
     } as ExecutorContext;
 
     // Create project directories
-    fs.mkdirSync(path.join(tempDir, 'projects/test-project'), { recursive: true });
-    fs.mkdirSync(path.join(tempDir, 'projects/other-project'), { recursive: true });
+    fs.mkdirSync(path.join(tempDir, 'projects/test-project'), {
+      recursive: true,
+    });
+    fs.mkdirSync(path.join(tempDir, 'projects/other-project'), {
+      recursive: true,
+    });
 
     // Default mock implementations
     mockGetCommitsFromGit.mockReturnValue(['abc123|feat: add feature']);
@@ -72,11 +100,13 @@ describe('Changelog Executor', () => {
         hash: 'abc123',
         type: 'feat',
         subject: 'add feature',
-        breaking: false
-      }
+        breaking: false,
+      },
     ]);
     mockFilterCommitsByScope.mockImplementation((commits) => commits);
-    mockGenerateChangelogMarkdown.mockReturnValue('# Changelog\n\n## Features\n\n* add feature');
+    mockGenerateChangelogMarkdown.mockReturnValue(
+      '# Changelog\n\n## Features\n\n* add feature'
+    );
     mockGenerateWorkspaceChangelog.mockReturnValue('# Workspace Changelog');
     mockGetRepositoryUrl.mockReturnValue('https://github.com/user/repo');
   });
@@ -104,22 +134,31 @@ describe('Changelog Executor', () => {
       const options: ChangelogExecutorSchema = {};
       await changelogExecutor(options, context);
 
-      const changelogPath = path.join(tempDir, 'projects/test-project/CHANGELOG.md');
+      const changelogPath = path.join(
+        tempDir,
+        'projects/test-project/CHANGELOG.md'
+      );
       expect(fs.existsSync(changelogPath)).toBe(true);
     });
 
     it('should write changelog to custom file', async () => {
       const options: ChangelogExecutorSchema = {
-        changelogFile: 'HISTORY.md'
+        changelogFile: 'HISTORY.md',
       };
       await changelogExecutor(options, context);
 
-      const changelogPath = path.join(tempDir, 'projects/test-project/HISTORY.md');
+      const changelogPath = path.join(
+        tempDir,
+        'projects/test-project/HISTORY.md'
+      );
       expect(fs.existsSync(changelogPath)).toBe(true);
     });
 
     it('should include version from project.json', async () => {
-      const projectJsonPath = path.join(tempDir, 'projects/test-project/project.json');
+      const projectJsonPath = path.join(
+        tempDir,
+        'projects/test-project/project.json'
+      );
       fs.writeFileSync(projectJsonPath, JSON.stringify({ version: '1.2.3' }));
 
       const options: ChangelogExecutorSchema = {};
@@ -132,7 +171,10 @@ describe('Changelog Executor', () => {
     });
 
     it('should include version from package.json if project.json not found', async () => {
-      const packageJsonPath = path.join(tempDir, 'projects/test-project/package.json');
+      const packageJsonPath = path.join(
+        tempDir,
+        'projects/test-project/package.json'
+      );
       fs.writeFileSync(packageJsonPath, JSON.stringify({ version: '2.0.0' }));
 
       const options: ChangelogExecutorSchema = {};
@@ -161,7 +203,9 @@ describe('Changelog Executor', () => {
       expect(mockGetRepositoryUrl).toHaveBeenCalledWith(tempDir);
       expect(mockGenerateChangelogMarkdown).toHaveBeenCalledWith(
         expect.anything(),
-        expect.objectContaining({ repositoryUrl: 'https://github.com/user/repo' })
+        expect.objectContaining({
+          repositoryUrl: 'https://github.com/user/repo',
+        })
       );
     });
 
@@ -178,7 +222,7 @@ describe('Changelog Executor', () => {
     it('should handle custom from/to commit range', async () => {
       const options: ChangelogExecutorSchema = {
         from: 'v1.0.0',
-        to: 'v2.0.0'
+        to: 'v2.0.0',
       };
       await changelogExecutor(options, context);
 
@@ -193,8 +237,8 @@ describe('Changelog Executor', () => {
     it('should pass custom context to changelog options', async () => {
       const options: ChangelogExecutorSchema = {
         context: {
-          customField: 'custom value'
-        }
+          customField: 'custom value',
+        },
       };
       await changelogExecutor(options, context);
 
@@ -208,17 +252,20 @@ describe('Changelog Executor', () => {
   describe('Dry-run Mode', () => {
     it('should not write file in dry-run mode', async () => {
       const options: ChangelogExecutorSchema = {
-        dryRun: true
+        dryRun: true,
       };
       await changelogExecutor(options, context);
 
-      const changelogPath = path.join(tempDir, 'projects/test-project/CHANGELOG.md');
+      const changelogPath = path.join(
+        tempDir,
+        'projects/test-project/CHANGELOG.md'
+      );
       expect(fs.existsSync(changelogPath)).toBe(false);
     });
 
     it('should still generate changelog content in dry-run', async () => {
       const options: ChangelogExecutorSchema = {
-        dryRun: true
+        dryRun: true,
       };
       await changelogExecutor(options, context);
 
@@ -227,23 +274,28 @@ describe('Changelog Executor', () => {
 
     it('should log changelog preview in dry-run', async () => {
       const options: ChangelogExecutorSchema = {
-        dryRun: true
+        dryRun: true,
       };
       await changelogExecutor(options, context);
 
       expect(logger.info).toHaveBeenCalledWith('📋 Changelog preview:');
-      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Changelog'));
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.stringContaining('Changelog')
+      );
     });
   });
 
   describe('Append Mode', () => {
     it('should append to existing changelog file', async () => {
-      const changelogPath = path.join(tempDir, 'projects/test-project/CHANGELOG.md');
+      const changelogPath = path.join(
+        tempDir,
+        'projects/test-project/CHANGELOG.md'
+      );
       const existingContent = '# Old Changelog\n\nOld content';
       fs.writeFileSync(changelogPath, existingContent);
 
       const options: ChangelogExecutorSchema = {
-        append: true
+        append: true,
       };
       await changelogExecutor(options, context);
 
@@ -254,20 +306,26 @@ describe('Changelog Executor', () => {
 
     it('should create new file if append is true but file does not exist', async () => {
       const options: ChangelogExecutorSchema = {
-        append: true
+        append: true,
       };
       await changelogExecutor(options, context);
 
-      const changelogPath = path.join(tempDir, 'projects/test-project/CHANGELOG.md');
+      const changelogPath = path.join(
+        tempDir,
+        'projects/test-project/CHANGELOG.md'
+      );
       expect(fs.existsSync(changelogPath)).toBe(true);
     });
 
     it('should overwrite file when append is false', async () => {
-      const changelogPath = path.join(tempDir, 'projects/test-project/CHANGELOG.md');
+      const changelogPath = path.join(
+        tempDir,
+        'projects/test-project/CHANGELOG.md'
+      );
       fs.writeFileSync(changelogPath, '# Old Changelog');
 
       const options: ChangelogExecutorSchema = {
-        append: false
+        append: false,
       };
       await changelogExecutor(options, context);
 
@@ -279,7 +337,7 @@ describe('Changelog Executor', () => {
   describe('Workspace Changelog', () => {
     it('should generate workspace changelog when workspaceChangelog is true', async () => {
       const options: ChangelogExecutorSchema = {
-        workspaceChangelog: true
+        workspaceChangelog: true,
       };
       await changelogExecutor(options, context);
 
@@ -288,7 +346,7 @@ describe('Changelog Executor', () => {
 
     it('should write workspace changelog to root directory', async () => {
       const options: ChangelogExecutorSchema = {
-        workspaceChangelog: true
+        workspaceChangelog: true,
       };
       await changelogExecutor(options, context);
 
@@ -298,24 +356,33 @@ describe('Changelog Executor', () => {
 
     it('should group commits by project', async () => {
       const options: ChangelogExecutorSchema = {
-        workspaceChangelog: true
+        workspaceChangelog: true,
       };
       await changelogExecutor(options, context);
 
-      expect(mockFilterCommitsByScope).toHaveBeenCalledWith(expect.anything(), 'test-project');
-      expect(mockFilterCommitsByScope).toHaveBeenCalledWith(expect.anything(), 'other-project');
+      expect(mockFilterCommitsByScope).toHaveBeenCalledWith(
+        expect.anything(),
+        'test-project'
+      );
+      expect(mockFilterCommitsByScope).toHaveBeenCalledWith(
+        expect.anything(),
+        'other-project'
+      );
     });
 
     it('should generate project changelogs when projectChangelogs is true', async () => {
       const options: ChangelogExecutorSchema = {
         workspaceChangelog: true,
-        projectChangelogs: true
+        projectChangelogs: true,
       };
       await changelogExecutor(options, context);
 
       // Should create both workspace and project changelogs
       const workspaceChangelog = path.join(tempDir, 'CHANGELOG.md');
-      const projectChangelog = path.join(tempDir, 'projects/test-project/CHANGELOG.md');
+      const projectChangelog = path.join(
+        tempDir,
+        'projects/test-project/CHANGELOG.md'
+      );
 
       expect(fs.existsSync(workspaceChangelog)).toBe(true);
       expect(fs.existsSync(projectChangelog)).toBe(true);
@@ -327,7 +394,10 @@ describe('Changelog Executor', () => {
       const options: ChangelogExecutorSchema = {};
       const contextWithoutProject = { ...context, projectName: undefined };
 
-      const result = await changelogExecutor(options, contextWithoutProject as any);
+      const result = await changelogExecutor(
+        options,
+        contextWithoutProject as any
+      );
 
       expect(result.success).toBe(false);
       if ('error' in result) {
@@ -343,7 +413,9 @@ describe('Changelog Executor', () => {
       const result = await changelogExecutor(options, context);
 
       expect(result.success).toBe(true);
-      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('No commits found'));
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('No commits found')
+      );
     });
 
     it('should handle errors gracefully', async () => {
@@ -367,7 +439,7 @@ describe('Changelog Executor', () => {
       });
 
       const options: ChangelogExecutorSchema = {
-        workspaceChangelog: true
+        workspaceChangelog: true,
       };
       const result = await changelogExecutor(options, context);
 
@@ -383,7 +455,9 @@ describe('Changelog Executor', () => {
       const options: ChangelogExecutorSchema = {};
       await changelogExecutor(options, context);
 
-      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Commit validation not configured'));
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('Commit validation not configured')
+      );
     });
 
     it('should not warn when commitlint.config.js exists', async () => {
@@ -392,7 +466,9 @@ describe('Changelog Executor', () => {
       const options: ChangelogExecutorSchema = {};
       await changelogExecutor(options, context);
 
-      expect(logger.warn).not.toHaveBeenCalledWith(expect.stringContaining('Commit validation not configured'));
+      expect(logger.warn).not.toHaveBeenCalledWith(
+        expect.stringContaining('Commit validation not configured')
+      );
     });
 
     it('should not warn when commitlint.config.ts exists', async () => {
@@ -401,7 +477,9 @@ describe('Changelog Executor', () => {
       const options: ChangelogExecutorSchema = {};
       await changelogExecutor(options, context);
 
-      expect(logger.warn).not.toHaveBeenCalledWith(expect.stringContaining('Commit validation not configured'));
+      expect(logger.warn).not.toHaveBeenCalledWith(
+        expect.stringContaining('Commit validation not configured')
+      );
     });
 
     it('should not warn when .commitlintrc.json exists', async () => {
@@ -410,25 +488,31 @@ describe('Changelog Executor', () => {
       const options: ChangelogExecutorSchema = {};
       await changelogExecutor(options, context);
 
-      expect(logger.warn).not.toHaveBeenCalledWith(expect.stringContaining('Commit validation not configured'));
+      expect(logger.warn).not.toHaveBeenCalledWith(
+        expect.stringContaining('Commit validation not configured')
+      );
     });
 
     it('should suppress warning when suppressWarnings is true', async () => {
       const options: ChangelogExecutorSchema = {
-        suppressWarnings: true
+        suppressWarnings: true,
       };
       await changelogExecutor(options, context);
 
-      expect(logger.warn).not.toHaveBeenCalledWith(expect.stringContaining('Commit validation not configured'));
+      expect(logger.warn).not.toHaveBeenCalledWith(
+        expect.stringContaining('Commit validation not configured')
+      );
     });
 
     it('should not warn for workspace changelog', async () => {
       const options: ChangelogExecutorSchema = {
-        workspaceChangelog: true
+        workspaceChangelog: true,
       };
       await changelogExecutor(options, context);
 
-      expect(logger.warn).not.toHaveBeenCalledWith(expect.stringContaining('Commit validation not configured'));
+      expect(logger.warn).not.toHaveBeenCalledWith(
+        expect.stringContaining('Commit validation not configured')
+      );
     });
   });
 
@@ -436,12 +520,15 @@ describe('Changelog Executor', () => {
     it('should not call interactive editor in dry-run mode', async () => {
       const options: ChangelogExecutorSchema = {
         interactive: true,
-        dryRun: true
+        dryRun: true,
       };
       await changelogExecutor(options, context);
 
       // In dry run, file should not be written (interactive editing would write to temp file)
-      const changelogPath = path.join(tempDir, 'projects/test-project/CHANGELOG.md');
+      const changelogPath = path.join(
+        tempDir,
+        'projects/test-project/CHANGELOG.md'
+      );
       expect(fs.existsSync(changelogPath)).toBe(false);
     });
 
@@ -454,23 +541,29 @@ describe('Changelog Executor', () => {
       const options: ChangelogExecutorSchema = {};
       await changelogExecutor(options, context);
 
-      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Changelog written to'));
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.stringContaining('Changelog written to')
+      );
     });
 
     it('should log project name', async () => {
       const options: ChangelogExecutorSchema = {};
       await changelogExecutor(options, context);
 
-      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('test-project'));
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.stringContaining('test-project')
+      );
     });
 
     it('should log workspace changelog generation', async () => {
       const options: ChangelogExecutorSchema = {
-        workspaceChangelog: true
+        workspaceChangelog: true,
       };
       await changelogExecutor(options, context);
 
-      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('workspace-level'));
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.stringContaining('workspace-level')
+      );
     });
   });
 
@@ -478,7 +571,7 @@ describe('Changelog Executor', () => {
     it('should handle missing projectsConfigurations', async () => {
       const minimalContext = {
         ...context,
-        projectsConfigurations: undefined
+        projectsConfigurations: undefined,
       };
 
       // Create changelog directory at projectName location (fallback)
@@ -496,12 +589,12 @@ describe('Changelog Executor', () => {
         ...context,
         projectsConfigurations: {
           version: 2,
-          projects: {}
-        }
+          projects: {},
+        },
       };
 
       const options: ChangelogExecutorSchema = {
-        workspaceChangelog: true
+        workspaceChangelog: true,
       };
 
       mockParseCommits.mockReturnValue([]);
@@ -509,11 +602,16 @@ describe('Changelog Executor', () => {
       const result = await changelogExecutor(options, emptyContext);
 
       expect(result.success).toBe(true);
-      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('No commits found'));
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('No commits found')
+      );
     });
 
     it('should handle malformed version files gracefully', async () => {
-      const projectJsonPath = path.join(tempDir, 'projects/test-project/project.json');
+      const projectJsonPath = path.join(
+        tempDir,
+        'projects/test-project/project.json'
+      );
       fs.writeFileSync(projectJsonPath, 'invalid json{');
 
       const options: ChangelogExecutorSchema = {};

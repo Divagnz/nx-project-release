@@ -17,7 +17,7 @@ export default async () => {
   global.stopLocalRegistry = await startLocalRegistry({
     localRegistryTarget,
     storage,
-    verbose: false
+    verbose: false,
   });
 
   await releaseVersion({
@@ -27,11 +27,11 @@ export default async () => {
     gitTag: false,
     firstRelease: true,
     versionActionsOptionsOverrides: {
-      skipLockFileUpdate: true
-    }
+      skipLockFileUpdate: true,
+    },
   });
   await releasePublish({
     tag: 'e2e',
-    firstRelease: true
+    firstRelease: true,
   });
 };

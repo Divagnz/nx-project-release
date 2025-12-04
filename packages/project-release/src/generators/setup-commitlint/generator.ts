@@ -1,8 +1,17 @@
-import { Tree, formatFiles, logger, addDependenciesToPackageJson, updateJson } from '@nx/devkit';
+import {
+  Tree,
+  formatFiles,
+  logger,
+  addDependenciesToPackageJson,
+  updateJson,
+} from '@nx/devkit';
 import { SetupCommitlintSchema } from './schema';
 import { detectHookSystem } from '../init/lib/hooks-utils.js';
 
-export async function setupCommitlintGenerator(tree: Tree, options: SetupCommitlintSchema) {
+export async function setupCommitlintGenerator(
+  tree: Tree,
+  options: SetupCommitlintSchema
+) {
   logger.info('');
   logger.info('⚙️  Setting up commitlint...');
   logger.info('');
@@ -12,10 +21,10 @@ export async function setupCommitlintGenerator(tree: Tree, options: SetupCommitl
     'commitlint.config.js',
     'commitlint.config.ts',
     '.commitlintrc.json',
-    '.commitlintrc.js'
+    '.commitlintrc.js',
   ];
 
-  const hasConfig = configFiles.some(f => tree.exists(f));
+  const hasConfig = configFiles.some((f) => tree.exists(f));
 
   if (hasConfig) {
     logger.warn('⚠️  commitlint config already exists');
@@ -43,7 +52,7 @@ export async function setupCommitlintGenerator(tree: Tree, options: SetupCommitl
   // Install dependencies
   const devDeps: Record<string, string> = {
     '@commitlint/cli': '*',
-    '@commitlint/config-conventional': '*'
+    '@commitlint/config-conventional': '*',
   };
 
   if (options.useNxScopes) {

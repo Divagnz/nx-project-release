@@ -86,6 +86,7 @@ git commit -m "fix(my-lib): resolve memory leak"
 ```
 
 **Important:** Use conventional commit format:
+
 - `feat(scope):` - New feature (minor bump)
 - `fix(scope):` - Bug fix (patch bump)
 - `BREAKING CHANGE:` or `feat!:` - Breaking change (major bump)
@@ -108,12 +109,14 @@ nx run my-project:version --preview
 ### Phase 3: Version Bump
 
 **Option A: Automatic (from commits)**
+
 ```bash
 # Analyzes conventional commits to determine bump type
 nx run my-project:version --gitCommit --gitTag
 ```
 
 **Option B: Manual bump type**
+
 ```bash
 # Explicitly specify bump type
 nx run my-project:version --releaseAs=minor --gitCommit --gitTag
@@ -122,6 +125,7 @@ nx run my-project:version --releaseAs=patch --gitCommit --gitTag
 ```
 
 **Option C: Explicit version**
+
 ```bash
 # Set exact version
 nx run my-project:version --version=2.0.0 --gitCommit --gitTag
@@ -138,6 +142,7 @@ nx run my-project:changelog --workspaceChangelog
 ```
 
 **Changelog Features:**
+
 - Groups commits by type (Features, Bug Fixes, Breaking Changes)
 - Filters by scope for project-specific changelogs
 - Uses conventional commits format
@@ -146,6 +151,7 @@ nx run my-project:changelog --workspaceChangelog
 ### Phase 5: Publish
 
 **To NPM:**
+
 ```bash
 nx run my-project:publish
 
@@ -157,11 +163,13 @@ nx run my-project:publish --dryRun
 ```
 
 **To Nexus:**
+
 ```bash
 nx run my-project:publish --registryType=nexus --registryUrl=https://nexus.company.com
 ```
 
 **To S3:**
+
 ```bash
 nx run my-project:publish --registryType=s3 --s3Bucket=my-releases --s3Region=us-east-1
 ```
@@ -298,6 +306,7 @@ jobs:
 ```
 
 **Key Points:**
+
 - ✅ ONE commit for all version bumps/changelogs
 - ✅ Uses `nx affected` to run targets on affected projects only
 - ✅ Creates tags for each project (skips if already exists)
@@ -391,6 +400,7 @@ nx g nx-project-release:setup-workflows --workflowType=all
 Each project has its own version, released independently.
 
 **Configuration (nx.json):**
+
 ```json
 {
   "projectRelease": {
@@ -404,6 +414,7 @@ Each project has its own version, released independently.
 ```
 
 **Release:**
+
 ```bash
 # Each project gets its own version and tag
 nx run lib-a:version --releaseAs=minor  # lib-a@1.2.0
@@ -411,6 +422,7 @@ nx run lib-b:version --releaseAs=major  # lib-b@2.0.0
 ```
 
 **Tags created:**
+
 - `lib-a@1.2.0`
 - `lib-b@2.0.0`
 
@@ -419,6 +431,7 @@ nx run lib-b:version --releaseAs=major  # lib-b@2.0.0
 All projects share the same version, released together.
 
 **Configuration (nx.json):**
+
 ```json
 {
   "projectRelease": {
@@ -432,12 +445,14 @@ All projects share the same version, released together.
 ```
 
 **Release:**
+
 ```bash
 # All projects get the same version
 nx affected --target=version --base=main --version=2.0.0
 ```
 
 **Tags created:**
+
 - `v2.0.0`
 
 ### 3. Release Groups (Hybrid)
@@ -445,6 +460,7 @@ nx affected --target=version --base=main --version=2.0.0
 Group related projects with shared versioning strategy.
 
 **Configuration (nx.json):**
+
 ```json
 {
   "projectRelease": {
@@ -469,6 +485,7 @@ Group related projects with shared versioning strategy.
 ```
 
 **Release:**
+
 ```bash
 # Backend services get fixed version
 nx run api-gateway:version --releaseAs=minor  # backend-v1.2.0
@@ -483,6 +500,7 @@ nx run customer-portal:version --releaseAs=major  # customer-portal-v2.0.0
 Create release branches for review before merging to main.
 
 **Configuration (project.json):**
+
 ```json
 {
   "targets": {
@@ -500,12 +518,14 @@ Create release branches for review before merging to main.
 ```
 
 **Release:**
+
 ```bash
 # Creates release branch and PR
 nx run my-project:version --releaseAs=minor
 ```
 
 **Flow:**
+
 1. Creates `release/v1.2.0` branch
 2. Commits version changes
 3. Pushes branch
@@ -595,6 +615,7 @@ git push origin main --tags
 **Cause:** Commits don't have scopes matching project names.
 
 **Solution:**
+
 ```bash
 # Set up commitlint
 nx g nx-project-release:setup-commitlint
@@ -608,6 +629,7 @@ git commit -m "feat(my-project): add feature"
 **Cause:** No version field in package.json or project.json.
 
 **Solution:**
+
 ```json
 // project.json
 {
@@ -617,6 +639,7 @@ git commit -m "feat(my-project): add feature"
 ```
 
 Or configure versionFiles:
+
 ```json
 // nx.json
 {
@@ -631,6 +654,7 @@ Or configure versionFiles:
 **Cause:** E2E apps included in release process.
 
 **Solution:**
+
 ```json
 // nx.json
 {
@@ -645,6 +669,7 @@ Or configure versionFiles:
 **Cause:** Git not configured in CI environment.
 
 **Solution:**
+
 ```yaml
 - name: Configure Git
   run: |
@@ -657,9 +682,11 @@ Or configure versionFiles:
 **Cause:** Missing or invalid NPM_TOKEN.
 
 **Solution:**
+
 1. Generate token on npmjs.com
 2. Add to repository secrets as `NPM_TOKEN`
 3. Configure in workflow:
+
 ```yaml
 env:
   NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -672,6 +699,7 @@ env:
 ### 1. Use Conventional Commits
 
 Always use conventional commit format:
+
 ```bash
 ✅ git commit -m "feat(my-app): add user login"
 ✅ git commit -m "fix(my-lib): resolve memory leak"
@@ -698,6 +726,7 @@ nx run my-project:version --releaseAs=minor --gitCommit --gitTag
 ### 4. Test in CI Before Main
 
 Use release branches:
+
 ```bash
 nx run my-project:version --createReleaseBranch --createPR
 ```
@@ -711,6 +740,7 @@ nx run my-project:publish --dryRun
 ### 6. Tag Naming Consistency
 
 Configure tag naming for your workflow:
+
 ```json
 {
   "projectRelease": {
@@ -794,6 +824,7 @@ git push origin main --tags
 ## Summary
 
 **Quick Commands:**
+
 ```bash
 # Preview
 nx run PROJECT:version --preview
@@ -813,11 +844,13 @@ nx affected -t publish --base=main
 ```
 
 **Setup Workflows:**
+
 ```bash
 nx g nx-project-release:setup-workflows --workflowType=all
 ```
 
 **Key Flags:**
+
 - `--releaseAs` - patch/minor/major
 - `--version` - explicit version
 - `--gitCommit` - create commit

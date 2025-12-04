@@ -11,7 +11,8 @@ export interface HookSystem {
 export function detectHookSystem(tree: Tree): HookSystem {
   // Check for Husky
   const hasHuskyDir = tree.exists('.husky');
-  const hasHuskyScript = tree.exists('.husky/_/husky.sh') || tree.exists('.husky/pre-commit');
+  const hasHuskyScript =
+    tree.exists('.husky/_/husky.sh') || tree.exists('.husky/pre-commit');
 
   if (hasHuskyDir || hasHuskyScript) {
     logger.info('📍 Detected: Husky');
@@ -21,7 +22,10 @@ export function detectHookSystem(tree: Tree): HookSystem {
   // Check for simple-git-hooks in package.json
   if (tree.exists('package.json')) {
     const packageJson = JSON.parse(tree.read('package.json', 'utf-8') || '{}');
-    if (packageJson['simple-git-hooks'] || packageJson.devDependencies?.['simple-git-hooks']) {
+    if (
+      packageJson['simple-git-hooks'] ||
+      packageJson.devDependencies?.['simple-git-hooks']
+    ) {
       logger.info('📍 Detected: simple-git-hooks');
       return { type: 'simple-git-hooks', detected: true };
     }
@@ -41,7 +45,9 @@ export function needsHooksDirectory(tree: Tree): boolean {
 /**
  * Get hook script content from template
  */
-export function getHookTemplate(hookName: 'pre-commit' | 'pre-push' | 'utils'): string {
+export function getHookTemplate(
+  hookName: 'pre-commit' | 'pre-push' | 'utils'
+): string {
   // These will be read from the templates directory
   // For now, we'll return the path - the actual reading will be done in hooks-setup.ts
   return `hooks-templates/${hookName}.template.js`;
@@ -50,7 +56,11 @@ export function getHookTemplate(hookName: 'pre-commit' | 'pre-push' | 'utils'): 
 /**
  * Check if a hook is already configured (to avoid duplicates)
  */
-export function isHookConfigured(tree: Tree, hookSystem: HookSystem, hookName: string): boolean {
+export function isHookConfigured(
+  tree: Tree,
+  hookSystem: HookSystem,
+  hookName: string
+): boolean {
   if (hookSystem.type === 'husky') {
     const hookPath = `.husky/${hookName}`;
     if (tree.exists(hookPath)) {
@@ -59,7 +69,9 @@ export function isHookConfigured(tree: Tree, hookSystem: HookSystem, hookName: s
     }
   } else if (hookSystem.type === 'simple-git-hooks') {
     if (tree.exists('package.json')) {
-      const packageJson = JSON.parse(tree.read('package.json', 'utf-8') || '{}');
+      const packageJson = JSON.parse(
+        tree.read('package.json', 'utf-8') || '{}'
+      );
       const hooks = packageJson['simple-git-hooks'] || {};
       return hooks[hookName]?.includes('nx-project-release') || false;
     }

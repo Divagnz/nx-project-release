@@ -82,6 +82,7 @@ nx affected -t version --base=main --releaseAs=patch --gitCommit --gitTag
 > **Note**: The `version` executor only bumps version numbers in files. Git operations (commit, tag, push) are handled by the `release` executor or CI/CD workflows.
 
 > **How Version Bump Detection Works**:
+>
 > - When using `nx affected -t version`, Nx determines which projects are affected based on file changes
 > - The version executor then analyzes conventional commits since the last tag to determine bump type (major/minor/patch)
 > - Projects in the `excludedProjects` list are automatically skipped
@@ -99,6 +100,7 @@ nx affected -t version --base=main --releaseAs=patch --gitCommit --gitTag
 ### Recommended Workflow
 
 For maximum control, use individual executors in sequence:
+
 ```bash
 # Auto-detect bump from conventional commits (recommended)
 nx run my-project:version --gitCommit --gitTag
@@ -110,6 +112,7 @@ nx run my-project:version --releaseAs=minor --gitCommit --gitTag
 ```
 
 For orchestration, use the `release` executor (handles version + changelog + tag):
+
 ```bash
 # Auto-detect bump from commits
 nx run my-project:release --gitPush
@@ -139,12 +142,14 @@ nx run my-project:validate --checkHealth=false
 ```
 
 **Output includes:**
+
 - 🌍 **Global Configuration** - Workspace-wide settings from nx.json
 - 📦 **Release Groups** - Which release group the project belongs to
 - 🎯 **Project Configuration** - Project-specific executor settings
 - 🏥 **Health Check** - Warnings and errors for common issues
 
 **Example output:**
+
 ```
 🔍 Configuration Validation
 ════════════════════════════════════════════════════════════
@@ -183,6 +188,7 @@ nx run my-project:validate --checkHealth=false
 ```
 
 **Use cases:**
+
 - Verify configuration after running generators
 - Debug release issues
 - Document current setup
@@ -204,6 +210,7 @@ nx run my-project:artifact --artifactName='{projectName}-{version}-{platform}-{a
 ```
 
 **Template variables:**
+
 - `{projectName}` - Project name
 - `{version}` - Current version from package.json or project.json
 - `{hash}` - Git short hash (7 characters)
@@ -240,6 +247,7 @@ nx run my-project:artifact --artifactName='{projectName}-{version}-{platform}-{a
 ```
 
 **Key options:**
+
 - `sourceDir` - Directory to package (supports templates)
 - `outputDir` - Where to save artifacts (default: `dist/artifacts`)
 - `artifactName` - Output filename (supports templates)
@@ -252,6 +260,7 @@ nx run my-project:artifact --artifactName='{projectName}-{version}-{platform}-{a
 - `preservePermissions` - Preserve file permissions in tar archives
 
 **Use cases:**
+
 - Package Go/Rust binaries for distribution
 - Create deployment artifacts for Docker-less deployments
 - Bundle compiled applications for release
@@ -262,17 +271,20 @@ nx run my-project:artifact --artifactName='{projectName}-{version}-{platform}-{a
 ### Workflow Strategies
 
 **Single-Step (Default):** Fast, simple releases in one workflow
+
 ```
 Version → Changelog → Build → Artifact → Tag → Push → GitHub Release → Publish
 ```
 
 **Two-Step (Production):** Separated versioning and publishing
+
 ```
 Step 1: Version → Changelog → Tag → Push
 Step 2: Build → Artifact → GitHub Release → Publish
 ```
 
 Enable two-step workflow:
+
 ```bash
 nx g nx-project-release:setup-workflows --twoStepRelease
 ```
@@ -280,16 +292,19 @@ nx g nx-project-release:setup-workflows --twoStepRelease
 ### Artifact Handling
 
 Artifacts are **never committed to git**:
+
 1. Created locally with `nx affected -t artifact`
 2. Stored in `dist/artifacts/` during workflow
 3. Attached to GitHub releases using pattern: `dist/artifacts/**/{projectName}*`
 
 **Benefits:**
+
 - ✅ Repository stays clean (no binary bloat)
 - ✅ Project-specific artifacts only
 - ✅ No git lock file issues
 
 **Example:**
+
 ```
 dist/artifacts/
   ├── my-api-v1.2.3.tgz
@@ -307,7 +322,9 @@ For detailed workflow examples and comparison, see the [full documentation](../.
 ### Setup Generators
 
 #### `init` - Initial Workspace Setup
+
 Interactive wizard to configure your workspace:
+
 - Project selection and release groups
 - Git hooks (simple-git-hooks or Husky)
 - Commit validation (commitizen + commitlint)
@@ -318,6 +335,7 @@ nx g nx-project-release:init
 ```
 
 #### `setup-commitlint` - Commit Validation
+
 Configure commitlint with Nx project scopes validation:
 
 ```bash
@@ -325,12 +343,14 @@ nx g nx-project-release:setup-commitlint
 ```
 
 Features:
+
 - Validates commit messages follow conventional commits format
 - Ensures scopes match actual Nx project names
 - Prevents "No commits found" in changelogs
 - Supports both Husky and simple-git-hooks
 
 #### `setup-workflows` - CI/CD Workflows
+
 Configure GitHub Actions workflows for automated releases:
 
 ```bash
@@ -338,6 +358,7 @@ nx g nx-project-release:setup-workflows
 ```
 
 Options:
+
 - **Workflow Types:**
   - Affected projects (auto-release on push)
   - Manual release (workflow_dispatch)
@@ -351,6 +372,7 @@ Options:
   - Trigger paths filtering
 
 Example workflows created:
+
 ```yaml
 # .github/workflows/release-affected.yml
 # Auto-release affected projects on push to main
@@ -363,6 +385,7 @@ Example workflows created:
 ```
 
 #### `configure-release` - Configure Individual Project
+
 Add or update release configuration for a specific project:
 
 ```bash
@@ -379,12 +402,14 @@ nx g nx-project-release:configure-release \
 ```
 
 Features:
+
 - Adds version, changelog, and publish targets to project.json
 - Initializes version file if it doesn't exist
 - Optionally adds project to a release group
 - Supports all registry types (npm, docker, nexus, s3, github, custom, none)
 
 **Use cases:**
+
 - Configure a single project after skipping wizard
 - Add release config to newly created projects
 - Reconfigure existing projects with different registry
@@ -393,6 +418,7 @@ Features:
 ### Configuration Generators
 
 #### `configure-version` - Configure Version Settings
+
 Configure version executor settings for one or multiple projects:
 
 ```bash
@@ -408,6 +434,7 @@ nx g nx-project-release:configure-version \
 ```
 
 **Features:**
+
 - Multi-select projects to configure
 - Set version files (package.json, project.json, etc.)
 - Configure tag naming (format, prefix, suffix)
@@ -415,11 +442,13 @@ nx g nx-project-release:configure-version \
 - Interactive prompts for all options
 
 **Use cases:**
+
 - Standardize version settings across multiple projects
 - Configure tag naming for monorepo projects
 - Enable dependency tracking for workspace libraries
 
 #### `configure-changelog` - Configure Changelog Settings
+
 Configure changelog executor settings for one or multiple projects:
 
 ```bash
@@ -435,6 +464,7 @@ nx g nx-project-release:configure-changelog \
 ```
 
 **Features:**
+
 - Multi-select projects to configure
 - Set changelog file name
 - Choose conventional changelog preset (angular, conventionalcommits, etc.)
@@ -442,11 +472,13 @@ nx g nx-project-release:configure-changelog \
 - Include/exclude commit bodies
 
 **Use cases:**
+
 - Standardize changelog format across projects
 - Enable commit body inclusion for detailed changelogs
 - Configure different presets per project type
 
 #### `configure-global` - Configure Global Settings
+
 Configure global nx-project-release settings in nx.json:
 
 ```bash
@@ -462,6 +494,7 @@ nx g nx-project-release:configure-global \
 ```
 
 **Features:**
+
 - Configure default versioning strategy (independent/fixed)
 - Set default version files for all projects
 - Configure global tag naming
@@ -469,11 +502,13 @@ nx g nx-project-release:configure-global \
 - Configure default registry settings
 
 **Use cases:**
+
 - Set workspace-wide defaults
 - Standardize configuration across all projects
 - Quick setup for new workspaces
 
 #### `configure-release-groups` - Manage Release Groups
+
 Create or update release groups with pattern matching support:
 
 ```bash
@@ -503,6 +538,7 @@ nx g nx-project-release:configure-release-groups \
 ```
 
 **Features:**
+
 - Create, update, delete, or list release groups
 - **Pattern matching** - Use glob patterns like `*-lib`, `app-*` to automatically include projects
 - Automatically excludes projects in `excludedProjects` list
@@ -511,12 +547,14 @@ nx g nx-project-release:configure-release-groups \
 - Custom tag naming per group
 
 **Pattern Examples:**
+
 - `*-lib` - All projects ending with `-lib`
 - `app-*` - All projects starting with `app-`
 - `backend-*` - All backend service projects
 - `*-package` - All package projects
 
 **Use cases:**
+
 - Organize projects by type (libraries, apps, services)
 - Group projects by deployment target
 - Configure different registries per project type
@@ -525,6 +563,7 @@ nx g nx-project-release:configure-release-groups \
 ### Utility Generators
 
 #### `exclude-projects` - Manage Project Exclusions
+
 Interactive multi-select to manage which projects are excluded from versioning:
 
 ```bash
@@ -545,6 +584,7 @@ nx g nx-project-release:exclude-projects --pattern="*-e2e"
 ```
 
 **Interactive Actions:**
+
 - **Set** - Replace entire excluded list (start fresh)
 - **Add** - Add more projects to existing exclusions
 - **Remove** - Stop excluding specific projects
@@ -552,12 +592,14 @@ nx g nx-project-release:exclude-projects --pattern="*-e2e"
 - **Clear** - Remove all exclusions
 
 **Features:**
+
 - Multi-select interface with space/enter controls
 - Shows which projects are currently excluded
 - Pattern-based bulk exclusion
 - Updates `nx.json` projectRelease.excludedProjects array
 
 #### `reset-config` - Remove Configuration
+
 Clean removal of all nx-project-release configuration:
 
 ```bash
@@ -598,6 +640,7 @@ Organize projects into groups with shared configuration. Release groups support 
 ```
 
 **Benefits:**
+
 - Shared configuration across related projects
 - Consistent versioning strategy per group
 - Custom tag naming per group
@@ -607,11 +650,13 @@ Organize projects into groups with shared configuration. Release groups support 
 
 **Pattern Matching:**
 Use `projectPatterns` to automatically include projects:
+
 - `["*-lib"]` - All projects ending with `-lib`
 - `["app-*"]` - All projects starting with `app-`
 - `["api-*", "service-*"]` - Multiple patterns
 
 **Manage release groups:**
+
 ```bash
 # Create/update release groups with patterns
 nx g nx-project-release:configure-release-groups
@@ -631,12 +676,7 @@ Add to `nx.json` at the root level (not inside `targetDefaults`):
 ```json
 {
   "projectRelease": {
-    "excludedProjects": [
-      "my-app-e2e",
-      "another-app-e2e",
-      "internal-tool",
-      "example-app"
-    ]
+    "excludedProjects": ["my-app-e2e", "another-app-e2e", "internal-tool", "example-app"]
   }
 }
 ```
@@ -644,6 +684,7 @@ Add to `nx.json` at the root level (not inside `targetDefaults`):
 ### How to Exclude Projects
 
 #### Option 1: Interactive Multi-Select (Recommended)
+
 Use the dedicated generator with a visual multi-select interface:
 
 ```bash
@@ -653,7 +694,9 @@ nx g nx-project-release:exclude-projects
 This provides interactive actions to set, add, remove, view, or clear exclusions.
 
 #### Option 2: During Initial Setup
+
 When running `nx g nx-project-release:init`, the wizard will:
+
 1. Show all projects in your workspace
 2. Let you select which to configure
 3. Automatically add unselected projects to `excludedProjects`
@@ -664,6 +707,7 @@ nx g nx-project-release:init
 ```
 
 #### Option 3: Pattern-Based Exclusion
+
 Exclude all projects matching a pattern (e.g., all E2E projects):
 
 ```bash
@@ -671,6 +715,7 @@ nx g nx-project-release:exclude-projects --pattern="*-e2e"
 ```
 
 #### Option 4: Command-Line Arguments
+
 Add specific projects via command line:
 
 ```bash
@@ -682,6 +727,7 @@ nx g nx-project-release:exclude-projects --projects=my-app-e2e --remove
 ```
 
 #### Option 5: Manually Edit nx.json
+
 Add project names directly to the `excludedProjects` array:
 
 ```json
@@ -794,6 +840,7 @@ npm run commit
 ```
 
 **Why it matters:**
+
 - Project changelogs filter commits by scope
 - Scope must match project name for commits to appear
 - Commitlint validates scopes against actual Nx projects
@@ -804,6 +851,7 @@ npm run commit
 ### GitHub Actions Examples
 
 **Affected Projects Workflow:**
+
 ```yaml
 name: Release Affected
 on:
@@ -835,6 +883,7 @@ jobs:
 ```
 
 **Manual Release Workflow:**
+
 ```yaml
 name: Manual Release
 on:
@@ -874,6 +923,7 @@ jobs:
 ```
 
 Generate these automatically:
+
 ```bash
 nx g nx-project-release:setup-workflows --workflowType=all
 ```
@@ -881,6 +931,7 @@ nx g nx-project-release:setup-workflows --workflowType=all
 ## Configuration Examples
 
 ### Independent Versioning
+
 ```json
 // nx.json
 {
@@ -895,6 +946,7 @@ nx g nx-project-release:setup-workflows --workflowType=all
 ```
 
 ### Fixed Versioning (Monolithic)
+
 ```json
 // nx.json
 {
@@ -909,6 +961,7 @@ nx g nx-project-release:setup-workflows --workflowType=all
 ```
 
 ### Mixed Strategy with Release Groups
+
 ```json
 // nx.json
 {
@@ -930,6 +983,7 @@ nx g nx-project-release:setup-workflows --workflowType=all
 ## Common Workflows
 
 ### First Release
+
 ```bash
 # Set up workspace
 nx g nx-project-release:init
@@ -941,6 +995,7 @@ nx run my-project:publish
 ```
 
 ### Feature Release
+
 ```bash
 # Automatic detection from conventional commits (recommended)
 nx run my-project:version --gitCommit --gitTag
@@ -954,6 +1009,7 @@ nx run my-project:publish
 ```
 
 ### Batch Release
+
 ```bash
 # Release all affected projects - auto-detect from commits (recommended)
 nx affected -t version --base=main --gitCommit --gitTag
@@ -968,6 +1024,7 @@ nx affected -t version --base=main --releaseAs=patch --gitCommit --gitTag
 ```
 
 ### Preview Mode
+
 ```bash
 # See what would change without making changes
 nx run my-project:version --preview
@@ -977,17 +1034,21 @@ nx run my-project:version --dryRun
 ## Troubleshooting
 
 ### "No commits found" in changelog
+
 **Problem:** Changelog shows no commits even though commits exist.
 
 **Solution:** Set up commit validation to ensure scopes match project names:
+
 ```bash
 nx g nx-project-release:setup-commitlint
 ```
 
 ### Version file not found
+
 **Problem:** Executor can't find version in package.json or project.json.
 
 **Solution:** Configure versionFiles in nx.json or add version field:
+
 ```json
 // project.json
 {
@@ -997,9 +1058,11 @@ nx g nx-project-release:setup-commitlint
 ```
 
 ### E2E apps being versioned
+
 **Problem:** E2E test apps or other excluded projects get versioned when running `nx affected -t version`.
 
 **Solution:** Ensure projects are in the `excludedProjects` list in nx.json:
+
 ```json
 {
   "projectRelease": {

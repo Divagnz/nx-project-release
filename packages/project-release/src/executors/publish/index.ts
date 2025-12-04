@@ -1,4 +1,9 @@
-import { PromiseExecutor, logger, ExecutorContext, runExecutor as nxRunExecutor } from '@nx/devkit';
+import {
+  PromiseExecutor,
+  logger,
+  ExecutorContext,
+  runExecutor as nxRunExecutor,
+} from '@nx/devkit';
 import { execSync } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -49,16 +54,19 @@ interface NxReleaseConfig {
     access?: string;
     distTag?: string;
   };
-  projectConfigs?: Record<string, {
-    registry?: {
-      type?: string;
-      url?: string;
-      access?: string;
-      distTag?: string;
-    };
-    buildTarget?: string;
-    publishDir?: string;
-  }>;
+  projectConfigs?: Record<
+    string,
+    {
+      registry?: {
+        type?: string;
+        url?: string;
+        access?: string;
+        distTag?: string;
+      };
+      buildTarget?: string;
+      publishDir?: string;
+    }
+  >;
 }
 
 function getNxReleaseConfig(context: ExecutorContext): NxReleaseConfig {
@@ -75,18 +83,31 @@ function getNxReleaseConfig(context: ExecutorContext): NxReleaseConfig {
   }
 }
 
-function mergeConfigWithNxJson(options: PublishExecutorSchema, context: ExecutorContext, projectName?: string): PublishExecutorSchema {
+function mergeConfigWithNxJson(
+  options: PublishExecutorSchema,
+  context: ExecutorContext,
+  projectName?: string
+): PublishExecutorSchema {
   const nxConfig = getNxReleaseConfig(context);
-  const nxProjectConfig = projectName ? nxConfig.projectConfigs?.[projectName] : undefined;
+  const nxProjectConfig = projectName
+    ? nxConfig.projectConfigs?.[projectName]
+    : undefined;
 
   let projectJsonConfig: Record<string, unknown> = {};
   if (projectName && context.projectsConfigurations?.projects[projectName]) {
-    const projectRoot = context.projectsConfigurations.projects[projectName].root;
-    const projectJsonPath = path.join(context.root, projectRoot, 'project.json');
+    const projectRoot =
+      context.projectsConfigurations.projects[projectName].root;
+    const projectJsonPath = path.join(
+      context.root,
+      projectRoot,
+      'project.json'
+    );
 
     try {
       if (fs.existsSync(projectJsonPath)) {
-        const projectJson = JSON.parse(fs.readFileSync(projectJsonPath, 'utf8'));
+        const projectJson = JSON.parse(
+          fs.readFileSync(projectJsonPath, 'utf8')
+        );
         projectJsonConfig = projectJson.targets?.['publish']?.options || {};
       }
     } catch {
@@ -101,38 +122,54 @@ function mergeConfigWithNxJson(options: PublishExecutorSchema, context: Executor
     const registry = nxProjectConfig?.registry || nxConfig.defaultRegistry;
     if (registry) {
       merged.registry = merged.registry || registry.url;
-      merged.registryType = (merged.registryType || registry.type) as 'npm' | 'nexus' | 'custom';
-      merged.access = (merged.access || registry.access) as 'public' | 'restricted';
+      merged.registryType = (merged.registryType || registry.type) as
+        | 'npm'
+        | 'nexus'
+        | 'custom';
+      merged.access = (merged.access || registry.access) as
+        | 'public'
+        | 'restricted';
       merged.distTag = merged.distTag || registry.distTag;
     }
   }
 
   // Build target
   if (!merged.buildTarget) {
-    merged.buildTarget = (projectJsonConfig.buildTarget as string) ||
-                        nxProjectConfig?.buildTarget ||
-                        'build';
+    merged.buildTarget =
+      (projectJsonConfig.buildTarget as string) ||
+      nxProjectConfig?.buildTarget ||
+      'build';
   }
 
   // Publish directory
   if (!merged.publishDir) {
-    merged.publishDir = (projectJsonConfig.publishDir as string) ||
-                       nxProjectConfig?.publishDir ||
-                       `dist/${context.projectName}`;
+    merged.publishDir =
+      (projectJsonConfig.publishDir as string) ||
+      nxProjectConfig?.publishDir ||
+      `dist/${context.projectName}`;
   }
 
   return merged;
 }
 
-const runExecutor: PromiseExecutor<PublishExecutorSchema> = async (options, context: ExecutorContext) => {
-  const mergedOptions = mergeConfigWithNxJson(options, context, context.projectName);
+const runExecutor: PromiseExecutor<PublishExecutorSchema> = async (
+  options,
+  context: ExecutorContext
+) => {
+  const mergedOptions = mergeConfigWithNxJson(
+    options,
+    context,
+    context.projectName
+  );
 
   logger.info(`📦 Publishing ${context.projectName}`);
 
   try {
     // Run build target if specified and not skipped
     if (mergedOptions.buildTarget && !mergedOptions.skipBuild) {
-      logger.info(`🔨 Building project with target: ${mergedOptions.buildTarget}`);
+      logger.info(
+        `🔨 Building project with target: ${mergedOptions.buildTarget}`
+      );
 
       try {
         await nxRunExecutor(
@@ -142,7 +179,8 @@ const runExecutor: PromiseExecutor<PublishExecutorSchema> = async (options, cont
         );
         logger.info('✅ Build completed successfully');
       } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         throw new Error(`Build failed: ${errorMessage}`);
       }
     }
@@ -178,19 +216,28 @@ async function publishPackage(
   // Update package.json version if it exists in publish directory
   const publishPackageJsonPath = path.join(fullPublishDir, 'package.json');
   if (fs.existsSync(publishPackageJsonPath)) {
-    const publishPackageJson = JSON.parse(fs.readFileSync(publishPackageJsonPath, 'utf8'));
+    const publishPackageJson = JSON.parse(
+      fs.readFileSync(publishPackageJsonPath, 'utf8')
+    );
 
     // Try to get version from source project
     const currentVersion = await getCurrentVersion(context);
     if (currentVersion) {
       publishPackageJson.version = currentVersion;
-      fs.writeFileSync(publishPackageJsonPath, JSON.stringify(publishPackageJson, null, 2));
-      logger.info(`Updated package.json version to ${currentVersion} in ${publishDir}`);
+      fs.writeFileSync(
+        publishPackageJsonPath,
+        JSON.stringify(publishPackageJson, null, 2)
+      );
+      logger.info(
+        `Updated package.json version to ${currentVersion} in ${publishDir}`
+      );
     }
   }
 
   if (options.dryRun) {
-    logger.info(`Would publish to ${registryType} registry: ${registry || 'default'}`);
+    logger.info(
+      `Would publish to ${registryType} registry: ${registry || 'default'}`
+    );
     logger.info(`Publish directory: ${publishDir}`);
     logger.info(`Distribution tag: ${distTag}`);
     logger.info(`Access: ${access}`);
@@ -204,26 +251,46 @@ async function publishPackage(
 
   switch (registryType) {
     case 'npm':
-      await publishToNpm(fullPublishDir, registry, distTag, access, options.otp, options.npmScope);
+      await publishToNpm(
+        fullPublishDir,
+        registry,
+        distTag,
+        access,
+        options.otp,
+        options.npmScope
+      );
       break;
 
     case 'nexus':
       if (!currentVersion) {
-        throw new Error('Version is required for Nexus publishing. Ensure version is set in project.json or package.json');
+        throw new Error(
+          'Version is required for Nexus publishing. Ensure version is set in project.json or package.json'
+        );
       }
       await publishToNexusRegistry(fullPublishDir, currentVersion, options);
       break;
 
     case 's3':
       if (!currentVersion) {
-        throw new Error('Version is required for S3 publishing. Ensure version is set in project.json or package.json');
+        throw new Error(
+          'Version is required for S3 publishing. Ensure version is set in project.json or package.json'
+        );
       }
       await publishToS3Registry(fullPublishDir, currentVersion, options);
       break;
 
     case 'custom':
-      if (!registry) throw new Error('Registry URL is required for custom registry publishing');
-      await publishToCustomRegistry(fullPublishDir, registry, distTag, access, options.otp);
+      if (!registry)
+        throw new Error(
+          'Registry URL is required for custom registry publishing'
+        );
+      await publishToCustomRegistry(
+        fullPublishDir,
+        registry,
+        distTag,
+        access,
+        options.otp
+      );
       break;
 
     default:
@@ -276,7 +343,9 @@ async function publishToNexusRegistry(
   // Find artifact file (*.tgz, *.tar.gz, *.zip)
   const artifactPath = findArtifact(publishDir);
   if (!artifactPath) {
-    throw new Error(`No artifact found in ${publishDir}. Expected *.tgz, *.tar.gz, or *.zip file`);
+    throw new Error(
+      `No artifact found in ${publishDir}. Expected *.tgz, *.tar.gz, or *.zip file`
+    );
   }
 
   // Build Nexus config from options and environment variables
@@ -286,14 +355,18 @@ async function publishToNexusRegistry(
     username: options.nexusUsername || process.env.NEXUS_USERNAME || '',
     password: options.nexusPassword || process.env.NEXUS_PASSWORD || '',
     pathStrategy: (options.pathStrategy || 'version') as 'version' | 'hash',
-    skipExisting: options.skipExisting !== false
+    skipExisting: options.skipExisting !== false,
   };
 
   if (!validateNexusConfig(nexusConfig)) {
-    throw new Error('Invalid Nexus configuration. Check required fields: url, repository, username, password');
+    throw new Error(
+      'Invalid Nexus configuration. Check required fields: url, repository, username, password'
+    );
   }
 
-  logger.info(`📦 Publishing to Nexus: ${nexusConfig.url}/repository/${nexusConfig.repository}`);
+  logger.info(
+    `📦 Publishing to Nexus: ${nexusConfig.url}/repository/${nexusConfig.repository}`
+  );
   logger.info(`   Path strategy: ${nexusConfig.pathStrategy}`);
 
   const result = await uploadToNexus(artifactPath, version, nexusConfig);
@@ -313,7 +386,9 @@ async function publishToS3Registry(
   // Find artifact file
   const artifactPath = findArtifact(publishDir);
   if (!artifactPath) {
-    throw new Error(`No artifact found in ${publishDir}. Expected *.tgz, *.tar.gz, or *.zip file`);
+    throw new Error(
+      `No artifact found in ${publishDir}. Expected *.tgz, *.tar.gz, or *.zip file`
+    );
   }
 
   // Build S3 config from options and environment variables
@@ -321,18 +396,26 @@ async function publishToS3Registry(
     bucket: options.s3Bucket || process.env.S3_BUCKET || '',
     prefix: options.s3Prefix || process.env.S3_PREFIX,
     region: options.s3Region || process.env.AWS_REGION || '',
-    pathStrategy: (options.pathStrategy || 'version') as 'version' | 'hash' | 'flat',
+    pathStrategy: (options.pathStrategy || 'version') as
+      | 'version'
+      | 'hash'
+      | 'flat',
     skipExisting: options.skipExisting !== false,
     accessKeyId: options.awsAccessKeyId || process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: options.awsSecretAccessKey || process.env.AWS_SECRET_ACCESS_KEY,
-    sessionToken: options.awsSessionToken || process.env.AWS_SESSION_TOKEN
+    secretAccessKey:
+      options.awsSecretAccessKey || process.env.AWS_SECRET_ACCESS_KEY,
+    sessionToken: options.awsSessionToken || process.env.AWS_SESSION_TOKEN,
   };
 
   if (!validateS3Config(s3Config)) {
-    throw new Error('Invalid S3 configuration. Check required fields: bucket, region');
+    throw new Error(
+      'Invalid S3 configuration. Check required fields: bucket, region'
+    );
   }
 
-  logger.info(`📦 Publishing to S3: s3://${s3Config.bucket}/${s3Config.prefix || ''}`);
+  logger.info(
+    `📦 Publishing to S3: s3://${s3Config.bucket}/${s3Config.prefix || ''}`
+  );
   logger.info(`   Path strategy: ${s3Config.pathStrategy}`);
 
   const result = await uploadToS3(artifactPath, version, s3Config);
@@ -344,8 +427,23 @@ async function publishToS3Registry(
   }
 }
 
-async function publishToCustomRegistry(publishDir: string, registry?: string, distTag = 'latest', access = 'public', otp?: string): Promise<void> {
-  const publishCmd = ['npm', 'publish', '--registry', registry, '--tag', distTag, '--access', access];
+async function publishToCustomRegistry(
+  publishDir: string,
+  registry?: string,
+  distTag = 'latest',
+  access = 'public',
+  otp?: string
+): Promise<void> {
+  const publishCmd = [
+    'npm',
+    'publish',
+    '--registry',
+    registry,
+    '--tag',
+    distTag,
+    '--access',
+    access,
+  ];
 
   if (otp) {
     publishCmd.push('--otp', otp);
@@ -355,16 +453,26 @@ async function publishToCustomRegistry(publishDir: string, registry?: string, di
   execSync(publishCmd.join(' '), { cwd: publishDir, stdio: 'inherit' });
 }
 
-async function getCurrentVersion(context: ExecutorContext): Promise<string | null> {
-  if (!context.projectName || !context.projectsConfigurations?.projects[context.projectName]) {
+async function getCurrentVersion(
+  context: ExecutorContext
+): Promise<string | null> {
+  if (
+    !context.projectName ||
+    !context.projectsConfigurations?.projects[context.projectName]
+  ) {
     return null;
   }
 
-  const projectRoot = context.projectsConfigurations.projects[context.projectName].root;
+  const projectRoot =
+    context.projectsConfigurations.projects[context.projectName].root;
 
   // Try project.json first
   try {
-    const projectJsonPath = path.join(context.root, projectRoot, 'project.json');
+    const projectJsonPath = path.join(
+      context.root,
+      projectRoot,
+      'project.json'
+    );
     if (fs.existsSync(projectJsonPath)) {
       const projectJson = JSON.parse(fs.readFileSync(projectJsonPath, 'utf8'));
       if (projectJson.version) {
@@ -377,7 +485,11 @@ async function getCurrentVersion(context: ExecutorContext): Promise<string | nul
 
   // Try package.json
   try {
-    const packageJsonPath = path.join(context.root, projectRoot, 'package.json');
+    const packageJsonPath = path.join(
+      context.root,
+      projectRoot,
+      'package.json'
+    );
     if (fs.existsSync(packageJsonPath)) {
       const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
       if (packageJson.version) {
@@ -401,7 +513,7 @@ function findArtifact(publishDir: string): string | null {
   const files = fs.readdirSync(publishDir);
 
   for (const ext of extensions) {
-    const artifact = files.find(file => file.endsWith(ext));
+    const artifact = files.find((file) => file.endsWith(ext));
     if (artifact) {
       return path.join(publishDir, artifact);
     }

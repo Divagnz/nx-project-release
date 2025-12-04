@@ -5,14 +5,17 @@ import {
   updateNxJson,
   readProjectConfiguration,
   updateProjectConfiguration,
-  logger
+  logger,
 } from '@nx/devkit';
 import { ExcludeProjectsSchema } from './schema';
 import Enquirer from 'enquirer';
 
 const { prompt } = Enquirer;
 
-export default async function excludeProjectsGenerator(tree: Tree, options: ExcludeProjectsSchema) {
+export default async function excludeProjectsGenerator(
+  tree: Tree,
+  options: ExcludeProjectsSchema
+) {
   logger.info('');
   logger.info('📋 Manage Excluded Projects');
   logger.info('');
@@ -37,8 +40,10 @@ export default async function excludeProjectsGenerator(tree: Tree, options: Excl
   // Pattern-based selection
   if (options.pattern) {
     const regex = new RegExp(options.pattern.replace(/\*/g, '.*'));
-    projectsToProcess = allProjects.filter(p => regex.test(p));
-    logger.info(`📝 Found ${projectsToProcess.length} projects matching pattern: ${options.pattern}`);
+    projectsToProcess = allProjects.filter((p) => regex.test(p));
+    logger.info(
+      `📝 Found ${projectsToProcess.length} projects matching pattern: ${options.pattern}`
+    );
     logger.info(`   ${projectsToProcess.join(', ')}`);
   }
   // Interactive multi-select
@@ -47,23 +52,28 @@ export default async function excludeProjectsGenerator(tree: Tree, options: Excl
 
     if (action === 'add' || action === 'set') {
       // Show all projects, mark currently excluded ones
-      const choices = allProjects.map(project => ({
+      const choices = allProjects.map((project) => ({
         name: project,
-        message: currentExcluded.includes(project) ? `${project} (currently excluded)` : project,
-        hint: currentExcluded.includes(project) ? 'Already excluded' : ''
+        message: currentExcluded.includes(project)
+          ? `${project} (currently excluded)`
+          : project,
+        hint: currentExcluded.includes(project) ? 'Already excluded' : '',
       }));
 
-      const { selectedProjects } = await prompt<{ selectedProjects: string[] }>({
-        type: 'multiselect',
-        name: 'selectedProjects',
-        message: action === 'add'
-          ? 'Select projects to ADD to excluded list:'
-          : 'Select projects to EXCLUDE from versioning:',
-        choices: choices,
-        initial: action === 'set' ? currentExcluded : [],
-        // @ts-ignore - enquirer types are incomplete
-        hint: 'Space to select, Enter to confirm'
-      });
+      const { selectedProjects } = await prompt<{ selectedProjects: string[] }>(
+        {
+          type: 'multiselect',
+          name: 'selectedProjects',
+          message:
+            action === 'add'
+              ? 'Select projects to ADD to excluded list:'
+              : 'Select projects to EXCLUDE from versioning:',
+          choices: choices,
+          initial: action === 'set' ? currentExcluded : [],
+          // @ts-ignore - enquirer types are incomplete
+          hint: 'Space to select, Enter to confirm',
+        }
+      );
 
       projectsToProcess = selectedProjects;
       options.add = action === 'add';
@@ -73,19 +83,21 @@ export default async function excludeProjectsGenerator(tree: Tree, options: Excl
         return;
       }
 
-      const choices = currentExcluded.map(project => ({
+      const choices = currentExcluded.map((project) => ({
         name: project,
-        message: project
+        message: project,
       }));
 
-      const { selectedProjects } = await prompt<{ selectedProjects: string[] }>({
-        type: 'multiselect',
-        name: 'selectedProjects',
-        message: 'Select projects to REMOVE from excluded list:',
-        choices: choices,
-        // @ts-ignore - enquirer types are incomplete
-        hint: 'Space to select, Enter to confirm'
-      });
+      const { selectedProjects } = await prompt<{ selectedProjects: string[] }>(
+        {
+          type: 'multiselect',
+          name: 'selectedProjects',
+          message: 'Select projects to REMOVE from excluded list:',
+          choices: choices,
+          // @ts-ignore - enquirer types are incomplete
+          hint: 'Space to select, Enter to confirm',
+        }
+      );
 
       projectsToProcess = selectedProjects;
       options.remove = true;
@@ -94,7 +106,7 @@ export default async function excludeProjectsGenerator(tree: Tree, options: Excl
         type: 'confirm',
         name: 'confirm',
         message: `Clear all ${currentExcluded.length} excluded projects?`,
-        initial: false
+        initial: false,
       });
 
       if (confirm) {
@@ -124,8 +136,12 @@ export default async function excludeProjectsGenerator(tree: Tree, options: Excl
   // Process the projects
   if (options.remove) {
     // Remove from excluded list (re-enable projects)
-    const updated = currentExcluded.filter((p: string) => !projectsToProcess.includes(p));
-    const removed = currentExcluded.filter((p: string) => projectsToProcess.includes(p));
+    const updated = currentExcluded.filter(
+      (p: string) => !projectsToProcess.includes(p)
+    );
+    const removed = currentExcluded.filter((p: string) =>
+      projectsToProcess.includes(p)
+    );
 
     nxJsonAny.projectRelease.excludedProjects = updated;
     updateNxJson(tree, nxJson);
@@ -141,8 +157,10 @@ export default async function excludeProjectsGenerator(tree: Tree, options: Excl
     }
   } else if (options.add) {
     // Add to existing excluded list
-    const newExcluded = [...new Set([...currentExcluded, ...projectsToProcess])];
-    const added = newExcluded.filter(p => !currentExcluded.includes(p));
+    const newExcluded = [
+      ...new Set([...currentExcluded, ...projectsToProcess]),
+    ];
+    const added = newExcluded.filter((p) => !currentExcluded.includes(p));
 
     nxJsonAny.projectRelease.excludedProjects = newExcluded;
     updateNxJson(tree, nxJson);
@@ -152,7 +170,7 @@ export default async function excludeProjectsGenerator(tree: Tree, options: Excl
 
     logger.info('');
     logger.info(`✅ Added ${added.length} projects to excluded list:`);
-    added.forEach(p => logger.info(`   - ${p}`));
+    added.forEach((p) => logger.info(`   - ${p}`));
 
     logger.info('');
     logger.info(`📋 Total excluded: ${newExcluded.length} projects`);
@@ -166,18 +184,26 @@ export default async function excludeProjectsGenerator(tree: Tree, options: Excl
 
     logger.info('');
     logger.info(`✅ Set excluded projects (${projectsToProcess.length}):`);
-    projectsToProcess.forEach(p => logger.info(`   - ${p}`));
+    projectsToProcess.forEach((p) => logger.info(`   - ${p}`));
   }
 
   logger.info('');
   logger.info('💡 Next steps:');
-  logger.info('   - Run nx g nx-project-release:init to configure remaining projects');
-  logger.info('   - Or run nx g nx-project-release:exclude-projects again to modify');
+  logger.info(
+    '   - Run nx g nx-project-release:init to configure remaining projects'
+  );
+  logger.info(
+    '   - Or run nx g nx-project-release:exclude-projects again to modify'
+  );
   logger.info('');
 }
 
-async function promptAction(options: ExcludeProjectsSchema): Promise<'add' | 'remove' | 'set' | 'clear' | 'view'> {
-  const { action } = await prompt<{ action: 'add' | 'remove' | 'set' | 'clear' | 'view' }>({
+async function promptAction(
+  options: ExcludeProjectsSchema
+): Promise<'add' | 'remove' | 'set' | 'clear' | 'view'> {
+  const { action } = await prompt<{
+    action: 'add' | 'remove' | 'set' | 'clear' | 'view';
+  }>({
     type: 'select',
     name: 'action',
     message: 'What do you want to do?',
@@ -185,29 +211,29 @@ async function promptAction(options: ExcludeProjectsSchema): Promise<'add' | 're
       {
         name: 'set',
         message: 'Set excluded projects (replace current list)',
-        hint: 'Start fresh with a new selection'
+        hint: 'Start fresh with a new selection',
       },
       {
         name: 'add',
         message: 'Add to excluded projects',
-        hint: 'Add more projects to existing list'
+        hint: 'Add more projects to existing list',
       },
       {
         name: 'remove',
         message: 'Remove from excluded projects',
-        hint: 'Stop excluding some projects'
+        hint: 'Stop excluding some projects',
       },
       {
         name: 'view',
         message: 'View currently excluded projects',
-        hint: 'Just show the current list'
+        hint: 'Just show the current list',
       },
       {
         name: 'clear',
         message: 'Clear all excluded projects',
-        hint: 'Remove all exclusions'
-      }
-    ]
+        hint: 'Remove all exclusions',
+      },
+    ],
   });
 
   return action;
@@ -219,13 +245,20 @@ function showCurrentExcluded(excluded: string[]) {
     logger.info('ℹ️  No projects are currently excluded');
   } else {
     logger.info(`📋 Currently excluded (${excluded.length} projects):`);
-    excluded.forEach(p => logger.info(`   - ${p}`));
+    excluded.forEach((p) => logger.info(`   - ${p}`));
   }
   logger.info('');
 }
 
 function removeReleaseTargets(tree: Tree, projects: string[]) {
-  const releaseTargets = ['version', 'changelog', 'release', 'artifact', 'publish', 'project-release'];
+  const releaseTargets = [
+    'version',
+    'changelog',
+    'release',
+    'artifact',
+    'publish',
+    'project-release',
+  ];
 
   for (const projectName of projects) {
     try {
@@ -255,11 +288,19 @@ function removeReleaseTargets(tree: Tree, projects: string[]) {
 
       if (removedCount > 0 || projectConfig.tags.includes('release:excluded')) {
         updateProjectConfiguration(tree, projectName, projectConfig);
-        logger.info(`   🗑️  Removed ${removedCount} target(s) from ${projectName}: ${removedTargets.join(', ')}`);
+        logger.info(
+          `   🗑️  Removed ${removedCount} target(s) from ${projectName}: ${removedTargets.join(
+            ', '
+          )}`
+        );
         logger.info(`   🏷️  Added tag: release:excluded`);
       }
     } catch (error) {
-      logger.warn(`   ⚠️  Could not update ${projectName}: ${error instanceof Error ? error.message : String(error)}`);
+      logger.warn(
+        `   ⚠️  Could not update ${projectName}: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
     }
   }
 }

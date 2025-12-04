@@ -3,7 +3,7 @@ export default {
   preset: '../../jest.preset.js',
   testEnvironment: 'node',
   transform: {
-    '^.+\\.[tj]s$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json' }]
+    '^.+\\.[tj]s$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json' }],
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
   coverageDirectory: '../../coverage/packages/project-release',
@@ -15,7 +15,7 @@ export default {
     '!src/**/__tests__/**',
     '!src/**/__mocks__/**',
     '!src/**/types.ts',
-    '!src/index.ts'
+    '!src/index.ts',
   ],
   coverageReporters: ['text', 'lcov', 'json-summary'],
 
@@ -27,7 +27,7 @@ export default {
       branches: 23,
       functions: 30,
       lines: 29,
-      statements: 30
-    }
-  }
+      statements: 30,
+    },
+  },
 };

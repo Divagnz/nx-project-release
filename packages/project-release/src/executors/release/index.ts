@@ -29,10 +29,13 @@ export default async function releaseExecutor(
 
   try {
     // Get version
-    const version = options.version || getProjectVersion(context, projectName, projectRoot);
+    const version =
+      options.version || getProjectVersion(context, projectName, projectRoot);
     if (!version) {
       logger.error('❌ No version found');
-      logger.info('   Ensure project has a version in package.json or project.json');
+      logger.info(
+        '   Ensure project has a version in package.json or project.json'
+      );
       return { success: false };
     }
 
@@ -86,7 +89,11 @@ export default async function releaseExecutor(
 
     // Create GitHub Release (if enabled)
     if (options.createGitHubRelease) {
-      const { owner, repo } = getRepositoryInfo(context.root, options.owner, options.repo);
+      const { owner, repo } = getRepositoryInfo(
+        context.root,
+        options.owner,
+        options.repo
+      );
       if (owner && repo) {
         const releaseNotes = getReleaseNotes(
           context.root,
@@ -132,7 +139,7 @@ async function pushTag(workspaceRoot: string, tag: string): Promise<void> {
   try {
     execSync(`git push origin ${tag}`, {
       cwd: workspaceRoot,
-      stdio: 'inherit'
+      stdio: 'inherit',
     });
     logger.info('✅ Tag pushed to remote');
   } catch (error) {
@@ -168,7 +175,7 @@ async function createTag(
   try {
     execSync(`git rev-parse ${tag}`, {
       cwd: workspaceRoot,
-      stdio: 'pipe'
+      stdio: 'pipe',
     });
     logger.info(`ℹ️  Tag ${tag} already exists, skipping`);
     return;
@@ -182,7 +189,7 @@ async function createTag(
     // Simple tag on current HEAD (no subtree split complexity)
     execSync(`git tag -a ${tag} -m "${name}"`, {
       cwd: workspaceRoot,
-      stdio: 'inherit'
+      stdio: 'inherit',
     });
 
     logger.info(`✅ Created tag: ${tag}`);
@@ -237,7 +244,7 @@ function getRepositoryInfo(
   try {
     const remoteUrl = execSync('git config --get remote.origin.url', {
       cwd: workspaceRoot,
-      encoding: 'utf-8'
+      encoding: 'utf-8',
     }).trim();
 
     // Parse GitHub/GitLab URL
@@ -245,7 +252,7 @@ function getRepositoryInfo(
     if (match) {
       return {
         owner: ownerOption || match[1],
-        repo: repoOption || match[2]
+        repo: repoOption || match[2],
       };
     }
   } catch {
@@ -268,7 +275,13 @@ function getReleaseNotes(
     const changelog = readFileSync(changelogPath, 'utf-8');
 
     // Extract section for this version
-    const versionPattern = new RegExp(`## \\[?${version.replace(/\./g, '\\.')}\\]?.*?\\n([\\s\\S]*?)(?=\\n## |$)`, 'i');
+    const versionPattern = new RegExp(
+      `## \\[?${version.replace(
+        /\./g,
+        '\\.'
+      )}\\]?.*?\\n([\\s\\S]*?)(?=\\n## |$)`,
+      'i'
+    );
     const match = changelog.match(versionPattern);
 
     if (match && match[1]) {
@@ -281,13 +294,16 @@ function getReleaseNotes(
     try {
       const previousTag = execSync('git describe --tags --abbrev=0 HEAD^', {
         cwd: workspaceRoot,
-        encoding: 'utf-8'
+        encoding: 'utf-8',
       }).trim();
 
-      const commits = execSync(`git log ${previousTag}..HEAD --pretty=format:"- %s (%h)"`, {
-        cwd: workspaceRoot,
-        encoding: 'utf-8'
-      }).trim();
+      const commits = execSync(
+        `git log ${previousTag}..HEAD --pretty=format:"- %s (%h)"`,
+        {
+          cwd: workspaceRoot,
+          encoding: 'utf-8',
+        }
+      ).trim();
 
       return commits || 'No changes';
     } catch {
@@ -323,7 +339,7 @@ async function collectAssets(
     for (const pattern of assetPatterns) {
       const matches = await glob(pattern, {
         cwd: join(workspaceRoot, projectRoot),
-        absolute: true
+        absolute: true,
       });
       collectedAssets.push(...matches);
     }
@@ -354,10 +370,15 @@ async function createGitHubRelease(
   logger.info('🚀 Creating GitHub release...');
 
   const args = [
-    'release', 'create', tag,
-    '--title', `"${name}"`,
-    '--notes', `"${body.replace(/"/g, '\\"')}"`,
-    '--repo', `${owner}/${repo}`
+    'release',
+    'create',
+    tag,
+    '--title',
+    `"${name}"`,
+    '--notes',
+    `"${body.replace(/"/g, '\\"')}"`,
+    '--repo',
+    `${owner}/${repo}`,
   ];
 
   if (options.draft) {
@@ -389,8 +410,8 @@ async function createGitHubRelease(
       stdio: 'inherit',
       env: {
         ...process.env,
-        GITHUB_TOKEN: options.token || process.env.GITHUB_TOKEN
-      }
+        GITHUB_TOKEN: options.token || process.env.GITHUB_TOKEN,
+      },
     });
     logger.info('✅ GitHub release created');
   } catch (error) {

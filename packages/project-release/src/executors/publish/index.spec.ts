@@ -1,5 +1,16 @@
-import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
-import { ExecutorContext, logger, runExecutor as nxRunExecutor } from '@nx/devkit';
+import {
+  describe,
+  it,
+  expect,
+  jest,
+  beforeEach,
+  afterEach,
+} from '@jest/globals';
+import {
+  ExecutorContext,
+  logger,
+  runExecutor as nxRunExecutor,
+} from '@nx/devkit';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -13,21 +24,34 @@ jest.mock('@nx/devkit', () => ({
   logger: {
     info: jest.fn(),
     warn: jest.fn(),
-    error: jest.fn()
+    error: jest.fn(),
   },
-  runExecutor: jest.fn()
+  runExecutor: jest.fn(),
 }));
 
 jest.mock('child_process');
 jest.mock('./lib/nexus-client');
 jest.mock('./lib/s3-client');
 
-const mockExecSync = childProcess.execSync as jest.MockedFunction<typeof childProcess.execSync>;
-const mockNxRunExecutor = nxRunExecutor as jest.MockedFunction<typeof nxRunExecutor>;
-const mockUploadToNexus = nexusClient.uploadToNexus as jest.MockedFunction<typeof nexusClient.uploadToNexus>;
-const mockValidateNexusConfig = nexusClient.validateNexusConfig as jest.MockedFunction<typeof nexusClient.validateNexusConfig>;
-const mockUploadToS3 = s3Client.uploadToS3 as jest.MockedFunction<typeof s3Client.uploadToS3>;
-const mockValidateS3Config = s3Client.validateS3Config as jest.MockedFunction<typeof s3Client.validateS3Config>;
+const mockExecSync = childProcess.execSync as jest.MockedFunction<
+  typeof childProcess.execSync
+>;
+const mockNxRunExecutor = nxRunExecutor as jest.MockedFunction<
+  typeof nxRunExecutor
+>;
+const mockUploadToNexus = nexusClient.uploadToNexus as jest.MockedFunction<
+  typeof nexusClient.uploadToNexus
+>;
+const mockValidateNexusConfig =
+  nexusClient.validateNexusConfig as jest.MockedFunction<
+    typeof nexusClient.validateNexusConfig
+  >;
+const mockUploadToS3 = s3Client.uploadToS3 as jest.MockedFunction<
+  typeof s3Client.uploadToS3
+>;
+const mockValidateS3Config = s3Client.validateS3Config as jest.MockedFunction<
+  typeof s3Client.validateS3Config
+>;
 
 describe('Publish Executor', () => {
   let tempDir: string;
@@ -50,21 +74,23 @@ describe('Publish Executor', () => {
         version: 2,
         projects: {
           'test-project': {
-            root: 'projects/test-project'
-          }
-        }
+            root: 'projects/test-project',
+          },
+        },
       },
       cwd: tempDir,
       isVerbose: false,
       nxJsonConfiguration: {},
       projectGraph: {
         nodes: {},
-        dependencies: {}
-      }
+        dependencies: {},
+      },
     } as ExecutorContext;
 
     // Create directories
-    fs.mkdirSync(path.join(tempDir, 'projects/test-project'), { recursive: true });
+    fs.mkdirSync(path.join(tempDir, 'projects/test-project'), {
+      recursive: true,
+    });
     fs.mkdirSync(publishDir, { recursive: true });
 
     // Create package.json in publish directory
@@ -75,13 +101,23 @@ describe('Publish Executor', () => {
 
     // Default mock implementations
     mockExecSync.mockReturnValue('' as any);
-    mockNxRunExecutor.mockResolvedValue(async function* () {
-      yield { success: true };
-    }() as any);
+    mockNxRunExecutor.mockResolvedValue(
+      (async function* () {
+        yield { success: true };
+      })() as any
+    );
     mockValidateNexusConfig.mockReturnValue(true);
     mockValidateS3Config.mockReturnValue(true);
-    mockUploadToNexus.mockResolvedValue({ uploaded: true, url: 'https://nexus.example.com/artifact', skipped: false });
-    mockUploadToS3.mockResolvedValue({ uploaded: true, url: 's3://bucket/artifact', skipped: false });
+    mockUploadToNexus.mockResolvedValue({
+      uploaded: true,
+      url: 'https://nexus.example.com/artifact',
+      skipped: false,
+    });
+    mockUploadToS3.mockResolvedValue({
+      uploaded: true,
+      url: 's3://bucket/artifact',
+      skipped: false,
+    });
   });
 
   afterEach(() => {
@@ -95,7 +131,7 @@ describe('Publish Executor', () => {
     it('should publish to NPM with default settings', async () => {
       const options: PublishExecutorSchema = {
         registryType: 'npm',
-        publishDir: 'dist/test-project'
+        publishDir: 'dist/test-project',
       };
 
       await publishExecutor(options, context);
@@ -110,7 +146,7 @@ describe('Publish Executor', () => {
       const options: PublishExecutorSchema = {
         registryType: 'npm',
         registry: 'https://custom-registry.com',
-        publishDir: 'dist/test-project'
+        publishDir: 'dist/test-project',
       };
 
       await publishExecutor(options, context);
@@ -125,7 +161,7 @@ describe('Publish Executor', () => {
       const options: PublishExecutorSchema = {
         registryType: 'npm',
         distTag: 'beta',
-        publishDir: 'dist/test-project'
+        publishDir: 'dist/test-project',
       };
 
       await publishExecutor(options, context);
@@ -140,7 +176,7 @@ describe('Publish Executor', () => {
       const options: PublishExecutorSchema = {
         registryType: 'npm',
         access: 'restricted',
-        publishDir: 'dist/test-project'
+        publishDir: 'dist/test-project',
       };
 
       await publishExecutor(options, context);
@@ -155,7 +191,7 @@ describe('Publish Executor', () => {
       const options: PublishExecutorSchema = {
         registryType: 'npm',
         otp: '123456',
-        publishDir: 'dist/test-project'
+        publishDir: 'dist/test-project',
       };
 
       await publishExecutor(options, context);
@@ -170,7 +206,7 @@ describe('Publish Executor', () => {
       const options: PublishExecutorSchema = {
         registryType: 'npm',
         npmScope: '@my-org',
-        publishDir: 'dist/test-project'
+        publishDir: 'dist/test-project',
       };
 
       await publishExecutor(options, context);
@@ -184,7 +220,10 @@ describe('Publish Executor', () => {
   describe('Nexus Publishing', () => {
     beforeEach(() => {
       // Create artifact file
-      fs.writeFileSync(path.join(publishDir, 'test-project-1.0.0.tgz'), 'fake tarball content');
+      fs.writeFileSync(
+        path.join(publishDir, 'test-project-1.0.0.tgz'),
+        'fake tarball content'
+      );
 
       // Set environment variables
       process.env.NEXUS_URL = 'https://nexus.example.com';
@@ -202,12 +241,15 @@ describe('Publish Executor', () => {
 
     it('should publish to Nexus repository', async () => {
       // Add version to project.json
-      const projectJsonPath = path.join(tempDir, 'projects/test-project/project.json');
+      const projectJsonPath = path.join(
+        tempDir,
+        'projects/test-project/project.json'
+      );
       fs.writeFileSync(projectJsonPath, JSON.stringify({ version: '1.0.0' }));
 
       const options: PublishExecutorSchema = {
         registryType: 'nexus',
-        publishDir: 'dist/test-project'
+        publishDir: 'dist/test-project',
       };
 
       const result = await publishExecutor(options, context);
@@ -217,7 +259,10 @@ describe('Publish Executor', () => {
     });
 
     it('should use custom Nexus configuration', async () => {
-      const projectJsonPath = path.join(tempDir, 'projects/test-project/project.json');
+      const projectJsonPath = path.join(
+        tempDir,
+        'projects/test-project/project.json'
+      );
       fs.writeFileSync(projectJsonPath, JSON.stringify({ version: '1.0.0' }));
 
       const options: PublishExecutorSchema = {
@@ -226,7 +271,7 @@ describe('Publish Executor', () => {
         nexusRepository: 'custom-repo',
         nexusUsername: 'user',
         nexusPassword: 'pass',
-        publishDir: 'dist/test-project'
+        publishDir: 'dist/test-project',
       };
 
       await publishExecutor(options, context);
@@ -238,18 +283,21 @@ describe('Publish Executor', () => {
           url: 'https://custom-nexus.com',
           repository: 'custom-repo',
           username: 'user',
-          password: 'pass'
+          password: 'pass',
         })
       );
     });
 
     it('should use version path strategy by default', async () => {
-      const projectJsonPath = path.join(tempDir, 'projects/test-project/project.json');
+      const projectJsonPath = path.join(
+        tempDir,
+        'projects/test-project/project.json'
+      );
       fs.writeFileSync(projectJsonPath, JSON.stringify({ version: '1.0.0' }));
 
       const options: PublishExecutorSchema = {
         registryType: 'nexus',
-        publishDir: 'dist/test-project'
+        publishDir: 'dist/test-project',
       };
 
       await publishExecutor(options, context);
@@ -262,13 +310,16 @@ describe('Publish Executor', () => {
     });
 
     it('should support hash path strategy', async () => {
-      const projectJsonPath = path.join(tempDir, 'projects/test-project/project.json');
+      const projectJsonPath = path.join(
+        tempDir,
+        'projects/test-project/project.json'
+      );
       fs.writeFileSync(projectJsonPath, JSON.stringify({ version: '1.0.0' }));
 
       const options: PublishExecutorSchema = {
         registryType: 'nexus',
         pathStrategy: 'hash',
-        publishDir: 'dist/test-project'
+        publishDir: 'dist/test-project',
       };
 
       await publishExecutor(options, context);
@@ -284,12 +335,15 @@ describe('Publish Executor', () => {
       // Remove artifact
       fs.unlinkSync(path.join(publishDir, 'test-project-1.0.0.tgz'));
 
-      const projectJsonPath = path.join(tempDir, 'projects/test-project/project.json');
+      const projectJsonPath = path.join(
+        tempDir,
+        'projects/test-project/project.json'
+      );
       fs.writeFileSync(projectJsonPath, JSON.stringify({ version: '1.0.0' }));
 
       const options: PublishExecutorSchema = {
         registryType: 'nexus',
-        publishDir: 'dist/test-project'
+        publishDir: 'dist/test-project',
       };
 
       const result = await publishExecutor(options, context);
@@ -303,7 +357,7 @@ describe('Publish Executor', () => {
     it('should fail when version is not available', async () => {
       const options: PublishExecutorSchema = {
         registryType: 'nexus',
-        publishDir: 'dist/test-project'
+        publishDir: 'dist/test-project',
       };
 
       const result = await publishExecutor(options, context);
@@ -317,12 +371,15 @@ describe('Publish Executor', () => {
     it('should fail when Nexus config is invalid', async () => {
       mockValidateNexusConfig.mockReturnValue(false);
 
-      const projectJsonPath = path.join(tempDir, 'projects/test-project/project.json');
+      const projectJsonPath = path.join(
+        tempDir,
+        'projects/test-project/project.json'
+      );
       fs.writeFileSync(projectJsonPath, JSON.stringify({ version: '1.0.0' }));
 
       const options: PublishExecutorSchema = {
         registryType: 'nexus',
-        publishDir: 'dist/test-project'
+        publishDir: 'dist/test-project',
       };
 
       const result = await publishExecutor(options, context);
@@ -337,13 +394,17 @@ describe('Publish Executor', () => {
   describe('S3 Publishing', () => {
     beforeEach(() => {
       // Create artifact file
-      fs.writeFileSync(path.join(publishDir, 'test-project-1.0.0.tgz'), 'fake tarball content');
+      fs.writeFileSync(
+        path.join(publishDir, 'test-project-1.0.0.tgz'),
+        'fake tarball content'
+      );
 
       // Set environment variables
       process.env.S3_BUCKET = 'my-artifacts-bucket';
       process.env.AWS_REGION = 'us-east-1';
       process.env.AWS_ACCESS_KEY_ID = 'AKIAIOSFODNN7EXAMPLE';
-      process.env.AWS_SECRET_ACCESS_KEY = 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY';
+      process.env.AWS_SECRET_ACCESS_KEY =
+        'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY';
     });
 
     afterEach(() => {
@@ -355,12 +416,15 @@ describe('Publish Executor', () => {
     });
 
     it('should publish to S3 bucket', async () => {
-      const projectJsonPath = path.join(tempDir, 'projects/test-project/project.json');
+      const projectJsonPath = path.join(
+        tempDir,
+        'projects/test-project/project.json'
+      );
       fs.writeFileSync(projectJsonPath, JSON.stringify({ version: '1.0.0' }));
 
       const options: PublishExecutorSchema = {
         registryType: 's3',
-        publishDir: 'dist/test-project'
+        publishDir: 'dist/test-project',
       };
 
       const result = await publishExecutor(options, context);
@@ -370,7 +434,10 @@ describe('Publish Executor', () => {
     });
 
     it('should use custom S3 configuration', async () => {
-      const projectJsonPath = path.join(tempDir, 'projects/test-project/project.json');
+      const projectJsonPath = path.join(
+        tempDir,
+        'projects/test-project/project.json'
+      );
       fs.writeFileSync(projectJsonPath, JSON.stringify({ version: '1.0.0' }));
 
       const options: PublishExecutorSchema = {
@@ -378,7 +445,7 @@ describe('Publish Executor', () => {
         s3Bucket: 'custom-bucket',
         s3Region: 'us-west-2',
         s3Prefix: 'artifacts',
-        publishDir: 'dist/test-project'
+        publishDir: 'dist/test-project',
       };
 
       await publishExecutor(options, context);
@@ -389,19 +456,22 @@ describe('Publish Executor', () => {
         expect.objectContaining({
           bucket: 'custom-bucket',
           region: 'us-west-2',
-          prefix: 'artifacts'
+          prefix: 'artifacts',
         })
       );
     });
 
     it('should support flat path strategy', async () => {
-      const projectJsonPath = path.join(tempDir, 'projects/test-project/project.json');
+      const projectJsonPath = path.join(
+        tempDir,
+        'projects/test-project/project.json'
+      );
       fs.writeFileSync(projectJsonPath, JSON.stringify({ version: '1.0.0' }));
 
       const options: PublishExecutorSchema = {
         registryType: 's3',
         pathStrategy: 'flat',
-        publishDir: 'dist/test-project'
+        publishDir: 'dist/test-project',
       };
 
       await publishExecutor(options, context);
@@ -416,12 +486,15 @@ describe('Publish Executor', () => {
     it('should fail when S3 config is invalid', async () => {
       mockValidateS3Config.mockReturnValue(false);
 
-      const projectJsonPath = path.join(tempDir, 'projects/test-project/project.json');
+      const projectJsonPath = path.join(
+        tempDir,
+        'projects/test-project/project.json'
+      );
       fs.writeFileSync(projectJsonPath, JSON.stringify({ version: '1.0.0' }));
 
       const options: PublishExecutorSchema = {
         registryType: 's3',
-        publishDir: 'dist/test-project'
+        publishDir: 'dist/test-project',
       };
 
       const result = await publishExecutor(options, context);
@@ -438,7 +511,7 @@ describe('Publish Executor', () => {
       const options: PublishExecutorSchema = {
         registryType: 'custom',
         registry: 'https://custom-registry.com',
-        publishDir: 'dist/test-project'
+        publishDir: 'dist/test-project',
       };
 
       await publishExecutor(options, context);
@@ -452,7 +525,7 @@ describe('Publish Executor', () => {
     it('should fail when registry URL is not provided', async () => {
       const options: PublishExecutorSchema = {
         registryType: 'custom',
-        publishDir: 'dist/test-project'
+        publishDir: 'dist/test-project',
       };
 
       const result = await publishExecutor(options, context);
@@ -469,7 +542,7 @@ describe('Publish Executor', () => {
       const options: PublishExecutorSchema = {
         registryType: 'npm',
         buildTarget: 'build',
-        publishDir: 'dist/test-project'
+        publishDir: 'dist/test-project',
       };
 
       await publishExecutor(options, context);
@@ -477,7 +550,7 @@ describe('Publish Executor', () => {
       expect(mockNxRunExecutor).toHaveBeenCalledWith(
         expect.objectContaining({
           project: 'test-project',
-          target: 'build'
+          target: 'build',
         }),
         expect.any(Object),
         context
@@ -489,7 +562,7 @@ describe('Publish Executor', () => {
         registryType: 'npm',
         buildTarget: 'build',
         skipBuild: true,
-        publishDir: 'dist/test-project'
+        publishDir: 'dist/test-project',
       };
 
       await publishExecutor(options, context);
@@ -503,7 +576,7 @@ describe('Publish Executor', () => {
       const options: PublishExecutorSchema = {
         registryType: 'npm',
         buildTarget: 'build',
-        publishDir: 'dist/test-project'
+        publishDir: 'dist/test-project',
       };
 
       const result = await publishExecutor(options, context);
@@ -520,7 +593,7 @@ describe('Publish Executor', () => {
       const options: PublishExecutorSchema = {
         registryType: 'npm',
         dryRun: true,
-        publishDir: 'dist/test-project'
+        publishDir: 'dist/test-project',
       };
 
       await publishExecutor(options, context);
@@ -533,12 +606,14 @@ describe('Publish Executor', () => {
         registryType: 'npm',
         registry: 'https://registry.npmjs.org',
         dryRun: true,
-        publishDir: 'dist/test-project'
+        publishDir: 'dist/test-project',
       };
 
       await publishExecutor(options, context);
 
-      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Would publish to npm'));
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.stringContaining('Would publish to npm')
+      );
     });
   });
 
@@ -546,7 +621,7 @@ describe('Publish Executor', () => {
     it('should fail when publish directory does not exist', async () => {
       const options: PublishExecutorSchema = {
         registryType: 'npm',
-        publishDir: 'dist/nonexistent'
+        publishDir: 'dist/nonexistent',
       };
 
       const result = await publishExecutor(options, context);
@@ -560,7 +635,7 @@ describe('Publish Executor', () => {
     it('should fail for unsupported registry type', async () => {
       const options: PublishExecutorSchema = {
         registryType: 'invalid' as any,
-        publishDir: 'dist/test-project'
+        publishDir: 'dist/test-project',
       };
 
       const result = await publishExecutor(options, context);
@@ -578,7 +653,7 @@ describe('Publish Executor', () => {
 
       const options: PublishExecutorSchema = {
         registryType: 'npm',
-        publishDir: 'dist/test-project'
+        publishDir: 'dist/test-project',
       };
 
       const result = await publishExecutor(options, context);
@@ -589,36 +664,46 @@ describe('Publish Executor', () => {
 
   describe('Version Handling', () => {
     it('should update package.json version from project.json', async () => {
-      const projectJsonPath = path.join(tempDir, 'projects/test-project/project.json');
+      const projectJsonPath = path.join(
+        tempDir,
+        'projects/test-project/project.json'
+      );
       fs.writeFileSync(projectJsonPath, JSON.stringify({ version: '2.0.0' }));
 
       const options: PublishExecutorSchema = {
         registryType: 'npm',
         publishDir: 'dist/test-project',
-        dryRun: true
+        dryRun: true,
       };
 
       await publishExecutor(options, context);
 
       const publishPackageJsonPath = path.join(publishDir, 'package.json');
-      const publishPackageJson = JSON.parse(fs.readFileSync(publishPackageJsonPath, 'utf8'));
+      const publishPackageJson = JSON.parse(
+        fs.readFileSync(publishPackageJsonPath, 'utf8')
+      );
       expect(publishPackageJson.version).toBe('2.0.0');
     });
 
     it('should use package.json version if project.json has none', async () => {
-      const packageJsonPath = path.join(tempDir, 'projects/test-project/package.json');
+      const packageJsonPath = path.join(
+        tempDir,
+        'projects/test-project/package.json'
+      );
       fs.writeFileSync(packageJsonPath, JSON.stringify({ version: '3.0.0' }));
 
       const options: PublishExecutorSchema = {
         registryType: 'npm',
         publishDir: 'dist/test-project',
-        dryRun: true
+        dryRun: true,
       };
 
       await publishExecutor(options, context);
 
       const publishPackageJsonPath = path.join(publishDir, 'package.json');
-      const publishPackageJson = JSON.parse(fs.readFileSync(publishPackageJsonPath, 'utf8'));
+      const publishPackageJson = JSON.parse(
+        fs.readFileSync(publishPackageJsonPath, 'utf8')
+      );
       expect(publishPackageJson.version).toBe('3.0.0');
     });
 
@@ -626,13 +711,15 @@ describe('Publish Executor', () => {
       const options: PublishExecutorSchema = {
         registryType: 'npm',
         publishDir: 'dist/test-project',
-        dryRun: true
+        dryRun: true,
       };
 
       await publishExecutor(options, context);
 
       const publishPackageJsonPath = path.join(publishDir, 'package.json');
-      const publishPackageJson = JSON.parse(fs.readFileSync(publishPackageJsonPath, 'utf8'));
+      const publishPackageJson = JSON.parse(
+        fs.readFileSync(publishPackageJsonPath, 'utf8')
+      );
       expect(publishPackageJson.version).toBe('1.0.0'); // Original version
     });
   });
@@ -648,14 +735,14 @@ describe('Publish Executor', () => {
               type: 'npm',
               url: 'https://registry.npmjs.org',
               access: 'public',
-              distTag: 'latest'
-            }
-          }
+              distTag: 'latest',
+            },
+          },
         })
       );
 
       const options: PublishExecutorSchema = {
-        publishDir: 'dist/test-project'
+        publishDir: 'dist/test-project',
       };
 
       await publishExecutor(options, context);
@@ -667,7 +754,10 @@ describe('Publish Executor', () => {
     });
 
     it('should merge config from project.json publish target', async () => {
-      const projectJsonPath = path.join(tempDir, 'projects/test-project/project.json');
+      const projectJsonPath = path.join(
+        tempDir,
+        'projects/test-project/project.json'
+      );
       fs.writeFileSync(
         projectJsonPath,
         JSON.stringify({
@@ -675,10 +765,10 @@ describe('Publish Executor', () => {
             publish: {
               options: {
                 buildTarget: 'custom-build',
-                publishDir: 'dist/custom'
-              }
-            }
-          }
+                publishDir: 'dist/custom',
+              },
+            },
+          },
         })
       );
 
@@ -691,7 +781,7 @@ describe('Publish Executor', () => {
       );
 
       const options: PublishExecutorSchema = {
-        registryType: 'npm'
+        registryType: 'npm',
       };
 
       await publishExecutor(options, context);
@@ -708,12 +798,15 @@ describe('Publish Executor', () => {
     it('should find .tgz artifact', async () => {
       fs.writeFileSync(path.join(publishDir, 'artifact.tgz'), 'content');
 
-      const projectJsonPath = path.join(tempDir, 'projects/test-project/project.json');
+      const projectJsonPath = path.join(
+        tempDir,
+        'projects/test-project/project.json'
+      );
       fs.writeFileSync(projectJsonPath, JSON.stringify({ version: '1.0.0' }));
 
       const options: PublishExecutorSchema = {
         registryType: 'nexus',
-        publishDir: 'dist/test-project'
+        publishDir: 'dist/test-project',
       };
 
       const result = await publishExecutor(options, context);
@@ -729,12 +822,15 @@ describe('Publish Executor', () => {
     it('should find .tar.gz artifact', async () => {
       fs.writeFileSync(path.join(publishDir, 'artifact.tar.gz'), 'content');
 
-      const projectJsonPath = path.join(tempDir, 'projects/test-project/project.json');
+      const projectJsonPath = path.join(
+        tempDir,
+        'projects/test-project/project.json'
+      );
       fs.writeFileSync(projectJsonPath, JSON.stringify({ version: '1.0.0' }));
 
       const options: PublishExecutorSchema = {
         registryType: 's3',
-        publishDir: 'dist/test-project'
+        publishDir: 'dist/test-project',
       };
 
       const result = await publishExecutor(options, context);
@@ -750,12 +846,15 @@ describe('Publish Executor', () => {
     it('should find .zip artifact', async () => {
       fs.writeFileSync(path.join(publishDir, 'artifact.zip'), 'content');
 
-      const projectJsonPath = path.join(tempDir, 'projects/test-project/project.json');
+      const projectJsonPath = path.join(
+        tempDir,
+        'projects/test-project/project.json'
+      );
       fs.writeFileSync(projectJsonPath, JSON.stringify({ version: '1.0.0' }));
 
       const options: PublishExecutorSchema = {
         registryType: 'nexus',
-        publishDir: 'dist/test-project'
+        publishDir: 'dist/test-project',
       };
 
       const result = await publishExecutor(options, context);
@@ -768,23 +867,27 @@ describe('Publish Executor', () => {
     it('should log success message', async () => {
       const options: PublishExecutorSchema = {
         registryType: 'npm',
-        publishDir: 'dist/test-project'
+        publishDir: 'dist/test-project',
       };
 
       await publishExecutor(options, context);
 
-      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Successfully published'));
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.stringContaining('Successfully published')
+      );
     });
 
     it('should log project name', async () => {
       const options: PublishExecutorSchema = {
         registryType: 'npm',
-        publishDir: 'dist/test-project'
+        publishDir: 'dist/test-project',
       };
 
       await publishExecutor(options, context);
 
-      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('test-project'));
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.stringContaining('test-project')
+      );
     });
   });
 });

@@ -1,10 +1,22 @@
-import { Tree, formatFiles, logger, getProjects, readNxJson, updateNxJson, readProjectConfiguration, updateProjectConfiguration } from '@nx/devkit';
+import {
+  Tree,
+  formatFiles,
+  logger,
+  getProjects,
+  readNxJson,
+  updateNxJson,
+  readProjectConfiguration,
+  updateProjectConfiguration,
+} from '@nx/devkit';
 import { ResetGeneratorSchema } from './schema';
 import Enquirer from 'enquirer';
 
 const { prompt } = Enquirer;
 
-export async function resetGenerator(tree: Tree, options: ResetGeneratorSchema) {
+export async function resetGenerator(
+  tree: Tree,
+  options: ResetGeneratorSchema
+) {
   logger.info('');
   logger.info('═══════════════════════════════════════════════════════');
   logger.info('   nx-project-release Reset');
@@ -13,12 +25,16 @@ export async function resetGenerator(tree: Tree, options: ResetGeneratorSchema) 
 
   // Confirm if not skipped
   if (!options.skipConfirmation) {
-    logger.warn('⚠️  This will remove all nx-project-release configuration from your workspace:');
+    logger.warn(
+      '⚠️  This will remove all nx-project-release configuration from your workspace:'
+    );
     logger.warn('   - Remove targetDefaults from nx.json');
     logger.warn('   - Remove projectRelease configuration from nx.json');
     logger.warn('   - Remove release targets from all projects');
     if (options.removeHooks) {
-      logger.warn('   - Remove ONLY nx-project-release git hooks (preserves other hooks)');
+      logger.warn(
+        '   - Remove ONLY nx-project-release git hooks (preserves other hooks)'
+      );
     }
     logger.info('');
 
@@ -26,7 +42,7 @@ export async function resetGenerator(tree: Tree, options: ResetGeneratorSchema) 
       type: 'confirm',
       name: 'confirm',
       message: 'Are you sure you want to continue?',
-      initial: false
+      initial: false,
     });
 
     if (!confirm) {
@@ -52,7 +68,7 @@ export async function resetGenerator(tree: Tree, options: ResetGeneratorSchema) 
         'nx-project-release:version',
         'nx-project-release:changelog',
         'nx-project-release:publish',
-        'nx-project-release:project-release'
+        'nx-project-release:project-release',
       ];
 
       for (const executor of executors) {
@@ -93,7 +109,11 @@ export async function resetGenerator(tree: Tree, options: ResetGeneratorSchema) 
     if (projectConfig.targets) {
       for (const targetName of releaseTargets) {
         const target = projectConfig.targets[targetName];
-        if (target && typeof target.executor === 'string' && target.executor.startsWith('nx-project-release:')) {
+        if (
+          target &&
+          typeof target.executor === 'string' &&
+          target.executor.startsWith('nx-project-release:')
+        ) {
           delete projectConfig.targets[targetName];
           modified = true;
           itemsRemoved++;
@@ -110,7 +130,10 @@ export async function resetGenerator(tree: Tree, options: ResetGeneratorSchema) 
         const projectJson = JSON.parse(projectJsonContent);
         if (projectJson.version) {
           delete projectJson.version;
-          tree.write(projectJsonPath, JSON.stringify(projectJson, null, 2) + '\n');
+          tree.write(
+            projectJsonPath,
+            JSON.stringify(projectJson, null, 2) + '\n'
+          );
           versionsRemoved++;
           modified = true;
         }
@@ -128,7 +151,9 @@ export async function resetGenerator(tree: Tree, options: ResetGeneratorSchema) 
   }
 
   if (versionsRemoved > 0) {
-    logger.info(`✅ Removed version field from ${versionsRemoved} project.json files`);
+    logger.info(
+      `✅ Removed version field from ${versionsRemoved} project.json files`
+    );
   }
 
   // 3. Clean git hooks (carefully!)
@@ -172,17 +197,20 @@ async function cleanHuskyHooks(tree: Tree): Promise<void> {
       if (content) {
         // Remove only lines that contain nx-project-release
         const lines = content.split('\n');
-        const filteredLines = lines.filter(line =>
-          !line.includes('nx-project-release') &&
-          !line.includes('nx run-many') ||
-          line.trim().startsWith('#') // Keep comments
+        const filteredLines = lines.filter(
+          (line) =>
+            (!line.includes('nx-project-release') &&
+              !line.includes('nx run-many')) ||
+            line.trim().startsWith('#') // Keep comments
         );
 
         // Only update if content changed
         if (filteredLines.length !== lines.length) {
           tree.write(hookPath, filteredLines.join('\n'));
           hooksModified++;
-          logger.info(`✅ Cleaned ${hookName} hook (removed nx-project-release lines only)`);
+          logger.info(
+            `✅ Cleaned ${hookName} hook (removed nx-project-release lines only)`
+          );
         }
       }
     }
@@ -205,7 +233,10 @@ async function cleanSimpleGitHooks(tree: Tree): Promise<void> {
       const hooks = packageJson['simple-git-hooks'];
 
       for (const [hookName, hookCommand] of Object.entries(hooks)) {
-        if (typeof hookCommand === 'string' && hookCommand.includes('nx-project-release')) {
+        if (
+          typeof hookCommand === 'string' &&
+          hookCommand.includes('nx-project-release')
+        ) {
           delete hooks[hookName];
           hooksModified = true;
           logger.info(`✅ Removed ${hookName} hook from simple-git-hooks`);
@@ -219,7 +250,10 @@ async function cleanSimpleGitHooks(tree: Tree): Promise<void> {
       }
 
       if (hooksModified) {
-        tree.write(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n');
+        tree.write(
+          packageJsonPath,
+          JSON.stringify(packageJson, null, 2) + '\n'
+        );
       }
     } else {
       logger.info('ℹ️  No simple-git-hooks configuration found');

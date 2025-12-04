@@ -24,7 +24,9 @@ describe('Project Release Plugin', () => {
   });
 
   it('should export project-release executor', async () => {
-    const projectReleaseExecutor = await import('../executors/project-release/index.js');
+    const projectReleaseExecutor = await import(
+      '../executors/project-release/index.js'
+    );
     expect(projectReleaseExecutor).toBeDefined();
     expect(projectReleaseExecutor.default).toBeDefined();
   });

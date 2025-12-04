@@ -2,7 +2,7 @@ import {
   ExecutorContext,
   logger,
   readJsonFile,
-  workspaceRoot
+  workspaceRoot,
 } from '@nx/devkit';
 import { ValidateExecutorSchema } from './schema';
 import * as chalk from 'chalk';
@@ -49,8 +49,8 @@ export default async function validateExecutor(
     releaseGroup: null,
     health: {
       warnings: [],
-      errors: []
-    }
+      errors: [],
+    },
   };
 
   // --- Global Configuration ---
@@ -58,14 +58,24 @@ export default async function validateExecutor(
   logger.info('─'.repeat(60));
 
   if (projectRelease.projectsRelationship) {
-    logger.info(`  Versioning Strategy: ${chalk.cyan(projectRelease.projectsRelationship)}`);
+    logger.info(
+      `  Versioning Strategy: ${chalk.cyan(
+        projectRelease.projectsRelationship
+      )}`
+    );
     summary.global.versioningStrategy = projectRelease.projectsRelationship;
   } else {
-    logger.info(`  Versioning Strategy: ${chalk.gray('not set (defaults to independent)')}`);
+    logger.info(
+      `  Versioning Strategy: ${chalk.gray(
+        'not set (defaults to independent)'
+      )}`
+    );
   }
 
   if (projectRelease.versionFiles && projectRelease.versionFiles.length > 0) {
-    logger.info(`  Version Files: ${chalk.cyan(projectRelease.versionFiles.join(', '))}`);
+    logger.info(
+      `  Version Files: ${chalk.cyan(projectRelease.versionFiles.join(', '))}`
+    );
     summary.global.versionFiles = projectRelease.versionFiles;
   } else {
     logger.info(`  Version Files: ${chalk.gray('not set')}`);
@@ -80,7 +90,11 @@ export default async function validateExecutor(
       logger.info(`    Prefix: ${chalk.cyan(projectRelease.tagNaming.prefix)}`);
     }
     if (projectRelease.tagNaming.includeProjectName !== undefined) {
-      logger.info(`    Include Project Name: ${chalk.cyan(projectRelease.tagNaming.includeProjectName)}`);
+      logger.info(
+        `    Include Project Name: ${chalk.cyan(
+          projectRelease.tagNaming.includeProjectName
+        )}`
+      );
     }
     summary.global.tagNaming = projectRelease.tagNaming;
   }
@@ -95,8 +109,15 @@ export default async function validateExecutor(
     summary.global.registryUrl = projectRelease.registryUrl;
   }
 
-  if (projectRelease.excludedProjects && projectRelease.excludedProjects.length > 0) {
-    logger.info(`  Excluded Projects: ${chalk.yellow(projectRelease.excludedProjects.length)} projects`);
+  if (
+    projectRelease.excludedProjects &&
+    projectRelease.excludedProjects.length > 0
+  ) {
+    logger.info(
+      `  Excluded Projects: ${chalk.yellow(
+        projectRelease.excludedProjects.length
+      )} projects`
+    );
     if (options.verbose) {
       projectRelease.excludedProjects.forEach((p: string) => {
         logger.info(`    - ${p}`);
@@ -114,24 +135,42 @@ export default async function validateExecutor(
     logger.info('─'.repeat(60));
 
     let projectReleaseGroup = null;
-    for (const [groupName, group] of Object.entries(projectRelease.releaseGroups)) {
+    for (const [groupName, group] of Object.entries(
+      projectRelease.releaseGroups
+    )) {
       const groupProjects = (group as any).projects || [];
       if (groupProjects.includes(projectName)) {
         projectReleaseGroup = groupName;
-        logger.info(`  ${chalk.green('✓')} ${chalk.bold(groupName)} ${chalk.gray('(current project)')}`);
+        logger.info(
+          `  ${chalk.green('✓')} ${chalk.bold(groupName)} ${chalk.gray(
+            '(current project)'
+          )}`
+        );
         if (options.verbose) {
-          logger.info(`    Registry: ${chalk.cyan((group as any).registryType || 'not set')}`);
-          logger.info(`    Strategy: ${chalk.cyan((group as any).versionStrategy || 'independent')}`);
+          logger.info(
+            `    Registry: ${chalk.cyan(
+              (group as any).registryType || 'not set'
+            )}`
+          );
+          logger.info(
+            `    Strategy: ${chalk.cyan(
+              (group as any).versionStrategy || 'independent'
+            )}`
+          );
           logger.info(`    Projects: ${groupProjects.length}`);
         }
         summary.releaseGroup = { name: groupName, ...(group as any) };
       } else if (options.verbose) {
-        logger.info(`  ${chalk.gray('○')} ${groupName} (${groupProjects.length} projects)`);
+        logger.info(
+          `  ${chalk.gray('○')} ${groupName} (${groupProjects.length} projects)`
+        );
       }
     }
 
     if (!projectReleaseGroup) {
-      logger.info(`  ${chalk.yellow('⚠')} Current project not in any release group`);
+      logger.info(
+        `  ${chalk.yellow('⚠')} Current project not in any release group`
+      );
       summary.health.warnings.push('Project not assigned to any release group');
     }
 
@@ -149,15 +188,25 @@ export default async function validateExecutor(
     const versionOptions = targets['version'].options || {};
     logger.info(`  ${chalk.green('✓')} Version Executor Configured`);
     if (versionOptions.versionFiles) {
-      logger.info(`    Version Files: ${chalk.cyan(versionOptions.versionFiles.join(', '))}`);
+      logger.info(
+        `    Version Files: ${chalk.cyan(
+          versionOptions.versionFiles.join(', ')
+        )}`
+      );
       summary.projectConfig.versionFiles = versionOptions.versionFiles;
     }
     if (versionOptions.tagNaming) {
-      logger.info(`    Tag Naming: ${chalk.cyan(JSON.stringify(versionOptions.tagNaming))}`);
+      logger.info(
+        `    Tag Naming: ${chalk.cyan(
+          JSON.stringify(versionOptions.tagNaming)
+        )}`
+      );
       summary.projectConfig.tagNaming = versionOptions.tagNaming;
     }
     if (versionOptions.bumpDependents !== undefined) {
-      logger.info(`    Bump Dependents: ${chalk.cyan(versionOptions.bumpDependents)}`);
+      logger.info(
+        `    Bump Dependents: ${chalk.cyan(versionOptions.bumpDependents)}`
+      );
       summary.projectConfig.bumpDependents = versionOptions.bumpDependents;
     }
   } else {
@@ -187,7 +236,9 @@ export default async function validateExecutor(
     const publishOptions = targets['publish'].options || {};
     logger.info(`  ${chalk.green('✓')} Publish Executor Configured`);
     if (publishOptions.registryType) {
-      logger.info(`    Registry Type: ${chalk.cyan(publishOptions.registryType)}`);
+      logger.info(
+        `    Registry Type: ${chalk.cyan(publishOptions.registryType)}`
+      );
       summary.projectConfig.registryType = publishOptions.registryType;
     }
     if (publishOptions.registry) {
@@ -207,28 +258,39 @@ export default async function validateExecutor(
     logger.info('─'.repeat(60));
 
     // Check if project is excluded
-    if (projectRelease.excludedProjects && projectRelease.excludedProjects.includes(projectName)) {
+    if (
+      projectRelease.excludedProjects &&
+      projectRelease.excludedProjects.includes(projectName)
+    ) {
       logger.warn(`  ${chalk.yellow('⚠')} Project is in excludedProjects list`);
       summary.health.warnings.push('Project is excluded from releases');
     }
 
     // Check for version files
     const versionTargetOptions = targets['version']?.options || {};
-    const versionFiles = versionTargetOptions.versionFiles || projectRelease.versionFiles || [];
+    const versionFiles =
+      versionTargetOptions.versionFiles || projectRelease.versionFiles || [];
     if (versionFiles.length === 0) {
       logger.warn(`  ${chalk.yellow('⚠')} No version files configured`);
       summary.health.warnings.push('No version files configured');
     }
 
     // Display summary
-    if (summary.health.errors.length === 0 && summary.health.warnings.length === 0) {
+    if (
+      summary.health.errors.length === 0 &&
+      summary.health.warnings.length === 0
+    ) {
       logger.info(`  ${chalk.green('✓')} No issues found`);
     } else {
       if (summary.health.errors.length > 0) {
-        logger.info(`  ${chalk.red('Errors:')} ${summary.health.errors.length}`);
+        logger.info(
+          `  ${chalk.red('Errors:')} ${summary.health.errors.length}`
+        );
       }
       if (summary.health.warnings.length > 0) {
-        logger.info(`  ${chalk.yellow('Warnings:')} ${summary.health.warnings.length}`);
+        logger.info(
+          `  ${chalk.yellow('Warnings:')} ${summary.health.warnings.length}`
+        );
       }
     }
 
@@ -243,10 +305,18 @@ export default async function validateExecutor(
   // --- Summary ---
   logger.info('═'.repeat(60));
   if (summary.health.errors.length > 0) {
-    logger.info(chalk.red(`❌ Validation completed with ${summary.health.errors.length} error(s)`));
+    logger.info(
+      chalk.red(
+        `❌ Validation completed with ${summary.health.errors.length} error(s)`
+      )
+    );
     return { success: false };
   } else if (summary.health.warnings.length > 0) {
-    logger.info(chalk.yellow(`⚠️  Validation completed with ${summary.health.warnings.length} warning(s)`));
+    logger.info(
+      chalk.yellow(
+        `⚠️  Validation completed with ${summary.health.warnings.length} warning(s)`
+      )
+    );
   } else {
     logger.info(chalk.green('✅ Configuration is valid'));
   }

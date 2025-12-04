@@ -6,7 +6,7 @@ import {
   updateNxJson,
   logger,
   addDependenciesToPackageJson,
-  getProjects
+  getProjects,
 } from '@nx/devkit';
 import { ConfigureReleaseSchema } from './schema';
 import * as path from 'path';
@@ -14,7 +14,10 @@ import Enquirer from 'enquirer';
 
 const { prompt } = Enquirer;
 
-export default async function configureReleaseGenerator(tree: Tree, options: ConfigureReleaseSchema) {
+export default async function configureReleaseGenerator(
+  tree: Tree,
+  options: ConfigureReleaseSchema
+) {
   // Handle project selection - support both single project and multiple projects
   let selectedProjects: string[] = [];
 
@@ -53,7 +56,11 @@ export default async function configureReleaseGenerator(tree: Tree, options: Con
   }
 
   logger.info('');
-  logger.info(`⚙️  Configuring release for ${selectedProjects.length} project(s): ${selectedProjects.join(', ')}`);
+  logger.info(
+    `⚙️  Configuring release for ${
+      selectedProjects.length
+    } project(s): ${selectedProjects.join(', ')}`
+  );
   logger.info('');
 
   // Check for existing release groups and prompt if not provided via options
@@ -80,7 +87,9 @@ export default async function configureReleaseGenerator(tree: Tree, options: Con
   logger.info('✅ Release configuration complete!');
   logger.info('');
   logger.info('📝 Next steps:');
-  logger.info(`   nx run ${options.project}:version --releaseAs=minor --dryRun`);
+  logger.info(
+    `   nx run ${options.project}:version --releaseAs=minor --dryRun`
+  );
   logger.info(`   nx run ${options.project}:changelog --dryRun`);
   logger.info(`   nx run ${options.project}:publish --dryRun`);
   logger.info('');
@@ -92,9 +101,17 @@ export default async function configureReleaseGenerator(tree: Tree, options: Con
   };
 }
 
-async function promptForReleaseGroupIfNeeded(tree: Tree, options: ConfigureReleaseSchema, selectedProjects: string[]): Promise<void> {
+async function promptForReleaseGroupIfNeeded(
+  tree: Tree,
+  options: ConfigureReleaseSchema,
+  selectedProjects: string[]
+): Promise<void> {
   // If release group options are already provided, skip prompting
-  if (options.releaseGroupName || options.addToReleaseGroup !== undefined || options.createNewGroup !== undefined) {
+  if (
+    options.releaseGroupName ||
+    options.addToReleaseGroup !== undefined ||
+    options.createNewGroup !== undefined
+  ) {
     return;
   }
 
@@ -113,7 +130,11 @@ async function promptForReleaseGroupIfNeeded(tree: Tree, options: ConfigureRelea
   for (const projectName of selectedProjects) {
     for (const groupName of groupNames) {
       const group = existingGroups[groupName];
-      if (group.projects && Array.isArray(group.projects) && group.projects.includes(projectName)) {
+      if (
+        group.projects &&
+        Array.isArray(group.projects) &&
+        group.projects.includes(projectName)
+      ) {
         projectGroupMap.set(projectName, groupName);
         break;
       }
@@ -127,7 +148,7 @@ async function promptForReleaseGroupIfNeeded(tree: Tree, options: ConfigureRelea
     for (const [projectName, groupName] of projectGroupMap) {
       logger.info(`   • ${projectName} → '${groupName}'`);
     }
-    const ungrouped = selectedProjects.filter(p => !projectGroupMap.has(p));
+    const ungrouped = selectedProjects.filter((p) => !projectGroupMap.has(p));
     if (ungrouped.length > 0) {
       logger.info(`   • ${ungrouped.join(', ')} → (no group)`);
     }
@@ -138,7 +159,11 @@ async function promptForReleaseGroupIfNeeded(tree: Tree, options: ConfigureRelea
     logger.info(`📦 Found ${groupNames.length} existing release group(s):`);
     for (const groupName of groupNames) {
       const group = existingGroups[groupName];
-      logger.info(`   • ${groupName} (${group.registryType || 'unknown'} - ${group.projects?.length || 0} projects)`);
+      logger.info(
+        `   • ${groupName} (${group.registryType || 'unknown'} - ${
+          group.projects?.length || 0
+        } projects)`
+      );
     }
     logger.info('');
 
@@ -149,17 +174,22 @@ async function promptForReleaseGroupIfNeeded(tree: Tree, options: ConfigureRelea
       choices: [
         { name: 'existing', message: 'Add to an existing release group' },
         { name: 'new', message: 'Create a new release group' },
-        { name: 'standalone', message: 'Configure as standalone (no release group)' }
-      ]
+        {
+          name: 'standalone',
+          message: 'Configure as standalone (no release group)',
+        },
+      ],
     });
 
     if (action === 'existing') {
       // Show list of existing groups
-      const choices = groupNames.map(name => {
+      const choices = groupNames.map((name) => {
         const group = existingGroups[name];
         return {
           name,
-          message: `${name} (${group.registryType || 'unknown'} - ${group.projects?.length || 0} projects)`
+          message: `${name} (${group.registryType || 'unknown'} - ${
+            group.projects?.length || 0
+          } projects)`,
         };
       });
 
@@ -167,7 +197,7 @@ async function promptForReleaseGroupIfNeeded(tree: Tree, options: ConfigureRelea
         type: 'select',
         name: 'selectedGroup',
         message: 'Select a release group:',
-        choices
+        choices,
       });
 
       options.addToReleaseGroup = true;
@@ -186,7 +216,9 @@ async function promptForReleaseGroupIfNeeded(tree: Tree, options: ConfigureRelea
       }
 
       logger.info('');
-      logger.info(`✅ Will add selected projects to release group '${selectedGroup}'`);
+      logger.info(
+        `✅ Will add selected projects to release group '${selectedGroup}'`
+      );
     } else if (action === 'new') {
       options.createNewGroup = true;
 
@@ -196,13 +228,15 @@ async function promptForReleaseGroupIfNeeded(tree: Tree, options: ConfigureRelea
           type: 'input',
           name: 'groupName',
           message: 'Enter a name for the new release group:',
-          initial: `${options.registryType || 'my'}-group`
+          initial: `${options.registryType || 'my'}-group`,
         });
         options.releaseGroupName = groupName;
       }
 
       logger.info('');
-      logger.info(`✅ Will create new release group '${options.releaseGroupName}'`);
+      logger.info(
+        `✅ Will create new release group '${options.releaseGroupName}'`
+      );
     } else {
       // Standalone - prompt for registry settings if not provided
       options.addToReleaseGroup = false;
@@ -221,8 +255,8 @@ async function promptForReleaseGroupIfNeeded(tree: Tree, options: ConfigureRelea
             { name: 's3', message: 'AWS S3' },
             { name: 'github', message: 'GitHub Releases' },
             { name: 'custom', message: 'Custom registry' },
-            { name: 'none', message: 'No publishing (version & tag only)' }
-          ]
+            { name: 'none', message: 'No publishing (version & tag only)' },
+          ],
         });
         options.registryType = registryType as any;
       }
@@ -234,7 +268,7 @@ async function promptForReleaseGroupIfNeeded(tree: Tree, options: ConfigureRelea
           type: 'input',
           name: 'registryUrl',
           message: `Registry URL?`,
-          initial: defaultUrl
+          initial: defaultUrl,
         });
         options.registryUrl = registryUrl || defaultUrl;
       }
@@ -250,7 +284,7 @@ async function promptForReleaseGroupIfNeeded(tree: Tree, options: ConfigureRelea
       type: 'confirm',
       name: 'createGroup',
       message: 'Create a new release group for this project?',
-      initial: false
+      initial: false,
     });
 
     if (createGroup) {
@@ -262,7 +296,7 @@ async function promptForReleaseGroupIfNeeded(tree: Tree, options: ConfigureRelea
           type: 'input',
           name: 'groupName',
           message: 'Enter a name for the new release group:',
-          initial: `${options.registryType || 'my'}-group`
+          initial: `${options.registryType || 'my'}-group`,
         });
         options.releaseGroupName = groupName;
       }
@@ -284,8 +318,8 @@ async function promptForReleaseGroupIfNeeded(tree: Tree, options: ConfigureRelea
             { name: 's3', message: 'AWS S3' },
             { name: 'github', message: 'GitHub Releases' },
             { name: 'custom', message: 'Custom registry' },
-            { name: 'none', message: 'No publishing (version & tag only)' }
-          ]
+            { name: 'none', message: 'No publishing (version & tag only)' },
+          ],
         });
         options.registryType = registryType as any;
       }
@@ -297,7 +331,7 @@ async function promptForReleaseGroupIfNeeded(tree: Tree, options: ConfigureRelea
           type: 'input',
           name: 'registryUrl',
           message: `Registry URL?`,
-          initial: defaultUrl
+          initial: defaultUrl,
         });
         options.registryUrl = registryUrl || defaultUrl;
       }
@@ -308,7 +342,12 @@ async function promptForReleaseGroupIfNeeded(tree: Tree, options: ConfigureRelea
   }
 }
 
-function addReleaseTargets(tree: Tree, options: ConfigureReleaseSchema, projectConfig: any, projectName: string) {
+function addReleaseTargets(
+  tree: Tree,
+  options: ConfigureReleaseSchema,
+  projectConfig: any,
+  projectName: string
+) {
   if (!projectConfig.targets) {
     projectConfig.targets = {};
   }
@@ -317,13 +356,13 @@ function addReleaseTargets(tree: Tree, options: ConfigureReleaseSchema, projectC
   projectConfig.targets['version'] = {
     executor: 'nx-project-release:version',
     options: {
-      versionFiles: options.versionFiles || ['package.json']
-    }
+      versionFiles: options.versionFiles || ['package.json'],
+    },
   };
 
   // 2. Add changelog target (always)
   projectConfig.targets['changelog'] = {
-    executor: 'nx-project-release:changelog'
+    executor: 'nx-project-release:changelog',
   };
 
   // 3. Add artifact target (always)
@@ -334,9 +373,9 @@ function addReleaseTargets(tree: Tree, options: ConfigureReleaseSchema, projectC
       sourceDir: `dist/${projectConfig.root}`,
       outputDir: 'dist/artifacts',
       format: 'tgz',
-      artifactName: `{projectName}-{version}.tgz`
+      artifactName: `{projectName}-{version}.tgz`,
     },
-    outputs: ['{workspaceRoot}/dist/artifacts']
+    outputs: ['{workspaceRoot}/dist/artifacts'],
   };
 
   // 4. Add release target (always)
@@ -344,8 +383,8 @@ function addReleaseTargets(tree: Tree, options: ConfigureReleaseSchema, projectC
     executor: 'nx-project-release:release',
     options: {
       gitPush: false,
-      createGitHubRelease: false
-    }
+      createGitHubRelease: false,
+    },
   };
 
   // 5. Add publish target (only if registryType !== 'none')
@@ -354,9 +393,10 @@ function addReleaseTargets(tree: Tree, options: ConfigureReleaseSchema, projectC
       executor: 'nx-project-release:publish',
       options: {
         registryType: options.registryType,
-        registry: options.registryUrl || getDefaultRegistry(options.registryType)
+        registry:
+          options.registryUrl || getDefaultRegistry(options.registryType),
       },
-      dependsOn: ['build', 'artifact']
+      dependsOn: ['build', 'artifact'],
     };
 
     // Add registry-specific options
@@ -373,7 +413,11 @@ function addReleaseTargets(tree: Tree, options: ConfigureReleaseSchema, projectC
   logger.info(`✅ Added release targets to ${projectName}`);
 }
 
-function initializeVersionFile(tree: Tree, options: ConfigureReleaseSchema, projectConfig: any) {
+function initializeVersionFile(
+  tree: Tree,
+  options: ConfigureReleaseSchema,
+  projectConfig: any
+) {
   const projectRoot = projectConfig.root;
   const versionFile = options.versionFiles?.[0] || 'package.json';
   const versionFilePath = path.join(projectRoot, versionFile);
@@ -384,25 +428,42 @@ function initializeVersionFile(tree: Tree, options: ConfigureReleaseSchema, proj
       const packageJson = {
         name: options.project,
         version: options.initialVersion || '0.1.0',
-        private: true
+        private: true,
       };
       tree.write(versionFilePath, JSON.stringify(packageJson, null, 2) + '\n');
-      logger.info(`✅ Created ${versionFilePath} with version ${options.initialVersion || '0.1.0'}`);
+      logger.info(
+        `✅ Created ${versionFilePath} with version ${
+          options.initialVersion || '0.1.0'
+        }`
+      );
     } else if (versionFile === 'project.json') {
       // Read existing project.json and add version
       if (tree.exists(path.join(projectRoot, 'project.json'))) {
-        const existingConfig = JSON.parse(tree.read(path.join(projectRoot, 'project.json'), 'utf-8') || '{}');
+        const existingConfig = JSON.parse(
+          tree.read(path.join(projectRoot, 'project.json'), 'utf-8') || '{}'
+        );
         existingConfig.version = options.initialVersion || '0.1.0';
-        tree.write(path.join(projectRoot, 'project.json'), JSON.stringify(existingConfig, null, 2) + '\n');
-        logger.info(`✅ Added version ${options.initialVersion || '0.1.0'} to ${versionFilePath}`);
+        tree.write(
+          path.join(projectRoot, 'project.json'),
+          JSON.stringify(existingConfig, null, 2) + '\n'
+        );
+        logger.info(
+          `✅ Added version ${
+            options.initialVersion || '0.1.0'
+          } to ${versionFilePath}`
+        );
       }
     } else {
       // Create custom version file
       const versionData = {
-        version: options.initialVersion || '0.1.0'
+        version: options.initialVersion || '0.1.0',
       };
       tree.write(versionFilePath, JSON.stringify(versionData, null, 2) + '\n');
-      logger.info(`✅ Created ${versionFilePath} with version ${options.initialVersion || '0.1.0'}`);
+      logger.info(
+        `✅ Created ${versionFilePath} with version ${
+          options.initialVersion || '0.1.0'
+        }`
+      );
     }
   } else {
     // File exists, check if it has a version
@@ -413,9 +474,15 @@ function initializeVersionFile(tree: Tree, options: ConfigureReleaseSchema, proj
         if (!json.version) {
           json.version = options.initialVersion || '0.1.0';
           tree.write(versionFilePath, JSON.stringify(json, null, 2) + '\n');
-          logger.info(`✅ Added version ${options.initialVersion || '0.1.0'} to ${versionFilePath}`);
+          logger.info(
+            `✅ Added version ${
+              options.initialVersion || '0.1.0'
+            } to ${versionFilePath}`
+          );
         } else {
-          logger.info(`ℹ️  ${versionFilePath} already has version: ${json.version}`);
+          logger.info(
+            `ℹ️  ${versionFilePath} already has version: ${json.version}`
+          );
         }
       } catch (error) {
         logger.warn(`⚠️  Could not parse ${versionFilePath}: ${error}`);
@@ -424,7 +491,11 @@ function initializeVersionFile(tree: Tree, options: ConfigureReleaseSchema, proj
   }
 }
 
-function addToReleaseGroupMultiple(tree: Tree, options: ConfigureReleaseSchema, selectedProjects: string[]) {
+function addToReleaseGroupMultiple(
+  tree: Tree,
+  options: ConfigureReleaseSchema,
+  selectedProjects: string[]
+) {
   const nxJson = readNxJson(tree);
   if (!nxJson) {
     logger.warn('⚠️  Could not read nx.json');
@@ -449,16 +520,22 @@ function addToReleaseGroupMultiple(tree: Tree, options: ConfigureReleaseSchema, 
     removeProjectFromOtherGroups(nxJsonAny, projectName, groupName);
   }
 
-  if (options.createNewGroup || !nxJsonAny.projectRelease.releaseGroups[groupName]) {
+  if (
+    options.createNewGroup ||
+    !nxJsonAny.projectRelease.releaseGroups[groupName]
+  ) {
     // Create new release group with all selected projects
     nxJsonAny.projectRelease.releaseGroups[groupName] = {
       registryType: options.registryType,
-      registryUrl: options.registryUrl || getDefaultRegistry(options.registryType),
+      registryUrl:
+        options.registryUrl || getDefaultRegistry(options.registryType),
       versionStrategy: 'independent',
       versionFiles: options.versionFiles || ['package.json'],
-      projects: selectedProjects
+      projects: selectedProjects,
     };
-    logger.info(`✅ Created release group '${groupName}' with ${selectedProjects.length} projects`);
+    logger.info(
+      `✅ Created release group '${groupName}' with ${selectedProjects.length} projects`
+    );
   } else {
     // Add to existing group
     const group = nxJsonAny.projectRelease.releaseGroups[groupName];
@@ -475,16 +552,24 @@ function addToReleaseGroupMultiple(tree: Tree, options: ConfigureReleaseSchema, 
     }
 
     if (addedCount > 0) {
-      logger.info(`✅ Added ${addedCount} project(s) to release group '${groupName}'`);
+      logger.info(
+        `✅ Added ${addedCount} project(s) to release group '${groupName}'`
+      );
     } else {
-      logger.info(`ℹ️  All selected projects already in release group '${groupName}'`);
+      logger.info(
+        `ℹ️  All selected projects already in release group '${groupName}'`
+      );
     }
   }
 
   updateNxJson(tree, nxJson);
 }
 
-function removeProjectFromOtherGroups(nxJsonAny: any, projectName: string, currentGroupName: string): void {
+function removeProjectFromOtherGroups(
+  nxJsonAny: any,
+  projectName: string,
+  currentGroupName: string
+): void {
   if (!nxJsonAny.projectRelease?.releaseGroups) {
     return;
   }
@@ -502,7 +587,9 @@ function removeProjectFromOtherGroups(nxJsonAny: any, projectName: string, curre
       const index = groupData.projects.indexOf(projectName);
       if (index > -1) {
         groupData.projects.splice(index, 1);
-        logger.info(`ℹ️  Removed ${projectName} from release group '${groupName}'`);
+        logger.info(
+          `ℹ️  Removed ${projectName} from release group '${groupName}'`
+        );
 
         // If group is now empty, optionally remove it
         if (groupData.projects.length === 0) {

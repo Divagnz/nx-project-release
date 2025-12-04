@@ -17,22 +17,22 @@ export default [
             'archiver',
             '@types/archiver',
             'tar',
-            '@types/tar'
-          ]
-        }
-      ]
+            '@types/tar',
+          ],
+        },
+      ],
     },
     languageOptions: {
-      parser: await import('jsonc-eslint-parser')
-    }
+      parser: await import('jsonc-eslint-parser'),
+    },
   },
   {
     files: ['**/package.json'],
     rules: {
-      '@nx/nx-plugin-checks': 'error'
+      '@nx/nx-plugin-checks': 'error',
     },
     languageOptions: {
-      parser: await import('jsonc-eslint-parser')
-    }
-  }
+      parser: await import('jsonc-eslint-parser'),
+    },
+  },
 ];

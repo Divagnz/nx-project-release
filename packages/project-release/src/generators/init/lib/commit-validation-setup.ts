@@ -1,4 +1,10 @@
-import { Tree, logger, updateJson, joinPathFragments, addDependenciesToPackageJson } from '@nx/devkit';
+import {
+  Tree,
+  logger,
+  updateJson,
+  joinPathFragments,
+  addDependenciesToPackageJson,
+} from '@nx/devkit';
 import { detectHookSystem } from './hooks-utils.js';
 
 export interface CommitValidationOptions {
@@ -77,7 +83,9 @@ function installDependencies(
     return null;
   }
 
-  logger.info(`📦 Installing dependencies: ${Object.keys(devDependencies).join(', ')}`);
+  logger.info(
+    `📦 Installing dependencies: ${Object.keys(devDependencies).join(', ')}`
+  );
 
   return addDependenciesToPackageJson(tree, {}, devDependencies);
 }
@@ -92,7 +100,7 @@ function configureCommitizen(tree: Tree): void {
   updateJson(tree, 'package.json', (json) => {
     json.config = json.config || {};
     json.config.commitizen = {
-      path: './node_modules/cz-conventional-changelog'
+      path: './node_modules/cz-conventional-changelog',
     };
     return json;
   });
@@ -196,7 +204,9 @@ function setupSimpleGitHooksCommitMsg(tree: Tree): void {
     json['simple-git-hooks'] = json['simple-git-hooks'] || {};
 
     if (json['simple-git-hooks']['commit-msg']) {
-      logger.warn('⚠️  simple-git-hooks commit-msg already configured, skipping');
+      logger.warn(
+        '⚠️  simple-git-hooks commit-msg already configured, skipping'
+      );
       return json;
     }
 

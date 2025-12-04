@@ -23,18 +23,34 @@
     },
     "workflowType": {
       "type": "string",
-      "enum": ["release-publish", "affected", "manual", "on-merge", "pr-validation", "all"],
+      "enum": [
+        "release-publish",
+        "affected",
+        "manual",
+        "on-merge",
+        "pr-validation",
+        "all"
+      ],
       "description": "Type of workflow to create",
       "default": "release-publish",
       "x-prompt": {
         "message": "Which workflow type?",
         "type": "list",
         "items": [
-          { "value": "release-publish", "label": "Release & Publish (complete flow)" },
-          { "value": "affected", "label": "Affected projects (auto-release on push)" },
+          {
+            "value": "release-publish",
+            "label": "Release & Publish (complete flow)"
+          },
+          {
+            "value": "affected",
+            "label": "Affected projects (auto-release on push)"
+          },
           { "value": "manual", "label": "Manual release (workflow_dispatch)" },
           { "value": "on-merge", "label": "Release on PR merge" },
-          { "value": "pr-validation", "label": "PR validation (dry-run preview)" },
+          {
+            "value": "pr-validation",
+            "label": "PR validation (dry-run preview)"
+          },
           { "value": "all", "label": "All workflows" }
         ]
       }
