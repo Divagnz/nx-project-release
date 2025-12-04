@@ -5,6 +5,25 @@ import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { glob } from 'glob';
 
+// Types for nx.json release configuration
+interface ReleaseGroup {
+  projects: string[];
+  versionStrategy?: 'independent' | 'fixed';
+  projectsRelationship?: 'independent' | 'fixed';
+  versionFiles?: string[];
+  tagNaming?: {
+    format?: string;
+    prefix?: string;
+    suffix?: string;
+    includeProjectName?: boolean;
+  };
+}
+
+interface NxReleaseConfig {
+  projectsRelationship?: 'independent' | 'fixed';
+  releaseGroups?: Record<string, ReleaseGroup>;
+}
+
 export default async function releaseExecutor(
   options: ReleaseExecutorSchema,
   context: ExecutorContext
@@ -39,27 +58,23 @@ export default async function releaseExecutor(
       return { success: false };
     }
 
-    // Read global config for tag format
-    const globalConfig = getGlobalConfig(context);
-    const releaseGroups = globalConfig.releaseGroups || {};
+    // Get release group configuration for proper tag formatting
+    const { group, groupName } = getReleaseGroupForProject(
+      projectName,
+      context
+    );
+    const nxConfig = getNxReleaseConfig(context);
 
-    // Find which group this project belongs to (if any)
-    let projectGroup = '';
-    for (const [groupName, groupConfig] of Object.entries(releaseGroups)) {
-      if ((groupConfig as any).projects?.includes(projectName)) {
-        projectGroup = groupName;
-        break;
-      }
-    }
-
-    const group = projectGroup ? releaseGroups[projectGroup] : undefined;
-    const tagFormat = options.tagPrefix
-      ? `${options.tagPrefix}{version}`
-      : (group as any)?.tagNaming?.format || '{projectName}-v{version}';
-
-    const tag = tagFormat
-      .replace('{projectName}', projectName)
-      .replace('{version}', version);
+    // Generate tag using proper logic
+    const tag = generateTagName(projectName, version, {
+      tagPrefix: options.tagPrefix,
+      tagNaming: group?.tagNaming,
+      projectsRelationship:
+        group?.projectsRelationship ||
+        nxConfig.projectsRelationship ||
+        'independent',
+      releaseGroup: groupName,
+    });
 
     logger.info(`📦 Version: ${version}`);
     logger.info(`🏷️  Tag: ${tag}`);
@@ -147,7 +162,7 @@ async function pushTag(workspaceRoot: string, tag: string): Promise<void> {
   }
 }
 
-function getGlobalConfig(context: ExecutorContext): any {
+function getNxReleaseConfig(context: ExecutorContext): NxReleaseConfig {
   const nxJsonPath = join(context.root, 'nx.json');
   if (!existsSync(nxJsonPath)) {
     return {};
@@ -155,10 +170,89 @@ function getGlobalConfig(context: ExecutorContext): any {
 
   try {
     const nxJson = JSON.parse(readFileSync(nxJsonPath, 'utf-8'));
-    return nxJson.projectRelease || {};
+    return (nxJson?.projectRelease as NxReleaseConfig) || {};
   } catch {
     return {};
   }
+}
+
+function matchesProjectPattern(
+  projectName: string,
+  patterns: string[]
+): boolean {
+  return patterns.some((pattern) => {
+    // Convert glob pattern to regex
+    const regexPattern = pattern.replace(/\*/g, '.*').replace(/\?/g, '.');
+    const regex = new RegExp(`^${regexPattern}$`);
+    return regex.test(projectName);
+  });
+}
+
+function getReleaseGroupForProject(
+  projectName: string,
+  context: ExecutorContext
+): { group?: ReleaseGroup; groupName?: string } {
+  const nxConfig = getNxReleaseConfig(context);
+
+  if (!nxConfig.releaseGroups) {
+    return {};
+  }
+
+  // Auto-detect release group based on project patterns
+  for (const [groupName, group] of Object.entries(nxConfig.releaseGroups)) {
+    if (matchesProjectPattern(projectName, group.projects)) {
+      return { group, groupName };
+    }
+  }
+
+  return {};
+}
+
+function generateTagName(
+  projectName: string,
+  version: string,
+  options: {
+    tagPrefix?: string;
+    tagNaming?: ReleaseGroup['tagNaming'];
+    projectsRelationship?: 'independent' | 'fixed';
+    releaseGroup?: string;
+  }
+): string {
+  // If tagPrefix is provided, use it
+  if (options.tagPrefix) {
+    return `${options.tagPrefix}${version}`;
+  }
+
+  const tagNaming = options.tagNaming || {};
+  const releaseGroupName = options.releaseGroup;
+
+  // Determine tag pattern based on projectsRelationship
+  let defaultFormat: string;
+  if (options.projectsRelationship === 'independent') {
+    // Independent: default to {projectName}@{version}
+    defaultFormat = '{projectName}@{version}';
+  } else if (releaseGroupName) {
+    // Fixed with release group: {releaseGroupName}-v{version}
+    defaultFormat = '{releaseGroupName}-v{version}';
+  } else {
+    // Fixed without release group: v{version}
+    defaultFormat = 'v{version}';
+  }
+
+  const prefix =
+    tagNaming.prefix ||
+    (tagNaming.includeProjectName !== false && !releaseGroupName
+      ? `${projectName}-v`
+      : '');
+  const suffix = tagNaming.suffix || '';
+  const format = tagNaming.format || defaultFormat;
+
+  return format
+    .replace('{prefix}', prefix)
+    .replace('{version}', version)
+    .replace('{suffix}', suffix)
+    .replace('{projectName}', projectName)
+    .replace('{releaseGroupName}', releaseGroupName || '');
 }
 
 async function createTag(
@@ -203,29 +297,22 @@ function getProjectVersion(
   projectName: string,
   projectRoot: string
 ): string | null {
-  // Try package.json first
-  const packageJsonPath = join(context.root, projectRoot, 'package.json');
-  if (existsSync(packageJsonPath)) {
-    try {
-      const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
-      if (packageJson.version) {
-        return packageJson.version;
-      }
-    } catch {
-      // Ignore
-    }
-  }
+  // Get release group configuration to determine which files to check
+  const { group } = getReleaseGroupForProject(projectName, context);
+  const versionFiles = group?.versionFiles || ['project.json', 'package.json'];
 
-  // Try project.json
-  const projectJsonPath = join(context.root, projectRoot, 'project.json');
-  if (existsSync(projectJsonPath)) {
-    try {
-      const projectJson = JSON.parse(readFileSync(projectJsonPath, 'utf-8'));
-      if (projectJson.version) {
-        return projectJson.version;
+  // Try version files in order specified by release group
+  for (const versionFile of versionFiles) {
+    const filePath = join(context.root, projectRoot, versionFile);
+    if (existsSync(filePath)) {
+      try {
+        const fileContent = JSON.parse(readFileSync(filePath, 'utf-8'));
+        if (fileContent.version) {
+          return fileContent.version;
+        }
+      } catch {
+        // Ignore and try next file
       }
-    } catch {
-      // Ignore
     }
   }
 
