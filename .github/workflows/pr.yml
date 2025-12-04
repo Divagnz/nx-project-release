@@ -31,13 +31,13 @@ jobs:
             echo "Removing local file dependency for CI..."
             npm pkg delete devDependencies.nx-project-release
           fi
-          npm ci
+          npm i
 
       - name: Lint
         run: npx nx lint @nx-project-release
 
       - name: Build
-        run: npx nx build @nx-project-release
+        run: npx nx run-many -t build
 
       - name: Test
         run: npx nx test @nx-project-release

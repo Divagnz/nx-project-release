@@ -49,6 +49,7 @@ nx g nx-project-release:init
 ```
 
 The init generator will guide you through:
+
 - ✅ Git operations (commit, tag, CI-only mode)
 - ✅ Changelog configuration (conventional commits preset)
 - ✅ Publishing setup (npm access, dist tags, build target)
@@ -87,6 +88,7 @@ nx run my-project:project-release --gitCommit --gitTag
 ## 📋 Core Executors
 
 ### version
+
 Bumps project version based on conventional commits or explicit input.
 
 ```bash
@@ -110,12 +112,14 @@ nx run my-project:version --preview
 ```
 
 > **How Version Detection Works (v0.0.30+)**:
+>
 > - When using `nx affected -t version`, Nx determines affected projects based on file changes
 > - Version executor analyzes conventional commits since last tag to determine bump type (major/minor/patch)
 > - Projects in `excludedProjects` list are automatically skipped
 > - Use `--releaseAs` to override automatic detection
 
 **Key options:**
+
 - `--version` - Explicit version (e.g., `1.2.3`)
 - `--releaseAs` - Bump type: `major | minor | patch | prerelease`
 - `--preid` - Prerelease identifier: `alpha | beta | rc`
@@ -127,6 +131,7 @@ nx run my-project:version --preview
 - `--dryRun` - Preview changes without execution
 
 ### changelog
+
 Generates changelog from conventional commits.
 
 ```bash
@@ -141,6 +146,7 @@ nx run my-project:changelog --preset=conventionalcommits
 ```
 
 ### artifact
+
 Creates distributable artifacts (zip, tar, tgz) from build output for non-npm projects.
 
 ```bash
@@ -158,6 +164,7 @@ nx run my-project:artifact --exclude='**/*.map' --exclude='**/*.spec.ts'
 ```
 
 **Template variables:**
+
 - `{projectName}` - Project name
 - `{version}` - Current version
 - `{hash}` - Git short hash
@@ -168,6 +175,7 @@ nx run my-project:artifact --exclude='**/*.map' --exclude='**/*.spec.ts'
 - `{extension}` - File extension based on format
 
 **Key options:**
+
 - `--sourceDir` - Source directory to archive (required)
 - `--outputDir` - Output directory (default: `dist/artifacts`)
 - `--artifactName` - Filename template (default: `{projectName}-{version}.{extension}`)
@@ -179,6 +187,7 @@ nx run my-project:artifact --exclude='**/*.map' --exclude='**/*.spec.ts'
 - `--metadata` - Additional metadata for manifest
 
 ### publish
+
 Publishes built artifacts to configured registry.
 
 ```bash
@@ -193,6 +202,7 @@ nx run my-project:publish --registryType=s3
 ```
 
 ### project-release
+
 All-in-one executor that runs version + changelog + publish.
 
 ```bash
@@ -211,7 +221,9 @@ nx g nx-project-release:setup-workflows
 ```
 
 #### Single-Step Workflow (Default)
+
 Everything happens in one workflow run:
+
 ```
 Version → Changelog → Build → Artifact → Tag → Push → GitHub Release → Publish
 ```
@@ -238,19 +250,23 @@ jobs:
 ```
 
 #### Two-Step Workflow (Recommended for Production)
+
 Splits release into two workflows:
 
 **Step 1: Release PR (on push to main)**
+
 ```
 Version → Changelog → Tag → Push
 ```
 
 **Step 2: Publish (triggered by release commit)**
+
 ```
 Build → Artifact → GitHub Release → Publish
 ```
 
 **Benefits:**
+
 - ✅ Faster feedback on version changes (no build/artifact wait)
 - ✅ Artifacts never committed to git (keeps repo clean)
 - ✅ Clear separation: versioning vs distribution
@@ -287,6 +303,7 @@ jobs:
 ```
 
 **Enable two-step workflow:**
+
 ```bash
 nx g nx-project-release:setup-workflows --twoStepRelease
 ```
@@ -294,6 +311,7 @@ nx g nx-project-release:setup-workflows --twoStepRelease
 ### Artifact Handling
 
 **How it works:**
+
 1. **Artifacts are created** locally with `nx affected -t artifact`
 2. **Artifacts stay in `dist/artifacts/`** (never committed to git)
 3. **Project-specific artifacts** are attached to GitHub releases using pattern:
@@ -302,6 +320,7 @@ nx g nx-project-release:setup-workflows --twoStepRelease
    ```
 
 **Example:** If you have projects `my-api` and `my-cli`:
+
 ```
 dist/artifacts/
   ├── my-api-v1.2.3.tgz
@@ -310,6 +329,7 @@ dist/artifacts/
 ```
 
 **GitHub Releases:**
+
 - `my-api v1.2.3` gets `my-api-v1.2.3.tgz`
 - `my-cli v2.0.1` gets both `my-cli-v2.0.1.tgz` and `my-cli-v2.0.1-linux-x64.tar.gz`
 
@@ -318,6 +338,7 @@ dist/artifacts/
 **Scenario:** You have a monorepo with 3 libraries and 2 applications.
 
 **1. Make changes and commit:**
+
 ```bash
 # Feature development
 git checkout -b feature/user-auth
@@ -328,6 +349,7 @@ git push origin feature/user-auth
 ```
 
 **2. Merge PR to main:**
+
 ```bash
 gh pr merge feature/user-auth --squash
 ```
@@ -335,6 +357,7 @@ gh pr merge feature/user-auth --squash
 **3. Workflow automatically runs:**
 
 **Single-Step:**
+
 ```
 ✅ nx affected -t version → lib-auth: 1.2.0→1.3.0, app-web: 1.0.0→1.1.0
 ✅ nx affected -t changelog → Updated CHANGELOG.md files
@@ -348,6 +371,7 @@ gh pr merge feature/user-auth --squash
 ```
 
 **Two-Step:**
+
 ```
 Workflow 1 (Release PR):
 ✅ nx affected -t version → lib-auth: 1.2.0→1.3.0, app-web: 1.0.0→1.1.0
@@ -364,6 +388,7 @@ Workflow 2 (Publish):
 ```
 
 **Result:**
+
 - ✅ 2 packages published to npm
 - ✅ 2 Git tags created
 - ✅ 2 GitHub releases created with artifacts
@@ -372,15 +397,15 @@ Workflow 2 (Publish):
 
 ### Workflow Comparison
 
-| Feature | Single-Step | Two-Step |
-|---------|-------------|----------|
-| **Speed** | ⚡ Fastest (one run) | 🐢 Two separate runs |
-| **Repo Size** | 🎯 Clean (no artifacts) | 🎯 Clean (no artifacts) |
-| **Feedback** | 🐌 Wait for full build | ⚡ Fast version feedback |
-| **Complexity** | ✅ Simple | ⚠️ Two workflows |
-| **Rollback** | ⚠️ Hard (all-or-nothing) | ✅ Easy (stop at version) |
-| **Lock Issues** | ✅ Manual push (no issues) | ✅ Manual push (no issues) |
-| **Best For** | Small teams, simple projects | Production, large monorepos |
+| Feature         | Single-Step                  | Two-Step                    |
+| --------------- | ---------------------------- | --------------------------- |
+| **Speed**       | ⚡ Fastest (one run)         | 🐢 Two separate runs        |
+| **Repo Size**   | 🎯 Clean (no artifacts)      | 🎯 Clean (no artifacts)     |
+| **Feedback**    | 🐌 Wait for full build       | ⚡ Fast version feedback    |
+| **Complexity**  | ✅ Simple                    | ⚠️ Two workflows            |
+| **Rollback**    | ⚠️ Hard (all-or-nothing)     | ✅ Easy (stop at version)   |
+| **Lock Issues** | ✅ Manual push (no issues)   | ✅ Manual push (no issues)  |
+| **Best For**    | Small teams, simple projects | Production, large monorepos |
 
 ## 🔐 CI/CD Safety
 
@@ -396,6 +421,7 @@ nx run my-project:version --gitCommit --gitTag --ciOnly=false
 ```
 
 The `ciOnly` flag checks for CI environment variables:
+
 - `CI=true`
 - `GITHUB_ACTIONS=true`
 - `GITLAB_CI=true`
@@ -403,6 +429,7 @@ The `ciOnly` flag checks for CI environment variables:
 - etc.
 
 **Configure in init:**
+
 ```
 ? Enforce CI-only releases (prevent accidental local releases)? (Y/n)
 ```
@@ -416,6 +443,7 @@ nx run my-project:publish --registryType=npm --access=public
 ```
 
 **Environment variables:**
+
 - `NPM_TOKEN` - Authentication token
 
 ### Nexus Repository (Sonatype)
@@ -427,12 +455,14 @@ nx run my-project:publish --registryType=nexus --pathStrategy=version
 ```
 
 **Environment variables:**
+
 - `NEXUS_URL` - Server URL (e.g., `https://nexus.example.com`)
 - `NEXUS_REPOSITORY` - Repository name (e.g., `raw-releases`)
 - `NEXUS_USERNAME` - Basic auth username
 - `NEXUS_PASSWORD` - Basic auth password
 
 **Path strategies:**
+
 - `version` - `{url}/repository/{repo}/1.2.3/artifact.tgz` (recommended)
 - `hash` - `{url}/repository/{repo}/{sha1}/artifact.tgz`
 
@@ -445,6 +475,7 @@ nx run my-project:publish --registryType=s3 --pathStrategy=version
 ```
 
 **Environment variables:**
+
 - `AWS_REGION` - AWS region (e.g., `us-east-1`)
 - `S3_BUCKET` - Bucket name
 - `S3_PREFIX` - Optional key prefix
@@ -452,6 +483,7 @@ nx run my-project:publish --registryType=s3 --pathStrategy=version
 - `AWS_SECRET_ACCESS_KEY` - Secret key (optional with IAM/OIDC)
 
 **Path strategies:**
+
 - `version` - `s3://{bucket}/{prefix}/1.2.3/artifact.tgz`
 - `hash` - `s3://{bucket}/{prefix}/{sha1}/artifact.tgz`
 - `flat` - `s3://{bucket}/{prefix}/artifact.tgz`
@@ -475,6 +507,7 @@ nx g nx-project-release:init
 ```
 
 Creates three GitHub Actions workflows:
+
 - `batch-release-pr.yml` - Create release branch + PR
 - `batch-publish.yml` - Publish after merge
 - `pr-validation.yml` - Dry-run preview in PR comments
@@ -496,6 +529,7 @@ gh pr create --title "chore(release): batch $(date +%Y-%m-%d)"
 ### Skipped Projects
 
 Projects are automatically skipped (not failed) in batch mode when:
+
 - No version configuration exists
 - Project is in the `excludedProjects` list (nx.json)
 
@@ -525,6 +559,7 @@ nx run my-project:version \
 ```
 
 **Options:**
+
 - `--createReleaseBranch` - Create branch like `release/v1.2.3`
 - `--releaseBranchName` - Custom name format (supports `{version}`, `{projectName}`, `{tag}`)
 - `--createPR` - Auto-create PR using GitHub CLI (`gh` required)
@@ -550,6 +585,7 @@ nx run my-project:version \
 **Why?** Keeps version numbers synchronized across branches without merging feature code.
 
 **Options:**
+
 - `--mergeAfterRelease` - Enable branch sync
 - `--mergeToBranches` - Target branches (array)
 - `--mergeStrategy` - `merge | squash | rebase` (default: `merge`)
@@ -561,6 +597,7 @@ nx run my-project:version \
 ### What Are Release Groups?
 
 Release groups define:
+
 - **Registry settings** - Where to publish (npm, Nexus, S3, or no publishing)
 - **Version strategy** - How to determine current version (git tags, files, registry)
 - **Version files** - Which files to update (package.json, project.json, version.txt)
@@ -570,12 +607,13 @@ Release groups define:
 
 These are two **different** concepts:
 
-| Concept | Purpose | Example |
-|---------|---------|---------|
-| **Release Groups** | Configuration templates | "backend-services" → Nexus registry<br>"npm-libraries" → npm registry<br>"frontend-apps" → no publishing |
-| **syncVersions** | Version number synchronization | `true`: All projects share one version (1.2.3)<br>`false`: Each project has independent versions |
+| Concept            | Purpose                        | Example                                                                                                  |
+| ------------------ | ------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| **Release Groups** | Configuration templates        | "backend-services" → Nexus registry<br>"npm-libraries" → npm registry<br>"frontend-apps" → no publishing |
+| **syncVersions**   | Version number synchronization | `true`: All projects share one version (1.2.3)<br>`false`: Each project has independent versions         |
 
 **Key distinction:**
+
 - Release groups = **WHERE/HOW** to release (registry, files, strategy)
 - syncVersions = **VERSION NUMBERS** stay in sync or not
 
@@ -616,6 +654,7 @@ build-tool (lib): 3
 ```
 
 Result:
+
 - `api-service` + `user-service` → publish to Nexus, independent versions
 - `shared-lib` → publish to npm, independent versions
 - `build-tool` → version only (no publishing), independent versions
@@ -761,6 +800,7 @@ Configure custom git tag formats:
 ## 🔧 Generators
 
 ### init
+
 Interactive setup for workspace configuration.
 
 ```bash
@@ -772,6 +812,7 @@ nx g nx-project-release:init --skipPrompts
 ```
 
 ### reset-config
+
 Remove all nx-project-release configuration.
 
 ```bash
@@ -784,25 +825,25 @@ nx g nx-project-release:reset-config --dryRun
 
 ## 🔍 Common Options Reference
 
-| Option | Type | Description | Default |
-|--------|------|-------------|---------|
-| `version` | string | Explicit version to release | - |
-| `releaseAs` | string | Version bump: major, minor, patch, prerelease | - |
-| `preid` | string | Prerelease identifier (alpha, beta, rc) | - |
-| `firstRelease` | boolean | First release mode | false |
-| `gitCommit` | boolean | Create git commit | false |
-| `gitTag` | boolean | Create git tag | false |
-| `ciOnly` | boolean | Restrict git ops to CI only | true |
-| `createReleaseBranch` | boolean | Create release branch | false |
-| `createPR` | boolean | Auto-create PR | false |
-| `mergeAfterRelease` | boolean | Sync to other branches | false |
-| `mergeToBranches` | array | Target branches for sync | - |
-| `show` | boolean | Display analysis without changes | false |
-| `dryRun` | boolean | Preview without execution | false |
-| `registryType` | string | npm, nexus, s3, github | npm |
-| `pathStrategy` | string | version, hash, flat | version |
-| `trackDeps` | boolean | Auto-version dependent projects | false |
-| `syncVersions` | boolean | Synchronize versions | false |
+| Option                | Type    | Description                                   | Default |
+| --------------------- | ------- | --------------------------------------------- | ------- |
+| `version`             | string  | Explicit version to release                   | -       |
+| `releaseAs`           | string  | Version bump: major, minor, patch, prerelease | -       |
+| `preid`               | string  | Prerelease identifier (alpha, beta, rc)       | -       |
+| `firstRelease`        | boolean | First release mode                            | false   |
+| `gitCommit`           | boolean | Create git commit                             | false   |
+| `gitTag`              | boolean | Create git tag                                | false   |
+| `ciOnly`              | boolean | Restrict git ops to CI only                   | true    |
+| `createReleaseBranch` | boolean | Create release branch                         | false   |
+| `createPR`            | boolean | Auto-create PR                                | false   |
+| `mergeAfterRelease`   | boolean | Sync to other branches                        | false   |
+| `mergeToBranches`     | array   | Target branches for sync                      | -       |
+| `show`                | boolean | Display analysis without changes              | false   |
+| `dryRun`              | boolean | Preview without execution                     | false   |
+| `registryType`        | string  | npm, nexus, s3, github                        | npm     |
+| `pathStrategy`        | string  | version, hash, flat                           | version |
+| `trackDeps`           | boolean | Auto-version dependent projects               | false   |
+| `syncVersions`        | boolean | Synchronize versions                          | false   |
 
 ## 📖 Examples
 

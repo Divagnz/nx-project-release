@@ -43,8 +43,15 @@ export async function uploadToNexus(
     throw new Error(`Artifact file not found: ${artifactPath}`);
   }
 
-  if (!config.url || !config.repository || !config.username || !config.password) {
-    throw new Error('Nexus configuration incomplete. Required: url, repository, username, password');
+  if (
+    !config.url ||
+    !config.repository ||
+    !config.username ||
+    !config.password
+  ) {
+    throw new Error(
+      'Nexus configuration incomplete. Required: url, repository, username, password'
+    );
   }
 
   // Determine path segment based on strategy
@@ -53,7 +60,9 @@ export async function uploadToNexus(
 
   if (config.pathStrategy === 'version') {
     if (!version) {
-      throw new Error('Version is required when using version-based path strategy');
+      throw new Error(
+        'Version is required when using version-based path strategy'
+      );
     }
     pathSegment = version;
   } else {
@@ -66,7 +75,9 @@ export async function uploadToNexus(
   }
 
   // Construct upload URL
-  const uploadUrl = `${config.url.replace(/\/$/, '')}/repository/${config.repository}/${pathSegment}/${filename}`;
+  const uploadUrl = `${config.url.replace(/\/$/, '')}/repository/${
+    config.repository
+  }/${pathSegment}/${filename}`;
 
   logger.info(`📦 Uploading to Nexus: ${uploadUrl}`);
 
@@ -76,9 +87,9 @@ export async function uploadToNexus(
       await axios.head(uploadUrl, {
         auth: {
           username: config.username,
-          password: config.password
+          password: config.password,
         },
-        timeout: 10000
+        timeout: 10000,
       });
 
       logger.info(`✅ File already exists, skipping upload: ${filename}`);
@@ -86,7 +97,7 @@ export async function uploadToNexus(
         uploaded: false,
         url: uploadUrl,
         skipped: true,
-        reason: 'File already exists in repository'
+        reason: 'File already exists in repository',
       };
     } catch (error) {
       const axiosError = error as AxiosError;
@@ -113,23 +124,23 @@ export async function uploadToNexus(
     await axios.put(uploadUrl, fileBuffer, {
       auth: {
         username: config.username,
-        password: config.password
+        password: config.password,
       },
       headers: {
         'Content-Type': 'application/gzip',
         'X-Checksum-Sha1': sha1Checksum,
-        'Content-Length': fileBuffer.length.toString()
+        'Content-Length': fileBuffer.length.toString(),
       },
       maxContentLength: Infinity,
       maxBodyLength: Infinity,
-      timeout: 60000 // 60 second timeout for large files
+      timeout: 60000, // 60 second timeout for large files
     });
 
     logger.info(`✅ Successfully uploaded to Nexus: ${filename}`);
     return {
       uploaded: true,
       url: uploadUrl,
-      skipped: false
+      skipped: false,
     };
   } catch (error) {
     const axiosError = error as AxiosError;
@@ -148,12 +159,24 @@ export async function uploadToNexus(
 /**
  * Validate Nexus configuration before upload
  */
-export function validateNexusConfig(config: Partial<NexusConfig>): config is NexusConfig {
-  const required = ['url', 'repository', 'username', 'password', 'pathStrategy'];
-  const missing = required.filter(field => !config[field as keyof NexusConfig]);
+export function validateNexusConfig(
+  config: Partial<NexusConfig>
+): config is NexusConfig {
+  const required = [
+    'url',
+    'repository',
+    'username',
+    'password',
+    'pathStrategy',
+  ];
+  const missing = required.filter(
+    (field) => !config[field as keyof NexusConfig]
+  );
 
   if (missing.length > 0) {
-    logger.error(`❌ Missing required Nexus configuration: ${missing.join(', ')}`);
+    logger.error(
+      `❌ Missing required Nexus configuration: ${missing.join(', ')}`
+    );
     return false;
   }
 

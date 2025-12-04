@@ -26,7 +26,15 @@
     },
     "changelogPreset": {
       "type": "string",
-      "enum": ["angular", "conventionalcommits", "atom", "ember", "eslint", "express", "jquery"],
+      "enum": [
+        "angular",
+        "conventionalcommits",
+        "atom",
+        "ember",
+        "eslint",
+        "express",
+        "jquery"
+      ],
       "description": "Conventional commits preset for changelog generation",
       "default": "angular"
     },
@@ -136,7 +144,15 @@
           },
           "registryType": {
             "type": "string",
-            "enum": ["npm", "nexus", "s3", "github", "docker", "custom", "none"],
+            "enum": [
+              "npm",
+              "nexus",
+              "s3",
+              "github",
+              "docker",
+              "custom",
+              "none"
+            ],
             "description": "Registry type for this group"
           },
           "registryUrl": {
@@ -157,10 +173,7 @@
           "artifactDir": {
             "type": "string",
             "description": "Directory where artifacts are located. Overrides global defaultArtifactDir. Variables: {projectName}, {version}",
-            "examples": [
-              "dist/artifacts",
-              "dist/{projectName}/artifacts"
-            ]
+            "examples": ["dist/artifacts", "dist/{projectName}/artifacts"]
           },
           "artifactName": {
             "type": "string",

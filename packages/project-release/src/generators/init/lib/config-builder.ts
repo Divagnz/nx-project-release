@@ -4,7 +4,7 @@ import {
   updateProjectConfiguration,
   readNxJson,
   updateNxJson,
-  logger
+  logger,
 } from '@nx/devkit';
 import { ConfigAnswers } from './prompts';
 
@@ -14,7 +14,9 @@ interface TargetDefault {
   dependsOn?: string[];
 }
 
-export function buildNxJsonTargetDefaults(answers: ConfigAnswers): Record<string, TargetDefault> {
+export function buildNxJsonTargetDefaults(
+  answers: ConfigAnswers
+): Record<string, TargetDefault> {
   const targetDefaults: Record<string, TargetDefault> = {};
 
   if (answers.executorType === 'individual') {
@@ -24,19 +26,29 @@ export function buildNxJsonTargetDefaults(answers: ConfigAnswers): Record<string
       options: {
         versionFiles: answers.versionFiles,
         trackDeps: answers.trackDeps,
-        syncVersions: answers.syncVersions
-      }
+        syncVersions: answers.syncVersions,
+      },
     };
 
     // Add version strategy specific options
     if (answers.versionStrategy === 'git-tag') {
-      targetDefaults['nx-project-release:version'].options.currentVersionResolver = 'git-tag';
-      targetDefaults['nx-project-release:version'].options.fallbackCurrentVersionResolver = 'disk';
+      targetDefaults[
+        'nx-project-release:version'
+      ].options.currentVersionResolver = 'git-tag';
+      targetDefaults[
+        'nx-project-release:version'
+      ].options.fallbackCurrentVersionResolver = 'disk';
     } else if (answers.versionStrategy === 'registry') {
-      targetDefaults['nx-project-release:version'].options.currentVersionResolver = 'registry';
-      targetDefaults['nx-project-release:version'].options.fallbackCurrentVersionResolver = 'git-tag';
+      targetDefaults[
+        'nx-project-release:version'
+      ].options.currentVersionResolver = 'registry';
+      targetDefaults[
+        'nx-project-release:version'
+      ].options.fallbackCurrentVersionResolver = 'git-tag';
     } else {
-      targetDefaults['nx-project-release:version'].options.currentVersionResolver = 'disk';
+      targetDefaults[
+        'nx-project-release:version'
+      ].options.currentVersionResolver = 'disk';
     }
 
     // Changelog executor configuration
@@ -44,8 +56,8 @@ export function buildNxJsonTargetDefaults(answers: ConfigAnswers): Record<string
       cache: false,
       options: {
         preset: answers.preset,
-        projectChangelogs: answers.projectChangelogs
-      }
+        projectChangelogs: answers.projectChangelogs,
+      },
     };
 
     // Artifact executor configuration
@@ -55,8 +67,8 @@ export function buildNxJsonTargetDefaults(answers: ConfigAnswers): Record<string
       options: {
         sourceDir: 'dist/{projectRoot}',
         outputDir: 'dist/artifacts',
-        format: 'tgz'
-      }
+        format: 'tgz',
+      },
     };
 
     // Release executor configuration
@@ -64,8 +76,8 @@ export function buildNxJsonTargetDefaults(answers: ConfigAnswers): Record<string
       cache: false,
       options: {
         gitPush: false,
-        createGitHubRelease: false
-      }
+        createGitHubRelease: false,
+      },
     };
 
     // Publish executor configuration
@@ -76,8 +88,8 @@ export function buildNxJsonTargetDefaults(answers: ConfigAnswers): Record<string
         registryType: answers.registryType,
         registry: answers.registryUrl,
         access: answers.access,
-        distTag: answers.distTag
-      }
+        distTag: answers.distTag,
+      },
     };
   } else {
     // All-in-one project-release executor
@@ -102,26 +114,40 @@ export function buildNxJsonTargetDefaults(answers: ConfigAnswers): Record<string
         registryType: answers.registryType,
         registry: answers.registryUrl,
         access: answers.access,
-        distTag: answers.distTag
-      }
+        distTag: answers.distTag,
+      },
     };
 
     // Add version strategy
     if (answers.versionStrategy === 'git-tag') {
-      targetDefaults['nx-project-release:project-release'].options.currentVersionResolver = 'git-tag';
-      targetDefaults['nx-project-release:project-release'].options.fallbackCurrentVersionResolver = 'disk';
+      targetDefaults[
+        'nx-project-release:project-release'
+      ].options.currentVersionResolver = 'git-tag';
+      targetDefaults[
+        'nx-project-release:project-release'
+      ].options.fallbackCurrentVersionResolver = 'disk';
     } else if (answers.versionStrategy === 'registry') {
-      targetDefaults['nx-project-release:project-release'].options.currentVersionResolver = 'registry';
-      targetDefaults['nx-project-release:project-release'].options.fallbackCurrentVersionResolver = 'git-tag';
+      targetDefaults[
+        'nx-project-release:project-release'
+      ].options.currentVersionResolver = 'registry';
+      targetDefaults[
+        'nx-project-release:project-release'
+      ].options.fallbackCurrentVersionResolver = 'git-tag';
     } else {
-      targetDefaults['nx-project-release:project-release'].options.currentVersionResolver = 'disk';
+      targetDefaults[
+        'nx-project-release:project-release'
+      ].options.currentVersionResolver = 'disk';
     }
   }
 
   return targetDefaults;
 }
 
-export function updateNxJsonConfiguration(tree: Tree, answers: ConfigAnswers, skipPrompts = false): void {
+export function updateNxJsonConfiguration(
+  tree: Tree,
+  answers: ConfigAnswers,
+  skipPrompts = false
+): void {
   const nxJson = readNxJson(tree);
   if (!nxJson) {
     throw new Error('Could not read nx.json');
@@ -150,31 +176,37 @@ export function updateNxJsonConfiguration(tree: Tree, answers: ConfigAnswers, sk
   // Add excluded projects configuration
   if (answers.excludedProjects && answers.excludedProjects.length > 0) {
     nxJsonAny.projectRelease.excludedProjects = answers.excludedProjects;
-    logger.info(`✅ Added ${answers.excludedProjects.length} excluded projects to nx.json`);
+    logger.info(
+      `✅ Added ${answers.excludedProjects.length} excluded projects to nx.json`
+    );
   }
 
   // Add minimal default configuration
   if (!nxJsonAny.projectRelease.projectsRelationship) {
-    nxJsonAny.projectRelease.projectsRelationship = "independent";
+    nxJsonAny.projectRelease.projectsRelationship = 'independent';
   }
   if (!nxJsonAny.projectRelease.versionFiles) {
-    nxJsonAny.projectRelease.versionFiles = ["package.json"];
+    nxJsonAny.projectRelease.versionFiles = ['package.json'];
   }
   if (!nxJsonAny.projectRelease.changelogPreset) {
-    nxJsonAny.projectRelease.changelogPreset = "angular";
+    nxJsonAny.projectRelease.changelogPreset = 'angular';
   }
 
   // Add tag naming configuration
   if (answers.configureTagNaming) {
     nxJsonAny.projectRelease.tagNaming = {
       prefix: answers.tagPrefix,
-      format: answers.tagFormat
+      format: answers.tagFormat,
     };
     logger.info('✅ Added tag naming configuration to nx.json');
   }
 
   // Add release groups configuration (new format)
-  if (answers.useReleaseGroups && answers.releaseGroups && answers.releaseGroups.length > 0) {
+  if (
+    answers.useReleaseGroups &&
+    answers.releaseGroups &&
+    answers.releaseGroups.length > 0
+  ) {
     nxJsonAny.projectRelease.releaseGroups = {};
 
     for (const group of answers.releaseGroups) {
@@ -184,11 +216,13 @@ export function updateNxJsonConfiguration(tree: Tree, answers: ConfigAnswers, sk
         versionStrategy: group.versionStrategy,
         versionFiles: group.versionFiles,
         pathStrategy: group.pathStrategy,
-        projects: group.projects
+        projects: group.projects,
       };
     }
 
-    logger.info(`✅ Added ${answers.releaseGroups.length} release groups to nx.json`);
+    logger.info(
+      `✅ Added ${answers.releaseGroups.length} release groups to nx.json`
+    );
   }
 
   // Add release groups configuration (legacy format - for backward compatibility)
@@ -196,16 +230,17 @@ export function updateNxJsonConfiguration(tree: Tree, answers: ConfigAnswers, sk
     nxJsonAny.projectRelease.releaseGroups = {};
 
     for (const group of answers.releaseGroupsConfig) {
-      const projects = group.projectsPattern.split(',').map(p => p.trim());
+      const projects = group.projectsPattern.split(',').map((p) => p.trim());
 
       nxJsonAny.projectRelease.releaseGroups[group.groupName] = {
         projects,
         projectsRelationship: group.versioning,
         tagNaming: {
-          format: group.versioning === 'independent'
-            ? '{projectName}@{version}'
-            : `${group.groupName}-v{version}`
-        }
+          format:
+            group.versioning === 'independent'
+              ? '{projectName}@{version}'
+              : `${group.groupName}-v{version}`,
+        },
       };
     }
 
@@ -603,8 +638,12 @@ Documentation: https://github.com/Divagnz/nx-project-release
 
   tree.write('nx-project-release.config.examples.md', exampleConfig);
   logger.info('');
-  logger.info('📄 Created nx-project-release.config.examples.md with comprehensive examples');
-  logger.info('   Copy relevant sections to your nx.json and customize as needed');
+  logger.info(
+    '📄 Created nx-project-release.config.examples.md with comprehensive examples'
+  );
+  logger.info(
+    '   Copy relevant sections to your nx.json and customize as needed'
+  );
 }
 
 export function addTargetsToProjects(tree: Tree, answers: ConfigAnswers): void {
@@ -639,24 +678,24 @@ export function addTargetsToProjects(tree: Tree, answers: ConfigAnswers): void {
         // Add individual executor targets
         projectConfig.targets.version = {
           executor: 'nx-project-release:version',
-          options: groupOptions
+          options: groupOptions,
           // Inherits other options from nx.json targetDefaults
         };
 
         projectConfig.targets.changelog = {
-          executor: 'nx-project-release:changelog'
+          executor: 'nx-project-release:changelog',
         };
 
         projectConfig.targets.publish = {
           executor: 'nx-project-release:publish',
-          dependsOn: [answers.buildTarget]
+          dependsOn: [answers.buildTarget],
         };
       } else {
         // Add all-in-one executor target
         projectConfig.targets['project-release'] = {
           executor: 'nx-project-release:project-release',
           dependsOn: [answers.buildTarget],
-          options: groupOptions
+          options: groupOptions,
         };
       }
 
@@ -664,7 +703,9 @@ export function addTargetsToProjects(tree: Tree, answers: ConfigAnswers): void {
       const groupInfo = groupName ? ` (group: ${groupName})` : '';
       logger.info(`✅ Added release targets to ${projectName}${groupInfo}`);
     } catch (error) {
-      logger.warn(`⚠️  Could not update project ${projectName}: ${error.message}`);
+      logger.warn(
+        `⚠️  Could not update project ${projectName}: ${error.message}`
+      );
     }
   }
 }

@@ -13,7 +13,7 @@ describe('project-release', () => {
     execSync(`npm install -D nx-project-release@e2e`, {
       cwd: projectDirectory,
       stdio: 'inherit',
-      env: process.env
+      env: process.env,
     });
   });
 
@@ -22,7 +22,7 @@ describe('project-release', () => {
       // Cleanup the test project
       rmSync(projectDirectory, {
         recursive: true,
-        force: true
+        force: true,
       });
     }
   });
@@ -31,14 +31,14 @@ describe('project-release', () => {
     // npm ls will fail if the package is not installed properly
     execSync('npm ls nx-project-release', {
       cwd: projectDirectory,
-      stdio: 'inherit'
+      stdio: 'inherit',
     });
   });
 
   it('should list all executors', () => {
     const output = execSync('npx nx list nx-project-release', {
       cwd: projectDirectory,
-      encoding: 'utf-8'
+      encoding: 'utf-8',
     });
 
     // Should show all executors
@@ -53,11 +53,14 @@ describe('project-release', () => {
       // Create a test library for executor testing
       execSync('npx nx g @nx/js:library test-executor-lib --bundler=tsc', {
         cwd: projectDirectory,
-        stdio: 'inherit'
+        stdio: 'inherit',
       });
 
       // Add release targets to the library
-      const projectJsonPath = join(projectDirectory, 'test-executor-lib/project.json');
+      const projectJsonPath = join(
+        projectDirectory,
+        'test-executor-lib/project.json'
+      );
       const projectJson = JSON.parse(readFileSync(projectJsonPath, 'utf-8'));
 
       projectJson.version = '0.0.0';
@@ -67,28 +70,28 @@ describe('project-release', () => {
           executor: 'nx-project-release:version',
           options: {
             versionFiles: ['package.json', 'project.json'],
-            versionPath: 'version'
-          }
+            versionPath: 'version',
+          },
         },
         changelog: {
           executor: 'nx-project-release:changelog',
           options: {
-            preset: 'angular'
-          }
+            preset: 'angular',
+          },
         },
         publish: {
           executor: 'nx-project-release:publish',
           options: {
             buildTarget: 'build',
-            registryType: 'npm'
-          }
+            registryType: 'npm',
+          },
         },
         'project-release': {
           executor: 'nx-project-release:project-release',
           options: {
-            buildTarget: 'build'
-          }
-        }
+            buildTarget: 'build',
+          },
+        },
       };
 
       writeFileSync(projectJsonPath, JSON.stringify(projectJson, null, 2));
@@ -97,26 +100,32 @@ describe('project-release', () => {
     it('version executor should show current version with --show', () => {
       const output = execSync('npx nx run test-executor-lib:version --show', {
         cwd: projectDirectory,
-        encoding: 'utf-8'
+        encoding: 'utf-8',
       });
 
       expect(output).toContain('Current version');
     });
 
     it('version executor should work in dry-run mode', () => {
-      const output = execSync('npx nx run test-executor-lib:version --dryRun --releaseAs=patch', {
-        cwd: projectDirectory,
-        encoding: 'utf-8'
-      });
+      const output = execSync(
+        'npx nx run test-executor-lib:version --dryRun --releaseAs=patch',
+        {
+          cwd: projectDirectory,
+          encoding: 'utf-8',
+        }
+      );
 
       expect(output).toContain('DRY RUN');
     });
 
     it('changelog executor should work in dry-run mode', () => {
-      const output = execSync('npx nx run test-executor-lib:changelog --dryRun', {
-        cwd: projectDirectory,
-        encoding: 'utf-8'
-      });
+      const output = execSync(
+        'npx nx run test-executor-lib:changelog --dryRun',
+        {
+          cwd: projectDirectory,
+          encoding: 'utf-8',
+        }
+      );
 
       expect(output).toContain('DRY RUN');
     });
@@ -124,7 +133,7 @@ describe('project-release', () => {
     it('publish executor should work in dry-run mode', () => {
       const output = execSync('npx nx run test-executor-lib:publish --dryRun', {
         cwd: projectDirectory,
-        encoding: 'utf-8'
+        encoding: 'utf-8',
       });
 
       expect(output).toContain('DRY RUN');
@@ -143,10 +152,10 @@ function createTestProject() {
   // Ensure projectDirectory is empty
   rmSync(projectDirectory, {
     recursive: true,
-    force: true
+    force: true,
   });
   mkdirSync(dirname(projectDirectory), {
-    recursive: true
+    recursive: true,
   });
 
   execSync(
@@ -154,7 +163,7 @@ function createTestProject() {
     {
       cwd: dirname(projectDirectory),
       stdio: 'inherit',
-      env: process.env
+      env: process.env,
     }
   );
   console.log(`Created test project in "${projectDirectory}"`);

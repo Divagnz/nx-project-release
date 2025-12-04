@@ -50,9 +50,7 @@
       "items": {
         "type": "string"
       },
-      "examples": [
-        ["**/*.map", "**/*.spec.ts", "**/node_modules/**"]
-      ]
+      "examples": [["**/*.map", "**/*.spec.ts", "**/node_modules/**"]]
     },
     "compressionLevel": {
       "type": "number",

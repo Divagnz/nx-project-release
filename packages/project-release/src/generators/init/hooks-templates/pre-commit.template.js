@@ -18,7 +18,7 @@ async function main() {
 
   console.log('');
   console.log('⚠️  Unconfigured publishable projects detected:');
-  unconfigured.forEach(project => {
+  unconfigured.forEach((project) => {
     console.log(`   - ${project}`);
   });
   console.log('');
@@ -30,10 +30,12 @@ async function main() {
     prompt = enquirer.prompt;
   } catch (error) {
     // Enquirer not installed, fall back to blocking with message
-    console.error('❌ These projects need release configuration before commit.');
+    console.error(
+      '❌ These projects need release configuration before commit.'
+    );
     console.error('');
     console.error('Configure them by running:');
-    unconfigured.forEach(project => {
+    unconfigured.forEach((project) => {
       console.error(`  npx nx g nx-project-release:init --project=${project}`);
     });
     console.error('');
@@ -50,19 +52,19 @@ async function main() {
         {
           name: 'configure',
           message: '⚙️  Configure now',
-          hint: 'Run interactive configuration for each project'
+          hint: 'Run interactive configuration for each project',
         },
         {
           name: 'skip',
           message: '⏭️  Skip (commit anyway)',
-          hint: 'Continue with commit, configure later'
+          hint: 'Continue with commit, configure later',
         },
         {
           name: 'abort',
           message: '🚫 Abort commit',
-          hint: 'Cancel commit and configure manually'
-        }
-      ]
+          hint: 'Cancel commit and configure manually',
+        },
+      ],
     });
 
     if (action === 'configure') {
@@ -77,10 +79,9 @@ async function main() {
         try {
           // Note: This will run the init generator in interactive mode for each project
           // We'll create a 'configuration' generator later that's more suitable for this
-          execSync(
-            `npx nx g nx-project-release:init --project=${project}`,
-            { stdio: 'inherit' }
-          );
+          execSync(`npx nx g nx-project-release:init --project=${project}`, {
+            stdio: 'inherit',
+          });
         } catch (error) {
           console.error(`Failed to configure ${project}`);
           process.exit(1);
@@ -89,7 +90,9 @@ async function main() {
 
       console.log('');
       console.log('✅ All projects configured!');
-      console.log('📝 Don\'t forget to add the configuration files to your commit');
+      console.log(
+        "📝 Don't forget to add the configuration files to your commit"
+      );
     } else if (action === 'abort') {
       console.log('');
       console.log('Commit aborted. Configure projects and try again.');
@@ -97,7 +100,9 @@ async function main() {
     } else {
       // skip - allow commit to proceed
       console.log('');
-      console.log('⏭️  Skipping configuration. Remember to configure these projects later!');
+      console.log(
+        '⏭️  Skipping configuration. Remember to configure these projects later!'
+      );
     }
   } catch (error) {
     // User cancelled (Ctrl+C)
@@ -107,7 +112,7 @@ async function main() {
   }
 }
 
-main().catch(error => {
+main().catch((error) => {
   console.error('Hook error:', error);
   process.exit(1);
 });

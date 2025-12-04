@@ -83,6 +83,7 @@ npx nx reset
 When adding new configuration options:
 
 1. **Update the schema** in `src/executors/{executor}/schema.json`:
+
    ```json
    {
      "properties": {
@@ -96,6 +97,7 @@ When adding new configuration options:
    ```
 
 2. **Update the TypeScript interface** in the executor's `index.ts`:
+
    ```typescript
    export interface ExecutorSchema {
      newOption?: boolean;
@@ -139,16 +141,19 @@ npx nx run my-project:project-release --dryRun --show
 ### Testing Strategy
 
 #### Unit Tests
+
 - Test individual functions and utilities
 - Mock external dependencies (git, fs, etc.)
 - Cover edge cases and error conditions
 
 #### Integration Tests
+
 - Test executor with real file system
 - Test git operations with test repositories
 - Test different project configurations
 
 #### Manual Testing
+
 - Test with different project types (Node.js, Python, etc.)
 - Test workspace-level operations
 - Test different registry types
@@ -157,6 +162,7 @@ npx nx run my-project:project-release --dryRun --show
 ### Debugging
 
 #### Adding Debug Output
+
 ```typescript
 // Add console.log statements for debugging
 console.log('Debug info:', { options, context });
@@ -168,6 +174,7 @@ if (options.show) {
 ```
 
 #### Common Debugging Steps
+
 1. **Enable verbose output**: Use `--show` flag
 2. **Check file paths**: Verify version files exist
 3. **Test git operations**: Ensure git is configured
@@ -176,19 +183,23 @@ if (options.show) {
 ### Code Style
 
 #### TypeScript Guidelines
+
 - Use strict TypeScript settings
 - Provide proper type annotations
 - Use interfaces for options and return types
 - Handle errors appropriately
 
 #### Nx Plugin Best Practices
+
 - Follow Nx executor patterns
 - Use proper schema validation
 - Provide helpful error messages
 - Support dry-run mode for all operations
 
 #### Git Commit Convention
+
 We use conventional commits:
+
 - `feat:` - New features
 - `fix:` - Bug fixes
 - `docs:` - Documentation changes
@@ -213,12 +224,14 @@ We use conventional commits:
 ### Release Process
 
 #### Version Management
+
 - Follow semantic versioning (semver)
 - Update version in `package.json`
 - Create git tags for releases
 - Update changelog
 
 #### Publishing Steps
+
 ```bash
 # 1. Ensure clean working directory
 git status
@@ -238,18 +251,21 @@ npm publish
 ## Architecture Overview
 
 ### Executor Design
+
 - **Modular approach**: Separate executors for version, changelog, publish, and workflow
 - **Schema-driven**: All options defined in JSON schemas
 - **Type-safe**: Full TypeScript support
 - **Configurable**: Support for workspace and project-level configuration
 
 ### Key Components
+
 - **Version Executor**: Handles semantic versioning and git tagging
 - **Changelog Executor**: Generates changelogs from conventional commits
 - **Publish Executor**: Publishes to various registry types
 - **Project-Release Executor**: Orchestrates the complete workflow
 
 ### Configuration Hierarchy
+
 1. Command-line options (highest priority)
 2. Project-level configuration (project.json)
 3. Workspace-level configuration (nx.json)

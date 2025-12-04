@@ -3,14 +3,17 @@ import {
   getProjects,
   readProjectConfiguration,
   updateProjectConfiguration,
-  logger
+  logger,
 } from '@nx/devkit';
 import { ConfigureVersionSchema } from './schema';
 import Enquirer from 'enquirer';
 
 const { prompt } = Enquirer;
 
-export default async function configureVersionGenerator(tree: Tree, options: ConfigureVersionSchema) {
+export default async function configureVersionGenerator(
+  tree: Tree,
+  options: ConfigureVersionSchema
+) {
   logger.info('');
   logger.info('⚙️  Configure Version Settings');
   logger.info('');
@@ -25,8 +28,8 @@ export default async function configureVersionGenerator(tree: Tree, options: Con
       name: 'selectedProjects',
       message: 'Select projects to configure version settings:',
       choices: allProjects,
-      // @ts-ignore - enquirer types are incomplete
-      hint: 'Space to select, Enter to confirm'
+      // @ts-expect-error - enquirer types are incomplete
+      hint: 'Space to select, Enter to confirm',
     });
 
     projectsToProcess = selectedProjects;
@@ -61,7 +64,7 @@ export default async function configureVersionGenerator(tree: Tree, options: Con
       if (!projectConfig.targets['version']) {
         projectConfig.targets['version'] = {
           executor: 'nx-project-release:version',
-          options: {}
+          options: {},
         };
       }
 
@@ -75,7 +78,12 @@ export default async function configureVersionGenerator(tree: Tree, options: Con
       }
 
       // Update tag naming
-      if (options.tagNamingFormat || options.tagNamingPrefix || options.tagNamingSuffix || options.includeProjectName !== undefined) {
+      if (
+        options.tagNamingFormat ||
+        options.tagNamingPrefix ||
+        options.tagNamingSuffix ||
+        options.includeProjectName !== undefined
+      ) {
         versionOptions.tagNaming = versionOptions.tagNaming || {};
 
         if (options.tagNamingFormat) {
@@ -88,7 +96,8 @@ export default async function configureVersionGenerator(tree: Tree, options: Con
           versionOptions.tagNaming.suffix = options.tagNamingSuffix;
         }
         if (options.includeProjectName !== undefined) {
-          versionOptions.tagNaming.includeProjectName = options.includeProjectName;
+          versionOptions.tagNaming.includeProjectName =
+            options.includeProjectName;
         }
       }
 
@@ -112,11 +121,15 @@ export default async function configureVersionGenerator(tree: Tree, options: Con
   logger.info('');
   logger.info('💡 Next steps:');
   logger.info('   - Run nx run <project>:version to test the configuration');
-  logger.info('   - Use nx g nx-project-release:configure-changelog for changelog settings');
+  logger.info(
+    '   - Use nx g nx-project-release:configure-changelog for changelog settings'
+  );
   logger.info('');
 }
 
-async function promptVersionSettings(options: ConfigureVersionSchema): Promise<Partial<ConfigureVersionSchema>> {
+async function promptVersionSettings(
+  options: ConfigureVersionSchema
+): Promise<Partial<ConfigureVersionSchema>> {
   const settings: Partial<ConfigureVersionSchema> = {};
 
   // Version files
@@ -124,16 +137,16 @@ async function promptVersionSettings(options: ConfigureVersionSchema): Promise<P
     type: 'input',
     name: 'versionFilesInput',
     message: 'Version files (comma-separated):',
-    initial: 'package.json'
+    initial: 'package.json',
   });
-  settings.versionFiles = versionFilesInput.split(',').map(f => f.trim());
+  settings.versionFiles = versionFilesInput.split(',').map((f) => f.trim());
 
   // Tag naming format
   const { useCustomTagNaming } = await prompt<{ useCustomTagNaming: boolean }>({
     type: 'confirm',
     name: 'useCustomTagNaming',
     message: 'Configure custom tag naming?',
-    initial: false
+    initial: false,
   });
 
   if (useCustomTagNaming) {
@@ -148,23 +161,29 @@ async function promptVersionSettings(options: ConfigureVersionSchema): Promise<P
         message: 'Tag naming format:',
         choices: [
           { name: 'v{version}', message: 'v{version} (e.g., v1.0.0)' },
-          { name: '{projectName}@{version}', message: '{projectName}@{version} (e.g., my-app@1.0.0)' },
-          { name: '{projectName}-v{version}', message: '{projectName}-v{version} (e.g., my-app-v1.0.0)' },
-          { name: 'custom', message: 'Custom format' }
-        ]
+          {
+            name: '{projectName}@{version}',
+            message: '{projectName}@{version} (e.g., my-app@1.0.0)',
+          },
+          {
+            name: '{projectName}-v{version}',
+            message: '{projectName}-v{version} (e.g., my-app-v1.0.0)',
+          },
+          { name: 'custom', message: 'Custom format' },
+        ],
       },
       {
         type: 'input',
         name: 'tagNamingPrefix',
         message: 'Tag prefix (optional):',
-        initial: ''
+        initial: '',
       },
       {
         type: 'confirm',
         name: 'includeProjectName',
         message: 'Include project name in tag?',
-        initial: false
-      }
+        initial: false,
+      },
     ]);
 
     if (tagSettings.tagNamingFormat === 'custom') {
@@ -172,7 +191,7 @@ async function promptVersionSettings(options: ConfigureVersionSchema): Promise<P
         type: 'input',
         name: 'customFormat',
         message: 'Custom tag format (use {version}, {projectName}):',
-        initial: 'v{version}'
+        initial: 'v{version}',
       });
       settings.tagNamingFormat = customFormat;
     } else {
@@ -192,7 +211,7 @@ async function promptVersionSettings(options: ConfigureVersionSchema): Promise<P
     type: 'confirm',
     name: 'bumpDependents',
     message: 'Automatically bump dependent projects?',
-    initial: false
+    initial: false,
   });
   settings.bumpDependents = bumpDependents;
 

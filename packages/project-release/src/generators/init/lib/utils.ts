@@ -30,7 +30,7 @@ export function detectExistingConfiguration(tree: Tree): {
   return {
     hasNxJsonConfig,
     hasProjectConfigs: configuredProjects.length > 0,
-    configuredProjects
+    configuredProjects,
   };
 }
 
@@ -84,17 +84,17 @@ export function getDefaultAnswers() {
     setupHooks: false,
     hookOptions: {
       enablePreCommit: false,
-      enablePrePush: false
+      enablePrePush: false,
     },
     setupCommitValidation: false,
     commitValidationOptions: {
       enableCommitizen: false,
       enableCommitlint: false,
-      useNxScopes: false
+      useNxScopes: false,
     },
     setupGitHubWorkflows: false,
     workflowType: 'none' as const,
     createReleaseBranch: false,
-    autoCreatePR: false
+    autoCreatePR: false,
   };
 }

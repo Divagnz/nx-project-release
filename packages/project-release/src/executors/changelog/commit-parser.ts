@@ -22,7 +22,10 @@ export interface CommitGroup {
  *         BREAKING CHANGE: description
  * Or: type(scope)!: subject
  */
-export function parseConventionalCommit(commitMessage: string, hash: string): ParsedCommit | null {
+export function parseConventionalCommit(
+  commitMessage: string,
+  hash: string
+): ParsedCommit | null {
   const lines = commitMessage.split('\n');
   const firstLine = lines[0].trim();
 
@@ -54,7 +57,7 @@ export function parseConventionalCommit(commitMessage: string, hash: string): Pa
     body: body || undefined,
     breaking,
     breakingMessage,
-    footer
+    footer,
   };
 }
 
@@ -81,7 +84,7 @@ export function getCommitsFromGit(
         {
           cwd,
           encoding: 'utf8',
-          stdio: 'pipe'
+          stdio: 'pipe',
         }
       ).trim();
 
@@ -97,15 +100,17 @@ export function getCommitsFromGit(
     const output = execSync(gitCommand, {
       cwd,
       encoding: 'utf8',
-      stdio: 'pipe'
+      stdio: 'pipe',
     }).trim();
 
     if (!output) return [];
 
     // Split by ===END=== marker
-    const commitBlocks = output.split('===END===').filter(block => block.trim());
+    const commitBlocks = output
+      .split('===END===')
+      .filter((block) => block.trim());
 
-    return commitBlocks.map(block => block.trim()).filter(Boolean);
+    return commitBlocks.map((block) => block.trim()).filter(Boolean);
   } catch (error) {
     console.error('Failed to get git commits:', error);
     return [];
@@ -128,7 +133,10 @@ export function parseCommits(commitBlocks: string[]): ParsedCommit[] {
     if (pipeIndex === -1) continue;
 
     const hash = firstLine.substring(0, pipeIndex).trim();
-    const message = firstLine.substring(pipeIndex + 1).trim() + '\n' + lines.slice(1).join('\n');
+    const message =
+      firstLine.substring(pipeIndex + 1).trim() +
+      '\n' +
+      lines.slice(1).join('\n');
 
     const commit = parseConventionalCommit(message, hash);
     if (commit) {
@@ -145,15 +153,18 @@ export function parseCommits(commitBlocks: string[]): ParsedCommit[] {
  * Or: feat(project-name,other): ...
  * Or: feat: ... (if no scope, include in all)
  */
-export function filterCommitsByScope(commits: ParsedCommit[], projectName?: string): ParsedCommit[] {
+export function filterCommitsByScope(
+  commits: ParsedCommit[],
+  projectName?: string
+): ParsedCommit[] {
   if (!projectName) return commits;
 
-  return commits.filter(commit => {
+  return commits.filter((commit) => {
     // No scope = applies to all projects
     if (!commit.scope) return true;
 
     // Check if scope includes this project
-    const scopes = commit.scope.split(',').map(s => s.trim());
+    const scopes = commit.scope.split(',').map((s) => s.trim());
     return scopes.includes(projectName) || scopes.includes('*');
   });
 }
@@ -161,7 +172,9 @@ export function filterCommitsByScope(commits: ParsedCommit[], projectName?: stri
 /**
  * Group commits by type
  */
-export function groupCommitsByType(commits: ParsedCommit[]): Map<string, ParsedCommit[]> {
+export function groupCommitsByType(
+  commits: ParsedCommit[]
+): Map<string, ParsedCommit[]> {
   const groups = new Map<string, ParsedCommit[]>();
 
   for (const commit of commits) {
@@ -188,7 +201,7 @@ export function getCommitTypeTitle(type: string): string {
     build: 'Build System',
     ci: 'Continuous Integration',
     chore: 'Chores',
-    revert: 'Reverts'
+    revert: 'Reverts',
   };
 
   return titles[type] || type.charAt(0).toUpperCase() + type.slice(1);
@@ -208,5 +221,5 @@ export const COMMIT_TYPE_ORDER = [
   'build',
   'ci',
   'chore',
-  'revert'
+  'revert',
 ];

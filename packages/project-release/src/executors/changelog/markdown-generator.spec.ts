@@ -1,18 +1,27 @@
-import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
+import {
+  describe,
+  it,
+  expect,
+  jest,
+  beforeEach,
+  afterEach,
+} from '@jest/globals';
 import {
   generateChangelogMarkdown,
   generateCompactChangelog,
   generateWorkspaceChangelog,
   getRepositoryUrl,
   getCompareUrl,
-  ChangelogOptions
+  ChangelogOptions,
 } from './markdown-generator.js';
 import { ParsedCommit } from './commit-parser.js';
 import * as childProcess from 'child_process';
 
 // Mock child_process
 jest.mock('child_process');
-const mockExecSync = childProcess.execSync as jest.MockedFunction<typeof childProcess.execSync>;
+const mockExecSync = childProcess.execSync as jest.MockedFunction<
+  typeof childProcess.execSync
+>;
 
 describe('Markdown Generator', () => {
   beforeEach(() => {
@@ -26,21 +35,21 @@ describe('Markdown Generator', () => {
         type: 'feat',
         scope: 'core',
         subject: 'add new feature',
-        breaking: false
+        breaking: false,
       },
       {
         hash: 'def456',
         type: 'fix',
         scope: 'api',
         subject: 'fix bug',
-        breaking: false
+        breaking: false,
       },
       {
         hash: 'ghi789',
         type: 'docs',
         subject: 'update documentation',
-        breaking: false
-      }
+        breaking: false,
+      },
     ];
 
     it('should generate basic changelog markdown', () => {
@@ -73,17 +82,21 @@ describe('Markdown Generator', () => {
 
     it('should format commit hashes as links when repository URL provided', () => {
       const options: ChangelogOptions = {
-        repositoryUrl: 'https://github.com/user/repo'
+        repositoryUrl: 'https://github.com/user/repo',
       };
       const markdown = generateChangelogMarkdown(sampleCommits, options);
-      expect(markdown).toContain('[abc123](https://github.com/user/repo/commit/abc123)');
-      expect(markdown).toContain('[def456](https://github.com/user/repo/commit/def456)');
+      expect(markdown).toContain(
+        '[abc123](https://github.com/user/repo/commit/abc123)'
+      );
+      expect(markdown).toContain(
+        '[def456](https://github.com/user/repo/commit/def456)'
+      );
     });
 
     it('should add version header when version provided', () => {
       const options: ChangelogOptions = {
         version: '1.2.3',
-        date: '2024-01-15'
+        date: '2024-01-15',
       };
       const markdown = generateChangelogMarkdown(sampleCommits, options);
       expect(markdown).toContain('## [1.2.3]');
@@ -92,7 +105,7 @@ describe('Markdown Generator', () => {
 
     it('should use current date if date not provided', () => {
       const options: ChangelogOptions = {
-        version: '1.2.3'
+        version: '1.2.3',
       };
       const markdown = generateChangelogMarkdown(sampleCommits, options);
       const currentDate = new Date().toISOString().split('T')[0];
@@ -112,14 +125,14 @@ describe('Markdown Generator', () => {
           scope: 'api',
           subject: 'new feature',
           breaking: true,
-          breakingMessage: 'API changed significantly'
+          breakingMessage: 'API changed significantly',
         },
         {
           hash: 'def456',
           type: 'fix',
           subject: 'regular fix',
-          breaking: false
-        }
+          breaking: false,
+        },
       ];
 
       it('should create breaking changes section', () => {
@@ -144,12 +157,14 @@ describe('Markdown Generator', () => {
       });
 
       it('should fall back to subject when no breaking message', () => {
-        const commits: ParsedCommit[] = [{
-          hash: 'abc123',
-          type: 'feat',
-          subject: 'breaking change without message',
-          breaking: true
-        }];
+        const commits: ParsedCommit[] = [
+          {
+            hash: 'abc123',
+            type: 'feat',
+            subject: 'breaking change without message',
+            breaking: true,
+          },
+        ];
         const markdown = generateChangelogMarkdown(commits);
         expect(markdown).toContain('breaking change without message');
       });
@@ -160,7 +175,7 @@ describe('Markdown Generator', () => {
         { hash: '1', type: 'chore', subject: 'chore task', breaking: false },
         { hash: '2', type: 'feat', subject: 'new feature', breaking: false },
         { hash: '3', type: 'fix', subject: 'bug fix', breaking: false },
-        { hash: '4', type: 'docs', subject: 'documentation', breaking: false }
+        { hash: '4', type: 'docs', subject: 'documentation', breaking: false },
       ];
 
       it('should order commit types correctly', () => {
@@ -178,12 +193,14 @@ describe('Markdown Generator', () => {
 
     describe('Custom commit types', () => {
       it('should handle unknown commit types', () => {
-        const commits: ParsedCommit[] = [{
-          hash: 'abc123',
-          type: 'custom',
-          subject: 'custom change',
-          breaking: false
-        }];
+        const commits: ParsedCommit[] = [
+          {
+            hash: 'abc123',
+            type: 'custom',
+            subject: 'custom change',
+            breaking: false,
+          },
+        ];
         const markdown = generateChangelogMarkdown(commits);
         expect(markdown).toContain('### Custom'); // Capitalized
       });
@@ -191,29 +208,35 @@ describe('Markdown Generator', () => {
 
     describe('Edge cases', () => {
       it('should handle commits without scope', () => {
-        const commits: ParsedCommit[] = [{
-          hash: 'abc123',
-          type: 'feat',
-          subject: 'feature without scope',
-          breaking: false
-        }];
+        const commits: ParsedCommit[] = [
+          {
+            hash: 'abc123',
+            type: 'feat',
+            subject: 'feature without scope',
+            breaking: false,
+          },
+        ];
         const markdown = generateChangelogMarkdown(commits);
         expect(markdown).not.toContain('**:**');
         expect(markdown).toContain('feature without scope');
       });
 
       it('should handle repository URL ending with .git', () => {
-        const commits: ParsedCommit[] = [{
-          hash: 'abc123',
-          type: 'feat',
-          subject: 'test',
-          breaking: false
-        }];
+        const commits: ParsedCommit[] = [
+          {
+            hash: 'abc123',
+            type: 'feat',
+            subject: 'test',
+            breaking: false,
+          },
+        ];
         const options: ChangelogOptions = {
-          repositoryUrl: 'https://github.com/user/repo.git'
+          repositoryUrl: 'https://github.com/user/repo.git',
         };
         const markdown = generateChangelogMarkdown(commits, options);
-        expect(markdown).toContain('https://github.com/user/repo/commit/abc123');
+        expect(markdown).toContain(
+          'https://github.com/user/repo/commit/abc123'
+        );
         expect(markdown).not.toContain('.git/commit');
       });
     });
@@ -224,7 +247,7 @@ describe('Markdown Generator', () => {
       const commits: ParsedCommit[] = [
         { hash: '1', type: 'feat', subject: 'feature 1', breaking: false },
         { hash: '2', type: 'feat', subject: 'feature 2', breaking: false },
-        { hash: '3', type: 'fix', subject: 'fix 1', breaking: false }
+        { hash: '3', type: 'fix', subject: 'fix 1', breaking: false },
       ];
       const compact = generateCompactChangelog(commits);
       expect(compact).toBe('2 features, 1 fixes');
@@ -233,7 +256,7 @@ describe('Markdown Generator', () => {
     it('should include breaking changes count', () => {
       const commits: ParsedCommit[] = [
         { hash: '1', type: 'feat', subject: 'feature', breaking: true },
-        { hash: '2', type: 'fix', subject: 'fix', breaking: false }
+        { hash: '2', type: 'fix', subject: 'fix', breaking: false },
       ];
       const compact = generateCompactChangelog(commits);
       expect(compact).toContain('1 breaking');
@@ -243,7 +266,7 @@ describe('Markdown Generator', () => {
       const commits: ParsedCommit[] = [
         { hash: '1', type: 'feat', subject: 'feature', breaking: false },
         { hash: '2', type: 'docs', subject: 'docs', breaking: false },
-        { hash: '3', type: 'chore', subject: 'chore', breaking: false }
+        { hash: '3', type: 'chore', subject: 'chore', breaking: false },
       ];
       const compact = generateCompactChangelog(commits);
       expect(compact).toContain('1 features');
@@ -257,7 +280,7 @@ describe('Markdown Generator', () => {
 
     it('should handle only features', () => {
       const commits: ParsedCommit[] = [
-        { hash: '1', type: 'feat', subject: 'feature 1', breaking: false }
+        { hash: '1', type: 'feat', subject: 'feature 1', breaking: false },
       ];
       const compact = generateCompactChangelog(commits);
       expect(compact).toBe('1 features');
@@ -265,7 +288,7 @@ describe('Markdown Generator', () => {
 
     it('should handle only fixes', () => {
       const commits: ParsedCommit[] = [
-        { hash: '1', type: 'fix', subject: 'fix 1', breaking: false }
+        { hash: '1', type: 'fix', subject: 'fix 1', breaking: false },
       ];
       const compact = generateCompactChangelog(commits);
       expect(compact).toBe('1 fixes');
@@ -274,17 +297,35 @@ describe('Markdown Generator', () => {
 
   describe('generateWorkspaceChangelog()', () => {
     const project1Commits: ParsedCommit[] = [
-      { hash: '1', type: 'feat', scope: 'project-a', subject: 'feature A', breaking: false },
-      { hash: '2', type: 'fix', scope: 'project-a', subject: 'fix A', breaking: false }
+      {
+        hash: '1',
+        type: 'feat',
+        scope: 'project-a',
+        subject: 'feature A',
+        breaking: false,
+      },
+      {
+        hash: '2',
+        type: 'fix',
+        scope: 'project-a',
+        subject: 'fix A',
+        breaking: false,
+      },
     ];
 
     const project2Commits: ParsedCommit[] = [
-      { hash: '3', type: 'feat', scope: 'project-b', subject: 'feature B', breaking: false }
+      {
+        hash: '3',
+        type: 'feat',
+        scope: 'project-b',
+        subject: 'feature B',
+        breaking: false,
+      },
     ];
 
     const commitsByProject = new Map<string, ParsedCommit[]>([
       ['project-a', project1Commits],
-      ['project-b', project2Commits]
+      ['project-b', project2Commits],
     ]);
 
     it('should generate workspace changelog with project sections', () => {
@@ -303,7 +344,7 @@ describe('Markdown Generator', () => {
     it('should add version header when provided', () => {
       const options: ChangelogOptions = {
         version: '1.0.0',
-        date: '2024-01-15'
+        date: '2024-01-15',
       };
       const markdown = generateWorkspaceChangelog(commitsByProject, options);
       expect(markdown).toContain('# 1.0.0 (2024-01-15)');
@@ -312,7 +353,7 @@ describe('Markdown Generator', () => {
     it('should sort projects alphabetically', () => {
       const unsorted = new Map<string, ParsedCommit[]>([
         ['z-project', project1Commits],
-        ['a-project', project2Commits]
+        ['a-project', project2Commits],
       ]);
       const markdown = generateWorkspaceChangelog(unsorted);
       const aIndex = markdown.indexOf('## a-project');
@@ -327,11 +368,17 @@ describe('Markdown Generator', () => {
 
     it('should handle global changes with wildcard scope', () => {
       const globalCommits: ParsedCommit[] = [
-        { hash: '1', type: 'feat', scope: '*', subject: 'global feature', breaking: false }
+        {
+          hash: '1',
+          type: 'feat',
+          scope: '*',
+          subject: 'global feature',
+          breaking: false,
+        },
       ];
       const withGlobal = new Map<string, ParsedCommit[]>([
         ['project-a', project1Commits],
-        ['global', globalCommits]
+        ['global', globalCommits],
       ]);
       const markdown = generateWorkspaceChangelog(withGlobal);
       expect(markdown).toContain('Global Changes');
@@ -386,7 +433,9 @@ describe('Markdown Generator', () => {
     });
 
     it('should trim whitespace from URL', () => {
-      mockExecSync.mockReturnValue('  https://github.com/user/repo.git  \n' as any);
+      mockExecSync.mockReturnValue(
+        '  https://github.com/user/repo.git  \n' as any
+      );
       const url = getRepositoryUrl('/fake/path');
       expect(url).toBe('https://github.com/user/repo');
     });
@@ -413,8 +462,14 @@ describe('Markdown Generator', () => {
 
     it('should handle tag names with slashes', () => {
       mockExecSync.mockReturnValue('https://github.com/user/repo\n' as any);
-      const url = getCompareUrl('/fake/path', 'release/v1.0.0', 'release/v1.1.0');
-      expect(url).toBe('https://github.com/user/repo/compare/release/v1.0.0...release/v1.1.0');
+      const url = getCompareUrl(
+        '/fake/path',
+        'release/v1.0.0',
+        'release/v1.1.0'
+      );
+      expect(url).toBe(
+        'https://github.com/user/repo/compare/release/v1.0.0...release/v1.1.0'
+      );
     });
   });
 });

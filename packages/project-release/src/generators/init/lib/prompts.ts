@@ -40,18 +40,18 @@ function getMinimalDefaults(tree: Tree): ConfigAnswers {
     setupHooks: false,
     hookOptions: {
       enablePreCommit: false,
-      enablePrePush: false
+      enablePrePush: false,
     },
     setupCommitValidation: false,
     commitValidationOptions: {
       enableCommitizen: false,
       enableCommitlint: false,
-      useNxScopes: false
+      useNxScopes: false,
     },
     setupGitHubWorkflows: false,
     workflowType: 'none',
     createReleaseBranch: false,
-    autoCreatePR: false
+    autoCreatePR: false,
   };
 }
 
@@ -113,7 +113,14 @@ export interface ConfigAnswers {
 
   // GitHub Workflows options
   setupGitHubWorkflows: boolean;
-  workflowType: 'release-publish' | 'affected' | 'manual' | 'on-merge' | 'pr-validation' | 'all' | 'none';
+  workflowType:
+    | 'release-publish'
+    | 'affected'
+    | 'manual'
+    | 'on-merge'
+    | 'pr-validation'
+    | 'all'
+    | 'none';
   createReleaseBranch: boolean;
   autoCreatePR: boolean;
 
@@ -145,8 +152,12 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
   logger.info('');
   logger.info('🚀 Welcome to nx-project-release interactive setup!');
   logger.info('');
-  logger.info('This wizard will guide you through configuring your release process.');
-  logger.info('You can navigate back at any time or skip the wizard for minimal setup.');
+  logger.info(
+    'This wizard will guide you through configuring your release process.'
+  );
+  logger.info(
+    'You can navigate back at any time or skip the wizard for minimal setup.'
+  );
   logger.info('');
 
   // Ask if user wants to skip wizard
@@ -154,7 +165,7 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     type: 'confirm',
     name: 'skipWizard',
     message: 'Skip configuration wizard and use minimal defaults?',
-    initial: false
+    initial: false,
   });
 
   if (skipWizard) {
@@ -180,15 +191,20 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
   logger.info('');
   logger.info('⚙️  Version Configuration');
   logger.info('');
-  logger.info('ℹ️  Git operations (commit, tag, push) are handled by the release executor,');
-  logger.info('   not the version executor. Configure these in your CI/CD workflows.');
+  logger.info(
+    'ℹ️  Git operations (commit, tag, push) are handled by the release executor,'
+  );
+  logger.info(
+    '   not the version executor. Configure these in your CI/CD workflows.'
+  );
   logger.info('');
 
   const { mergeAfterRelease } = await prompt<{ mergeAfterRelease: boolean }>({
     type: 'confirm',
     name: 'mergeAfterRelease',
-    message: 'Sync version bumps and changelog to other branches after release?',
-    initial: false
+    message:
+      'Sync version bumps and changelog to other branches after release?',
+    initial: false,
   });
 
   let mergeToBranches: string[] = [];
@@ -196,8 +212,12 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
 
   if (mergeAfterRelease) {
     logger.info('');
-    logger.info('This will merge the release commit (version bumps + changelog) to keep branches in sync.');
-    logger.info('Example: Release on main → merge to develop to sync version numbers');
+    logger.info(
+      'This will merge the release commit (version bumps + changelog) to keep branches in sync.'
+    );
+    logger.info(
+      'Example: Release on main → merge to develop to sync version numbers'
+    );
     logger.info('');
 
     const { branches } = await prompt<{ branches: string }>({
@@ -205,19 +225,34 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
       name: 'branches',
       message: 'Branches to sync release metadata to (comma-separated):',
       initial: 'develop',
-      validate: (value: string) => value.trim().length > 0 || 'At least one branch is required'
+      validate: (value: string) =>
+        value.trim().length > 0 || 'At least one branch is required',
     });
-    mergeToBranches = branches.split(',').map(b => b.trim());
+    mergeToBranches = branches.split(',').map((b) => b.trim());
 
-    const { strategy } = await prompt<{ strategy: 'merge' | 'squash' | 'rebase' }>({
+    const { strategy } = await prompt<{
+      strategy: 'merge' | 'squash' | 'rebase';
+    }>({
       type: 'select',
       name: 'strategy',
       message: 'Merge strategy:',
       choices: [
-        { name: 'merge', message: 'merge (standard git merge)', hint: 'Preserves release commit as-is' },
-        { name: 'squash', message: 'squash (squash and merge)', hint: 'Combines into single commit' },
-        { name: 'rebase', message: 'rebase (rebase and merge)', hint: 'Linear history' }
-      ]
+        {
+          name: 'merge',
+          message: 'merge (standard git merge)',
+          hint: 'Preserves release commit as-is',
+        },
+        {
+          name: 'squash',
+          message: 'squash (squash and merge)',
+          hint: 'Combines into single commit',
+        },
+        {
+          name: 'rebase',
+          message: 'rebase (rebase and merge)',
+          hint: 'Linear history',
+        },
+      ],
     });
     mergeStrategy = strategy;
   }
@@ -226,14 +261,14 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     type: 'confirm',
     name: 'trackDeps',
     message: 'Version projects automatically when their dependencies change?',
-    initial: false
+    initial: false,
   });
 
   const { syncVersions } = await prompt<{ syncVersions: boolean }>({
     type: 'confirm',
     name: 'syncVersions',
     message: 'Keep all project versions synchronized?',
-    initial: false
+    initial: false,
   });
 
   // 2. Changelog Configuration
@@ -249,22 +284,22 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
       { name: 'angular', message: 'Angular (recommended)' },
       { name: 'conventionalcommits', message: 'Conventional Commits' },
       { name: 'atom', message: 'Atom' },
-      { name: 'ember', message: 'Ember' }
-    ]
+      { name: 'ember', message: 'Ember' },
+    ],
   });
 
   const { projectChangelogs } = await prompt<{ projectChangelogs: boolean }>({
     type: 'confirm',
     name: 'projectChangelogs',
     message: 'Generate per-project CHANGELOG.md files?',
-    initial: true
+    initial: true,
   });
 
   const { workspaceChangelog } = await prompt<{ workspaceChangelog: boolean }>({
     type: 'confirm',
     name: 'workspaceChangelog',
     message: 'Generate workspace-level CHANGELOG.md?',
-    initial: false
+    initial: false,
   });
 
   // 3. NPM Configuration
@@ -274,8 +309,8 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     message: 'Package access level (for NPM):',
     choices: [
       { name: 'public', message: 'Public' },
-      { name: 'restricted', message: 'Restricted' }
-    ]
+      { name: 'restricted', message: 'Restricted' },
+    ],
   });
 
   const { distTag } = await prompt<{ distTag: string }>({
@@ -283,19 +318,39 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     name: 'distTag',
     message: 'Dist tag strategy for NPM packages:',
     choices: [
-      { name: 'latest', message: 'latest (recommended for stable releases)', hint: 'npm install package gets this version' },
-      { name: 'version', message: 'Use version number (e.g., v1.2.3)', hint: 'Explicit version tags for better control' },
-      { name: 'beta', message: 'beta (for beta releases)', hint: 'npm install package@beta' },
-      { name: 'next', message: 'next (for preview releases)', hint: 'npm install package@next' },
-      { name: 'canary', message: 'canary (for daily/bleeding edge)', hint: 'npm install package@canary' }
-    ]
+      {
+        name: 'latest',
+        message: 'latest (recommended for stable releases)',
+        hint: 'npm install package gets this version',
+      },
+      {
+        name: 'version',
+        message: 'Use version number (e.g., v1.2.3)',
+        hint: 'Explicit version tags for better control',
+      },
+      {
+        name: 'beta',
+        message: 'beta (for beta releases)',
+        hint: 'npm install package@beta',
+      },
+      {
+        name: 'next',
+        message: 'next (for preview releases)',
+        hint: 'npm install package@next',
+      },
+      {
+        name: 'canary',
+        message: 'canary (for daily/bleeding edge)',
+        hint: 'npm install package@canary',
+      },
+    ],
   });
 
   const { buildTarget } = await prompt<{ buildTarget: string }>({
     type: 'input',
     name: 'buildTarget',
     message: 'Build target to run before publishing:',
-    initial: 'build'
+    initial: 'build',
   });
 
   // 4. Tag Naming Configuration
@@ -307,7 +362,7 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     type: 'confirm',
     name: 'configureTagNaming',
     message: 'Configure custom git tag naming?',
-    initial: false
+    initial: false,
   });
 
   let tagPrefix = 'v';
@@ -318,7 +373,7 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
       type: 'input',
       name: 'tagPrefix',
       message: 'Tag prefix (e.g., "v", "release-", or empty for no prefix):',
-      initial: 'v'
+      initial: 'v',
     });
     tagPrefix = tagPrefixResponse.tagPrefix;
 
@@ -327,11 +382,27 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
       name: 'tagFormat',
       message: 'Tag format pattern:',
       choices: [
-        { name: 'v{version}', message: 'v{version} (e.g., v1.0.0)', hint: 'Standard semantic versioning' },
-        { name: '{projectName}-v{version}', message: '{projectName}-v{version} (e.g., my-lib-v1.0.0)', hint: 'Include project name' },
-        { name: '{projectName}@{version}', message: '{projectName}@{version} (e.g., my-lib@1.0.0)', hint: 'NPM-style format' },
-        { name: 'release-{version}', message: 'release-{version} (e.g., release-1.0.0)', hint: 'Custom prefix' }
-      ]
+        {
+          name: 'v{version}',
+          message: 'v{version} (e.g., v1.0.0)',
+          hint: 'Standard semantic versioning',
+        },
+        {
+          name: '{projectName}-v{version}',
+          message: '{projectName}-v{version} (e.g., my-lib-v1.0.0)',
+          hint: 'Include project name',
+        },
+        {
+          name: '{projectName}@{version}',
+          message: '{projectName}@{version} (e.g., my-lib@1.0.0)',
+          hint: 'NPM-style format',
+        },
+        {
+          name: 'release-{version}',
+          message: 'release-{version} (e.g., release-1.0.0)',
+          hint: 'Custom prefix',
+        },
+      ],
     });
     tagFormat = tagFormatResponse.tagFormat;
   }
@@ -341,7 +412,9 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
   logger.info('⚙️  Configuration Location');
   logger.info('');
 
-  const { configLocation } = await prompt<{ configLocation: 'nx-json' | 'project-json' | 'both' }>({
+  const { configLocation } = await prompt<{
+    configLocation: 'nx-json' | 'project-json' | 'both';
+  }>({
     type: 'select',
     name: 'configLocation',
     message: 'Where should the configuration be stored?',
@@ -349,19 +422,19 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
       {
         name: 'both',
         message: 'Both (nx.json defaults + project.json overrides)',
-        hint: 'Recommended: workspace defaults with project-level flexibility'
+        hint: 'Recommended: workspace defaults with project-level flexibility',
       },
       {
         name: 'nx-json',
         message: 'nx.json only (workspace defaults)',
-        hint: 'All projects inherit the same configuration'
+        hint: 'All projects inherit the same configuration',
       },
       {
         name: 'project-json',
         message: 'project.json only (per-project)',
-        hint: 'Configure each project individually'
-      }
-    ]
+        hint: 'Configure each project individually',
+      },
+    ],
   });
 
   // 6. Git Hooks Setup
@@ -384,7 +457,7 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     type: 'confirm',
     name: 'setupHooks',
     message: 'Set up git hooks for automatic project detection and validation?',
-    initial: true
+    initial: true,
   });
 
   let enablePreCommit = false;
@@ -400,16 +473,17 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
         {
           name: 'pre-commit',
           message: 'pre-commit: Auto-detect unconfigured projects',
-          hint: 'Prompts to configure new projects before commit'
+          hint: 'Prompts to configure new projects before commit',
         },
         {
           name: 'pre-push',
           message: 'pre-push: Validate configurations',
-          hint: 'Checks all release configs are valid before push'
-        }
+          hint: 'Checks all release configs are valid before push',
+        },
       ],
       initial: [0, 1], // Both selected by default
-      validate: (value: string[]) => value.length > 0 || 'Select at least one hook'
+      validate: (value: string[]) =>
+        value.length > 0 || 'Select at least one hook',
     });
 
     enablePreCommit = selectedHooks.includes('pre-commit');
@@ -423,11 +497,13 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
   logger.info('Enforce conventional commits with validated scopes');
   logger.info('');
 
-  const { setupCommitValidation } = await prompt<{ setupCommitValidation: boolean }>({
+  const { setupCommitValidation } = await prompt<{
+    setupCommitValidation: boolean;
+  }>({
     type: 'confirm',
     name: 'setupCommitValidation',
     message: 'Set up commit validation (commitizen + commitlint)?',
-    initial: true
+    initial: true,
   });
 
   let enableCommitizen = false;
@@ -444,16 +520,17 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
         {
           name: 'commitizen',
           message: 'commitizen: Interactive commit helper',
-          hint: 'Prompts for conventional commit format (use: npm run commit)'
+          hint: 'Prompts for conventional commit format (use: npm run commit)',
         },
         {
           name: 'commitlint',
           message: 'commitlint: Commit message validation',
-          hint: 'Validates commit messages follow conventional format'
-        }
+          hint: 'Validates commit messages follow conventional format',
+        },
       ],
       initial: [0, 1], // Both selected by default
-      validate: (value: string[]) => value.length > 0 || 'Select at least one tool'
+      validate: (value: string[]) =>
+        value.length > 0 || 'Select at least one tool',
     });
 
     enableCommitizen = selectedTools.includes('commitizen');
@@ -464,7 +541,7 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
         type: 'confirm',
         name: 'enableNxScopes',
         message: 'Validate scopes against Nx project names?',
-        initial: true
+        initial: true,
       });
       useNxScopes = enableNxScopes;
     }
@@ -475,19 +552,36 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
   logger.info('🔄 GitHub Workflows Setup');
   logger.info('');
 
-  const { setupGitHubWorkflows } = await prompt<{ setupGitHubWorkflows: boolean }>({
+  const { setupGitHubWorkflows } = await prompt<{
+    setupGitHubWorkflows: boolean;
+  }>({
     type: 'confirm',
     name: 'setupGitHubWorkflows',
     message: 'Set up GitHub Actions workflows for automated releases?',
-    initial: false
+    initial: false,
   });
 
-  let workflowType: 'release-publish' | 'affected' | 'manual' | 'on-merge' | 'pr-validation' | 'all' | 'none' = 'none';
+  let workflowType:
+    | 'release-publish'
+    | 'affected'
+    | 'manual'
+    | 'on-merge'
+    | 'pr-validation'
+    | 'all'
+    | 'none' = 'none';
   let createReleaseBranch = false;
   let autoCreatePR = false;
 
   if (setupGitHubWorkflows) {
-    const { selectedWorkflowType } = await prompt<{ selectedWorkflowType: 'release-publish' | 'affected' | 'manual' | 'on-merge' | 'pr-validation' | 'all' }>({
+    const { selectedWorkflowType } = await prompt<{
+      selectedWorkflowType:
+        | 'release-publish'
+        | 'affected'
+        | 'manual'
+        | 'on-merge'
+        | 'pr-validation'
+        | 'all';
+    }>({
       type: 'select',
       name: 'selectedWorkflowType',
       message: 'Which workflow type?',
@@ -495,34 +589,34 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
         {
           name: 'release-publish',
           message: 'Release & Publish (Complete Flow)',
-          hint: 'Version + Changelog + GitHub Release + Publish in one workflow'
+          hint: 'Version + Changelog + GitHub Release + Publish in one workflow',
         },
         {
           name: 'affected',
           message: 'Affected Projects (Auto-release on push)',
-          hint: 'Automatically release all affected projects when pushing to main'
+          hint: 'Automatically release all affected projects when pushing to main',
         },
         {
           name: 'manual',
           message: 'Manual Release (workflow_dispatch)',
-          hint: 'Manually trigger releases from GitHub Actions UI with inputs'
+          hint: 'Manually trigger releases from GitHub Actions UI with inputs',
         },
         {
           name: 'on-merge',
           message: 'Release on PR Merge',
-          hint: 'Auto-publish when release PR is merged to main'
+          hint: 'Auto-publish when release PR is merged to main',
         },
         {
           name: 'pr-validation',
           message: 'PR Validation (Dry-run Preview)',
-          hint: 'Show release preview as comment when release PR is opened'
+          hint: 'Show release preview as comment when release PR is opened',
         },
         {
           name: 'all',
           message: 'All Workflows',
-          hint: 'Create all workflow types above'
-        }
-      ]
+          hint: 'Create all workflow types above',
+        },
+      ],
     });
 
     workflowType = selectedWorkflowType;
@@ -530,11 +624,11 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     // Log what will be created
     const workflowNames = {
       'release-publish': 'release-publish.yml',
-      'affected': 'release-affected.yml',
-      'manual': 'release-manual.yml',
+      affected: 'release-affected.yml',
+      manual: 'release-manual.yml',
       'on-merge': 'release-on-merge.yml',
       'pr-validation': 'pr-validation.yml',
-      'all': 'release-publish.yml, release-affected.yml, release-manual.yml, release-on-merge.yml, pr-validation.yml'
+      all: 'release-publish.yml, release-affected.yml, release-manual.yml, release-on-merge.yml, pr-validation.yml',
     };
 
     logger.info(`✓ Will create: ${workflowNames[workflowType]}`);
@@ -550,7 +644,9 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
   logger.info('');
   logger.info('📦 Create Release Groups');
   logger.info('');
-  logger.info('Release groups are configuration templates that organize projects');
+  logger.info(
+    'Release groups are configuration templates that organize projects'
+  );
   logger.info('by type, registry, or deployment target.');
   logger.info('');
   logger.info('Examples:');
@@ -558,123 +654,181 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
   logger.info('  • "npm-libraries" → npm registry, package.json + git tags');
   logger.info('  • "frontend-apps" → No publishing, git tags only');
   logger.info('');
-  logger.info('Note: All projects always version independently based on their commits.');
+  logger.info(
+    'Note: All projects always version independently based on their commits.'
+  );
   logger.info('');
 
   const releaseGroups: ReleaseGroup[] = [];
   let addMore = true;
 
   while (addMore) {
-      // Group name
-      const { groupName } = await prompt<{ groupName: string }>({
-        type: 'input',
-        name: 'groupName',
-        message: 'Release group name:',
-        validate: (value: string) => value.length > 0 || 'Group name is required'
-      });
+    // Group name
+    const { groupName } = await prompt<{ groupName: string }>({
+      type: 'input',
+      name: 'groupName',
+      message: 'Release group name:',
+      validate: (value: string) => value.length > 0 || 'Group name is required',
+    });
 
-      // Do they want to publish artifacts?
-      const { shouldPublish } = await prompt<{ shouldPublish: boolean }>({
-        type: 'confirm',
-        name: 'shouldPublish',
-        message: `[${groupName}] Publish artifacts to a registry?`,
-        initial: true
-      });
+    // Do they want to publish artifacts?
+    const { shouldPublish } = await prompt<{ shouldPublish: boolean }>({
+      type: 'confirm',
+      name: 'shouldPublish',
+      message: `[${groupName}] Publish artifacts to a registry?`,
+      initial: true,
+    });
 
-      // Registry type (only if publishing)
-      let registryType: 'npm' | 'nexus' | 's3' | 'github' | 'custom' | 'none' = 'none';
+    // Registry type (only if publishing)
+    let registryType: 'npm' | 'nexus' | 's3' | 'github' | 'custom' | 'none' =
+      'none';
 
-      if (shouldPublish) {
-        const registryTypeResponse = await prompt<{ registryType: 'npm' | 'nexus' | 's3' | 'github' | 'custom' }>({
-          type: 'select',
-          name: 'registryType',
-          message: `[${groupName}] Registry type:`,
-          choices: [
-            { name: 'npm', message: 'NPM Registry', hint: 'Publish to npmjs.org or private npm registry' },
-            { name: 'nexus', message: 'Nexus Repository', hint: 'Upload artifacts to Sonatype Nexus (raw repository)' },
-            { name: 's3', message: 'AWS S3', hint: 'Upload artifacts to Amazon S3 bucket' },
-            { name: 'github', message: 'GitHub Packages', hint: 'Publish to GitHub npm registry' },
-            { name: 'custom', message: 'Custom Registry', hint: 'Use a custom npm-compatible registry' }
-          ]
-        });
-        registryType = registryTypeResponse.registryType;
-      } else {
-        logger.info('');
-        logger.info(`  Skipping registry configuration (version-only group)`);
-        logger.info('');
-      }
-
-      // Registry URL (if needed)
-      let registryUrl: string | undefined;
-      if (registryType === 'github') {
-        registryUrl = 'https://npm.pkg.github.com';
-      } else if (registryType === 'custom') {
-        const response = await prompt<{ registryUrl: string }>({
-          type: 'input',
-          name: 'registryUrl',
-          message: `[${groupName}] Custom registry URL:`,
-          initial: 'https://registry.npmjs.org'
-        });
-        registryUrl = response.registryUrl;
-      }
-
-      // Version strategy
-      const { versionStrategy } = await prompt<{ versionStrategy: 'git-tag' | 'disk' | 'registry' }>({
+    if (shouldPublish) {
+      const registryTypeResponse = await prompt<{
+        registryType: 'npm' | 'nexus' | 's3' | 'github' | 'custom';
+      }>({
         type: 'select',
-        name: 'versionStrategy',
-        message: `[${groupName}] How should the current version be determined?`,
+        name: 'registryType',
+        message: `[${groupName}] Registry type:`,
         choices: [
-          { name: 'git-tag', message: 'Git tags (recommended)', hint: 'Read from latest git tag' },
-          { name: 'disk', message: 'Version files', hint: 'Read from package.json or other files' },
-          { name: 'registry', message: 'NPM registry', hint: 'Query npm registry for latest version' }
-        ]
+          {
+            name: 'npm',
+            message: 'NPM Registry',
+            hint: 'Publish to npmjs.org or private npm registry',
+          },
+          {
+            name: 'nexus',
+            message: 'Nexus Repository',
+            hint: 'Upload artifacts to Sonatype Nexus (raw repository)',
+          },
+          {
+            name: 's3',
+            message: 'AWS S3',
+            hint: 'Upload artifacts to Amazon S3 bucket',
+          },
+          {
+            name: 'github',
+            message: 'GitHub Packages',
+            hint: 'Publish to GitHub npm registry',
+          },
+          {
+            name: 'custom',
+            message: 'Custom Registry',
+            hint: 'Use a custom npm-compatible registry',
+          },
+        ],
       });
+      registryType = registryTypeResponse.registryType;
+    } else {
+      logger.info('');
+      logger.info(`  Skipping registry configuration (version-only group)`);
+      logger.info('');
+    }
 
-      // Version files
-      const { versionFiles } = await prompt<{ versionFiles: string[] }>({
-        type: 'multiselect',
-        name: 'versionFiles',
-        message: `[${groupName}] Which files should be updated with the new version?`,
-        // @ts-expect-error - enquirer types are incomplete
-        choices: ['package.json', 'project.json', 'version.txt'],
-        initial: [0], // Select package.json by default
-        validate: (value: string[]) => value.length > 0 || 'Please select at least one file'
+    // Registry URL (if needed)
+    let registryUrl: string | undefined;
+    if (registryType === 'github') {
+      registryUrl = 'https://npm.pkg.github.com';
+    } else if (registryType === 'custom') {
+      const response = await prompt<{ registryUrl: string }>({
+        type: 'input',
+        name: 'registryUrl',
+        message: `[${groupName}] Custom registry URL:`,
+        initial: 'https://registry.npmjs.org',
       });
+      registryUrl = response.registryUrl;
+    }
 
-      // Path strategy for Nexus/S3
-      let pathStrategy: 'version' | 'hash' | 'flat' | undefined;
-      if (registryType === 'nexus' || registryType === 's3') {
-        const { selectedPathStrategy } = await prompt<{ selectedPathStrategy: 'version' | 'hash' | 'flat' }>({
-          type: 'select',
-          name: 'selectedPathStrategy',
-          message: `[${groupName}] Artifact path strategy:`,
-          choices: [
-            { name: 'version', message: 'Version-based (recommended)', hint: 'e.g., 1.2.3/artifact.tgz' },
-            { name: 'hash', message: 'Hash-based', hint: 'e.g., abc123.../artifact.tgz (when semver not available)' },
-            ...(registryType === 's3' ? [{ name: 'flat' as const, message: 'Flat', hint: 'No subdirectories, just filename' }] : [])
-          ]
-        });
-        pathStrategy = selectedPathStrategy;
-      }
+    // Version strategy
+    const { versionStrategy } = await prompt<{
+      versionStrategy: 'git-tag' | 'disk' | 'registry';
+    }>({
+      type: 'select',
+      name: 'versionStrategy',
+      message: `[${groupName}] How should the current version be determined?`,
+      choices: [
+        {
+          name: 'git-tag',
+          message: 'Git tags (recommended)',
+          hint: 'Read from latest git tag',
+        },
+        {
+          name: 'disk',
+          message: 'Version files',
+          hint: 'Read from package.json or other files',
+        },
+        {
+          name: 'registry',
+          message: 'NPM registry',
+          hint: 'Query npm registry for latest version',
+        },
+      ],
+    });
 
-      releaseGroups.push({
-        groupName,
-        registryType,
-        registryUrl,
-        versionStrategy,
-        versionFiles,
-        pathStrategy,
-        projects: [] // Will be populated when assigning projects
+    // Version files
+    const { versionFiles } = await prompt<{ versionFiles: string[] }>({
+      type: 'multiselect',
+      name: 'versionFiles',
+      message: `[${groupName}] Which files should be updated with the new version?`,
+      // @ts-expect-error - enquirer types are incomplete
+      choices: ['package.json', 'project.json', 'version.txt'],
+      initial: [0], // Select package.json by default
+      validate: (value: string[]) =>
+        value.length > 0 || 'Please select at least one file',
+    });
+
+    // Path strategy for Nexus/S3
+    let pathStrategy: 'version' | 'hash' | 'flat' | undefined;
+    if (registryType === 'nexus' || registryType === 's3') {
+      const { selectedPathStrategy } = await prompt<{
+        selectedPathStrategy: 'version' | 'hash' | 'flat';
+      }>({
+        type: 'select',
+        name: 'selectedPathStrategy',
+        message: `[${groupName}] Artifact path strategy:`,
+        choices: [
+          {
+            name: 'version',
+            message: 'Version-based (recommended)',
+            hint: 'e.g., 1.2.3/artifact.tgz',
+          },
+          {
+            name: 'hash',
+            message: 'Hash-based',
+            hint: 'e.g., abc123.../artifact.tgz (when semver not available)',
+          },
+          ...(registryType === 's3'
+            ? [
+                {
+                  name: 'flat' as const,
+                  message: 'Flat',
+                  hint: 'No subdirectories, just filename',
+                },
+              ]
+            : []),
+        ],
       });
+      pathStrategy = selectedPathStrategy;
+    }
 
-      const { addAnother } = await prompt<{ addAnother: boolean }>({
-        type: 'confirm',
-        name: 'addAnother',
-        message: 'Add another release group?',
-        initial: false
-      });
+    releaseGroups.push({
+      groupName,
+      registryType,
+      registryUrl,
+      versionStrategy,
+      versionFiles,
+      pathStrategy,
+      projects: [], // Will be populated when assigning projects
+    });
 
-      addMore = addAnother;
+    const { addAnother } = await prompt<{ addAnother: boolean }>({
+      type: 'confirm',
+      name: 'addAnother',
+      message: 'Add another release group?',
+      initial: false,
+    });
+
+    addMore = addAnother;
   }
 
   // 9. Assign Projects to Groups
@@ -712,7 +866,7 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     return {
       name,
       projectType,
-      hasPackageJson
+      hasPackageJson,
     };
   });
 
@@ -733,7 +887,7 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
           return `Please enter a valid group number (1-${releaseGroups.length}) or X to skip`;
         }
         return true;
-      }
+      },
     });
 
     const choice = groupChoice.trim();
@@ -748,7 +902,7 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
 
   logger.info('');
   logger.info('Project assignment complete:');
-  releaseGroups.forEach(group => {
+  releaseGroups.forEach((group) => {
     if (group.projects.length > 0) {
       logger.info(`  ${group.groupName}: ${group.projects.length} project(s)`);
     }
@@ -796,17 +950,17 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     setupHooks,
     hookOptions: {
       enablePreCommit,
-      enablePrePush
+      enablePrePush,
     },
     setupCommitValidation,
     commitValidationOptions: {
       enableCommitizen,
       enableCommitlint,
-      useNxScopes
+      useNxScopes,
     },
     setupGitHubWorkflows,
     workflowType,
     createReleaseBranch,
-    autoCreatePR
+    autoCreatePR,
   };
 }

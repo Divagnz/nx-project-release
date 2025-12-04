@@ -5,17 +5,20 @@ This guide shows how to test the automatic version bump detection from conventio
 ## Quick Start
 
 ### Test Auto-Detection
+
 ```bash
 ./test-auto-detect.sh @nx-project-release
 ```
 
 This will:
+
 1. Show current version
 2. Display recent commits
 3. Preview what bump would be applied
 4. Show test scenarios and examples
 
 ### Simulate GitHub Actions Workflow
+
 ```bash
 # Dry run with auto-detection (recommended)
 ./test-workflow-simulation.sh --dryRun
@@ -37,6 +40,7 @@ This will:
 The version executor analyzes conventional commits since the last git tag to determine:
 
 1. **Patch bump (0.0.1 → 0.0.2)** - Bug fixes and minor changes
+
    - `fix(scope): description`
    - `perf(scope): description`
    - `docs(scope): description`
@@ -46,6 +50,7 @@ The version executor analyzes conventional commits since the last git tag to det
    - `chore(scope): description`
 
 2. **Minor bump (0.0.1 → 0.1.0)** - New features
+
    - `feat(scope): description`
 
 3. **Major bump (0.0.1 → 1.0.0)** - Breaking changes
@@ -56,6 +61,7 @@ The version executor analyzes conventional commits since the last git tag to det
 ### Testing Scenarios
 
 #### Scenario 1: Auto-Detection (Default)
+
 ```bash
 # Preview what would happen
 nx run @nx-project-release:version --preview
@@ -70,6 +76,7 @@ nx run @nx-project-release:version --gitCommit --gitTag
 **Behavior:** Analyzes commits to determine bump type automatically.
 
 #### Scenario 2: Manual Override
+
 ```bash
 # Force specific bump type
 nx run @nx-project-release:version --releaseAs=major --dryRun
@@ -80,6 +87,7 @@ nx run @nx-project-release:version --releaseAs=patch --dryRun
 **Behavior:** Ignores commit analysis, forces specified bump type.
 
 #### Scenario 3: Batch Affected Projects
+
 ```bash
 # Auto-detect for all affected (dry run)
 nx affected -t version --base=main --dryRun
@@ -122,6 +130,7 @@ The `test-workflow-simulation.sh` script simulates what happens in GitHub Action
 ### Test Cases
 
 #### 1. Single Project - Auto-Detection
+
 ```bash
 ./test-workflow-simulation.sh \
   --project @nx-project-release \
@@ -131,6 +140,7 @@ The `test-workflow-simulation.sh` script simulates what happens in GitHub Action
 **Expected:** Analyzes commits, determines bump type, shows preview.
 
 #### 2. Single Project - Manual Override
+
 ```bash
 ./test-workflow-simulation.sh \
   --project @nx-project-release \
@@ -141,6 +151,7 @@ The `test-workflow-simulation.sh` script simulates what happens in GitHub Action
 **Expected:** Forces minor bump regardless of commits.
 
 #### 3. Affected Projects - Auto-Detection
+
 ```bash
 ./test-workflow-simulation.sh --dryRun
 ```
@@ -148,6 +159,7 @@ The `test-workflow-simulation.sh` script simulates what happens in GitHub Action
 **Expected:** Runs on all affected projects, each analyzed independently.
 
 #### 4. Affected Projects - Manual Override
+
 ```bash
 ./test-workflow-simulation.sh \
   --releaseAs patch \
@@ -159,27 +171,32 @@ The `test-workflow-simulation.sh` script simulates what happens in GitHub Action
 ## Debugging
 
 ### Check Current Version
+
 ```bash
 node -p "require('./packages/project-release/package.json').version"
 ```
 
 ### View Recent Commits
+
 ```bash
 git log --oneline -10
 ```
 
 ### Check Last Tag
+
 ```bash
 git describe --tags --abbrev=0
 ```
 
 ### View Commits Since Last Tag
+
 ```bash
 LAST_TAG=$(git describe --tags --abbrev=0)
 git log ${LAST_TAG}..HEAD --oneline
 ```
 
 ### Check Affected Projects
+
 ```bash
 nx affected:projects --base=main
 ```
@@ -187,22 +204,27 @@ nx affected:projects --base=main
 ## Common Issues
 
 ### Issue: No version bump detected
+
 **Cause:** No conventional commits found since last tag.
 
 **Solution:**
+
 1. Check commits: `git log --oneline`
 2. Ensure commits follow format: `type(scope): description`
 3. Valid types: feat, fix, docs, style, refactor, perf, test, chore
 
 ### Issue: Wrong bump type detected
+
 **Cause:** Commits don't match expected format.
 
 **Solution:**
+
 1. Review commit messages
 2. Use `--preview` to see what's detected
 3. Use `--releaseAs` to override if needed
 
 ### Issue: "No changes detected"
+
 **Cause:** No files changed since last release.
 
 **Solution:** This is expected if no work has been done.
@@ -218,6 +240,7 @@ nx affected:projects --base=main
 ## Examples
 
 ### Full Release Workflow Test
+
 ```bash
 # 1. Preview
 ./test-auto-detect.sh @nx-project-release
@@ -232,6 +255,7 @@ nx run @nx-project-release:publish
 ```
 
 ### Batch Release Test
+
 ```bash
 # 1. Check affected projects
 nx affected:projects --base=main

@@ -3,7 +3,7 @@ import {
   readNxJson,
   updateNxJson,
   getProjects,
-  logger
+  logger,
 } from '@nx/devkit';
 import { ConfigureReleaseGroupsSchema } from './schema';
 import Enquirer from 'enquirer';
@@ -11,7 +11,10 @@ import { minimatch } from 'minimatch';
 
 const { prompt } = Enquirer;
 
-export default async function configureReleaseGroupsGenerator(tree: Tree, options: ConfigureReleaseGroupsSchema) {
+export default async function configureReleaseGroupsGenerator(
+  tree: Tree,
+  options: ConfigureReleaseGroupsSchema
+) {
   logger.info('');
   logger.info('📦 Configure Release Groups');
   logger.info('');
@@ -36,7 +39,9 @@ export default async function configureReleaseGroupsGenerator(tree: Tree, option
 
   // Interactive mode - choose action
   if (options.interactive !== false && !options.action) {
-    const { action } = await prompt<{ action: 'create' | 'update' | 'delete' | 'list' }>({
+    const { action } = await prompt<{
+      action: 'create' | 'update' | 'delete' | 'list';
+    }>({
       type: 'select',
       name: 'action',
       message: 'What do you want to do?',
@@ -44,8 +49,8 @@ export default async function configureReleaseGroupsGenerator(tree: Tree, option
         { name: 'create', message: 'Create new release group' },
         { name: 'update', message: 'Update existing release group' },
         { name: 'list', message: 'List all release groups' },
-        { name: 'delete', message: 'Delete release group' }
-      ]
+        { name: 'delete', message: 'Delete release group' },
+      ],
     });
     options.action = action;
   }
@@ -68,14 +73,14 @@ export default async function configureReleaseGroupsGenerator(tree: Tree, option
       type: 'select',
       name: 'groupToDelete',
       message: 'Select release group to delete:',
-      choices: groupNames
+      choices: groupNames,
     });
 
     const { confirm } = await prompt<{ confirm: boolean }>({
       type: 'confirm',
       name: 'confirm',
       message: `Delete release group '${groupToDelete}'?`,
-      initial: false
+      initial: false,
     });
 
     if (confirm) {
@@ -103,7 +108,7 @@ export default async function configureReleaseGroupsGenerator(tree: Tree, option
         type: 'select',
         name: 'groupName',
         message: 'Select release group to update:',
-        choices: groupNames
+        choices: groupNames,
       });
       groupName = response.groupName;
     } else {
@@ -117,7 +122,7 @@ export default async function configureReleaseGroupsGenerator(tree: Tree, option
             return `Release group '${value}' already exists. Use 'update' action to modify it.`;
           }
           return true;
-        }
+        },
       });
       groupName = response.groupName;
     }
@@ -139,7 +144,7 @@ export default async function configureReleaseGroupsGenerator(tree: Tree, option
 
   // Build group configuration
   const groupConfig: any = {
-    ...existingGroup
+    ...existingGroup,
   };
 
   if (options.registryType) {
@@ -166,13 +171,15 @@ export default async function configureReleaseGroupsGenerator(tree: Tree, option
 
   if (options.tagNamingFormat) {
     groupConfig.tagNaming = {
-      format: options.tagNamingFormat
+      format: options.tagNamingFormat,
     };
   }
 
   // Handle projects
   if (options.projects && options.projects.length > 0) {
-    groupConfig.projects = [...new Set([...(groupConfig.projects || []), ...options.projects])];
+    groupConfig.projects = [
+      ...new Set([...(groupConfig.projects || []), ...options.projects]),
+    ];
   } else if (!groupConfig.projects) {
     groupConfig.projects = [];
   }
@@ -190,7 +197,7 @@ export default async function configureReleaseGroupsGenerator(tree: Tree, option
     const matchedProjects: string[] = [];
 
     for (const pattern of options.projectPatterns) {
-      const matches = allProjects.filter(p => {
+      const matches = allProjects.filter((p) => {
         // Check if project matches pattern
         const matchesPattern = minimatch(p, pattern);
         // Exclude if in excludedProjects list
@@ -201,8 +208,12 @@ export default async function configureReleaseGroupsGenerator(tree: Tree, option
     }
 
     if (matchedProjects.length > 0) {
-      groupConfig.projects = [...new Set([...groupConfig.projects, ...matchedProjects])];
-      logger.info(`   📝 Matched ${matchedProjects.length} projects from patterns (excluding ${excludedProjects.length} excluded projects)`);
+      groupConfig.projects = [
+        ...new Set([...groupConfig.projects, ...matchedProjects]),
+      ];
+      logger.info(
+        `   📝 Matched ${matchedProjects.length} projects from patterns (excluding ${excludedProjects.length} excluded projects)`
+      );
     }
   }
 
@@ -211,16 +222,24 @@ export default async function configureReleaseGroupsGenerator(tree: Tree, option
   updateNxJson(tree, nxJson);
 
   logger.info('');
-  logger.info(`✅ ${options.action === 'update' ? 'Updated' : 'Created'} release group: ${groupName}`);
+  logger.info(
+    `✅ ${
+      options.action === 'update' ? 'Updated' : 'Created'
+    } release group: ${groupName}`
+  );
   logger.info(`   Registry Type: ${groupConfig.registryType || 'not set'}`);
-  logger.info(`   Version Strategy: ${groupConfig.versionStrategy || 'independent'}`);
+  logger.info(
+    `   Version Strategy: ${groupConfig.versionStrategy || 'independent'}`
+  );
   logger.info(`   Projects: ${groupConfig.projects?.length || 0}`);
   if (groupConfig.projectPatterns && groupConfig.projectPatterns.length > 0) {
     logger.info(`   Patterns: ${groupConfig.projectPatterns.join(', ')}`);
   }
   logger.info('');
   logger.info('💡 Next steps:');
-  logger.info('   - Use nx g nx-project-release:configure-release-groups to manage more groups');
+  logger.info(
+    '   - Use nx g nx-project-release:configure-release-groups to manage more groups'
+  );
   logger.info('   - Run nx run <project>:validate to verify configuration');
   logger.info('');
 }
@@ -238,7 +257,10 @@ function hasAnyOption(options: ConfigureReleaseGroupsSchema): boolean {
   );
 }
 
-async function promptGroupConfiguration(existingGroup: any, tree: Tree): Promise<Partial<ConfigureReleaseGroupsSchema>> {
+async function promptGroupConfiguration(
+  existingGroup: any,
+  tree: Tree
+): Promise<Partial<ConfigureReleaseGroupsSchema>> {
   const config: Partial<ConfigureReleaseGroupsSchema> = {};
 
   // Registry type
@@ -252,9 +274,9 @@ async function promptGroupConfiguration(existingGroup: any, tree: Tree): Promise
       { name: 'nexus', message: 'Nexus/Sonatype' },
       { name: 's3', message: 'AWS S3' },
       { name: 'github', message: 'GitHub Packages' },
-      { name: 'none', message: 'No publishing (version only)' }
+      { name: 'none', message: 'No publishing (version only)' },
     ],
-    initial: existingGroup.registryType || 'npm'
+    initial: existingGroup.registryType || 'npm',
   });
   config.registryType = registryType as any;
 
@@ -265,14 +287,14 @@ async function promptGroupConfiguration(existingGroup: any, tree: Tree): Promise
       docker: 'ghcr.io/myorg',
       github: 'npm.pkg.github.com',
       nexus: 'https://nexus.company.com/repository/releases',
-      s3: 's3://my-bucket/releases'
+      s3: 's3://my-bucket/releases',
     };
 
     const { registryUrl } = await prompt<{ registryUrl: string }>({
       type: 'input',
       name: 'registryUrl',
       message: 'Registry URL:',
-      initial: existingGroup.registryUrl || defaultUrls[registryType] || ''
+      initial: existingGroup.registryUrl || defaultUrls[registryType] || '',
     });
     config.registryUrl = registryUrl;
   }
@@ -283,10 +305,13 @@ async function promptGroupConfiguration(existingGroup: any, tree: Tree): Promise
     name: 'versionStrategy',
     message: 'Versioning strategy:',
     choices: [
-      { name: 'independent', message: 'Independent - Each project has its own version' },
-      { name: 'fixed', message: 'Fixed - All projects share the same version' }
+      {
+        name: 'independent',
+        message: 'Independent - Each project has its own version',
+      },
+      { name: 'fixed', message: 'Fixed - All projects share the same version' },
     ],
-    initial: existingGroup.versionStrategy === 'fixed' ? 1 : 0
+    initial: existingGroup.versionStrategy === 'fixed' ? 1 : 0,
   });
   config.versionStrategy = versionStrategy as any;
 
@@ -295,9 +320,9 @@ async function promptGroupConfiguration(existingGroup: any, tree: Tree): Promise
     type: 'input',
     name: 'versionFilesInput',
     message: 'Version files (comma-separated):',
-    initial: existingGroup.versionFiles?.join(', ') || 'package.json'
+    initial: existingGroup.versionFiles?.join(', ') || 'package.json',
   });
-  config.versionFiles = versionFilesInput.split(',').map(f => f.trim());
+  config.versionFiles = versionFilesInput.split(',').map((f) => f.trim());
 
   // Projects selection method
   const { selectionMethod } = await prompt<{ selectionMethod: string }>({
@@ -305,9 +330,12 @@ async function promptGroupConfiguration(existingGroup: any, tree: Tree): Promise
     name: 'selectionMethod',
     message: 'How to select projects?',
     choices: [
-      { name: 'patterns', message: 'Use patterns (recommended - e.g., *-lib, app-*)' },
-      { name: 'none', message: 'Skip project selection (configure later)' }
-    ]
+      {
+        name: 'patterns',
+        message: 'Use patterns (recommended - e.g., *-lib, app-*)',
+      },
+      { name: 'none', message: 'Skip project selection (configure later)' },
+    ],
   });
 
   if (selectionMethod === 'patterns') {
@@ -316,9 +344,13 @@ async function promptGroupConfiguration(existingGroup: any, tree: Tree): Promise
       name: 'patternsInput',
       message: 'Project patterns (comma-separated, e.g., *-lib, app-*):',
       initial: existingGroup.projectPatterns?.join(', ') || '',
-      validate: (value: string) => value ? true : 'At least one pattern is required'
+      validate: (value: string) =>
+        value ? true : 'At least one pattern is required',
     });
-    config.projectPatterns = patternsInput.split(',').map(p => p.trim()).filter(Boolean);
+    config.projectPatterns = patternsInput
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean);
   }
 
   // Tag naming
@@ -326,7 +358,7 @@ async function promptGroupConfiguration(existingGroup: any, tree: Tree): Promise
     type: 'confirm',
     name: 'configureTagNaming',
     message: 'Configure custom tag naming?',
-    initial: !!existingGroup.tagNaming
+    initial: !!existingGroup.tagNaming,
   });
 
   if (configureTagNaming) {
@@ -335,11 +367,15 @@ async function promptGroupConfiguration(existingGroup: any, tree: Tree): Promise
       name: 'tagNamingFormat',
       message: 'Tag naming format:',
       choices: [
-        { name: '{releaseGroupName}-v{version}', message: '{releaseGroupName}-v{version}' },
+        {
+          name: '{releaseGroupName}-v{version}',
+          message: '{releaseGroupName}-v{version}',
+        },
         { name: '{projectName}@{version}', message: '{projectName}@{version}' },
-        { name: 'v{version}', message: 'v{version}' }
+        { name: 'v{version}', message: 'v{version}' },
       ],
-      initial: existingGroup.tagNaming?.format || '{releaseGroupName}-v{version}'
+      initial:
+        existingGroup.tagNaming?.format || '{releaseGroupName}-v{version}',
     });
     config.tagNamingFormat = tagNamingFormat;
   }

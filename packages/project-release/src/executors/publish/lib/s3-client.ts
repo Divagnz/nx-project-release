@@ -1,4 +1,9 @@
-import { S3Client, PutObjectCommand, HeadObjectCommand, S3ClientConfig } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  HeadObjectCommand,
+  S3ClientConfig,
+} from '@aws-sdk/client-s3';
 import * as fs from 'fs';
 import * as path from 'path';
 import { logger } from '@nx/devkit';
@@ -56,7 +61,7 @@ export async function uploadToS3(
 
   // Configure S3 client with dual auth support
   const s3ClientConfig: S3ClientConfig = {
-    region: config.region
+    region: config.region,
   };
 
   // Explicit credentials (if provided)
@@ -65,7 +70,7 @@ export async function uploadToS3(
     s3ClientConfig.credentials = {
       accessKeyId: config.accessKeyId,
       secretAccessKey: config.secretAccessKey,
-      ...(config.sessionToken && { sessionToken: config.sessionToken })
+      ...(config.sessionToken && { sessionToken: config.sessionToken }),
     };
   } else {
     logger.info('🔑 Using IAM/OIDC authentication from environment');
@@ -82,18 +87,21 @@ export async function uploadToS3(
   switch (config.pathStrategy) {
     case 'version':
       if (!version) {
-        throw new Error('Version is required when using version-based path strategy');
+        throw new Error(
+          'Version is required when using version-based path strategy'
+        );
       }
       key = `${config.prefix || ''}${version}/${filename}`;
       break;
 
-    case 'hash':
+    case 'hash': {
       const sha1Hash = calculateChecksum(artifactPath, 'sha1');
       if (!sha1Hash) {
         throw new Error('Failed to calculate SHA1 hash for artifact');
       }
       key = `${config.prefix || ''}${sha1Hash}/${filename}`;
       break;
+    }
 
     case 'flat':
       key = `${config.prefix || ''}${filename}`;
@@ -109,17 +117,19 @@ export async function uploadToS3(
   // Check if file already exists (HEAD request)
   if (config.skipExisting !== false) {
     try {
-      await s3Client.send(new HeadObjectCommand({
-        Bucket: config.bucket,
-        Key: key
-      }));
+      await s3Client.send(
+        new HeadObjectCommand({
+          Bucket: config.bucket,
+          Key: key,
+        })
+      );
 
       logger.info(`✅ File already exists, skipping upload: ${filename}`);
       return {
         uploaded: false,
         url: s3Url,
         skipped: true,
-        reason: 'File already exists in S3'
+        reason: 'File already exists in S3',
       };
     } catch (error: any) {
       // NotFound (404) means file doesn't exist, proceed with upload
@@ -146,26 +156,28 @@ export async function uploadToS3(
 
   // Upload file (PUT request)
   try {
-    await s3Client.send(new PutObjectCommand({
-      Bucket: config.bucket,
-      Key: key,
-      Body: fileBuffer,
-      ContentMD5: md5Base64,
-      ContentType: contentType,
-      ContentLength: fileBuffer.length,
-      Metadata: {
-        'original-filename': filename,
-        'upload-timestamp': new Date().toISOString(),
-        ...(version && { version })
-      }
-    }));
+    await s3Client.send(
+      new PutObjectCommand({
+        Bucket: config.bucket,
+        Key: key,
+        Body: fileBuffer,
+        ContentMD5: md5Base64,
+        ContentType: contentType,
+        ContentLength: fileBuffer.length,
+        Metadata: {
+          'original-filename': filename,
+          'upload-timestamp': new Date().toISOString(),
+          ...(version && { version }),
+        },
+      })
+    );
 
     logger.info(`✅ Successfully uploaded to S3: ${filename}`);
 
     return {
       uploaded: true,
       url: s3Url,
-      skipped: false
+      skipped: false,
     };
   } catch (error: any) {
     let errorMessage = `Failed to upload to S3: ${error.message}`;
@@ -188,9 +200,11 @@ export async function uploadToS3(
 /**
  * Validate S3 configuration before upload
  */
-export function validateS3Config(config: Partial<S3Config>): config is S3Config {
+export function validateS3Config(
+  config: Partial<S3Config>
+): config is S3Config {
   const required = ['bucket', 'region', 'pathStrategy'];
-  const missing = required.filter(field => !config[field as keyof S3Config]);
+  const missing = required.filter((field) => !config[field as keyof S3Config]);
 
   if (missing.length > 0) {
     logger.error(`❌ Missing required S3 configuration: ${missing.join(', ')}`);
@@ -221,7 +235,7 @@ function getContentType(filename: string): string {
     '.gz': 'application/gzip',
     '.json': 'application/json',
     '.xml': 'application/xml',
-    '.txt': 'text/plain'
+    '.txt': 'text/plain',
   };
 
   // Check for double extensions like .tar.gz
@@ -238,9 +252,11 @@ function getContentType(filename: string): string {
  */
 export function hasIAMSupport(): boolean {
   return !!(
-    process.env.AWS_ROLE_ARN || // ECS/Fargate task role
-    process.env.AWS_WEB_IDENTITY_TOKEN_FILE || // OIDC (GitHub Actions, etc.)
-    process.env.AWS_CONTAINER_CREDENTIALS_RELATIVE_URI || // ECS
-    process.env.AWS_CONTAINER_CREDENTIALS_FULL_URI // ECS/Fargate
+    (
+      process.env.AWS_ROLE_ARN || // ECS/Fargate task role
+      process.env.AWS_WEB_IDENTITY_TOKEN_FILE || // OIDC (GitHub Actions, etc.)
+      process.env.AWS_CONTAINER_CREDENTIALS_RELATIVE_URI || // ECS
+      process.env.AWS_CONTAINER_CREDENTIALS_FULL_URI
+    ) // ECS/Fargate
   );
 }

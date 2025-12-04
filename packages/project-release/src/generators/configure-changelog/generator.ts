@@ -3,14 +3,17 @@ import {
   getProjects,
   readProjectConfiguration,
   updateProjectConfiguration,
-  logger
+  logger,
 } from '@nx/devkit';
 import { ConfigureChangelogSchema } from './schema';
 import Enquirer from 'enquirer';
 
 const { prompt } = Enquirer;
 
-export default async function configureChangelogGenerator(tree: Tree, options: ConfigureChangelogSchema) {
+export default async function configureChangelogGenerator(
+  tree: Tree,
+  options: ConfigureChangelogSchema
+) {
   logger.info('');
   logger.info('📝 Configure Changelog Settings');
   logger.info('');
@@ -25,8 +28,8 @@ export default async function configureChangelogGenerator(tree: Tree, options: C
       name: 'selectedProjects',
       message: 'Select projects to configure changelog settings:',
       choices: allProjects,
-      // @ts-ignore - enquirer types are incomplete
-      hint: 'Space to select, Enter to confirm'
+      // @ts-expect-error - enquirer types are incomplete
+      hint: 'Space to select, Enter to confirm',
     });
 
     projectsToProcess = selectedProjects;
@@ -61,7 +64,7 @@ export default async function configureChangelogGenerator(tree: Tree, options: C
       if (!projectConfig.targets['changelog']) {
         projectConfig.targets['changelog'] = {
           executor: 'nx-project-release:changelog',
-          options: {}
+          options: {},
         };
       }
 
@@ -122,11 +125,15 @@ export default async function configureChangelogGenerator(tree: Tree, options: C
   logger.info('');
   logger.info('💡 Next steps:');
   logger.info('   - Run nx run <project>:changelog to test the configuration');
-  logger.info('   - Use nx g nx-project-release:configure-version for version settings');
+  logger.info(
+    '   - Use nx g nx-project-release:configure-version for version settings'
+  );
   logger.info('');
 }
 
-async function promptChangelogSettings(options: ConfigureChangelogSchema): Promise<Partial<ConfigureChangelogSchema>> {
+async function promptChangelogSettings(
+  options: ConfigureChangelogSchema
+): Promise<Partial<ConfigureChangelogSchema>> {
   const settings: Partial<ConfigureChangelogSchema> = {};
 
   // Changelog file
@@ -134,7 +141,7 @@ async function promptChangelogSettings(options: ConfigureChangelogSchema): Promi
     type: 'input',
     name: 'changelogFile',
     message: 'Changelog file name:',
-    initial: 'CHANGELOG.md'
+    initial: 'CHANGELOG.md',
   });
   settings.changelogFile = changelogFile;
 
@@ -148,9 +155,9 @@ async function promptChangelogSettings(options: ConfigureChangelogSchema): Promi
       { name: 'conventionalcommits', message: 'Conventional Commits' },
       { name: 'atom', message: 'Atom' },
       { name: 'ember', message: 'Ember' },
-      { name: 'jshint', message: 'JSHint' }
+      { name: 'jshint', message: 'JSHint' },
     ],
-    initial: 0
+    initial: 0,
   });
   settings.preset = preset as any;
 
@@ -159,7 +166,7 @@ async function promptChangelogSettings(options: ConfigureChangelogSchema): Promi
     type: 'numeral',
     name: 'releaseCount',
     message: 'Number of releases to generate (0 for all):',
-    initial: 0
+    initial: 0,
   });
   settings.releaseCount = releaseCount;
 
@@ -168,7 +175,7 @@ async function promptChangelogSettings(options: ConfigureChangelogSchema): Promi
     type: 'confirm',
     name: 'skipUnstable',
     message: 'Skip unstable/pre-release versions?',
-    initial: false
+    initial: false,
   });
   settings.skipUnstable = skipUnstable;
 
@@ -177,7 +184,7 @@ async function promptChangelogSettings(options: ConfigureChangelogSchema): Promi
     type: 'confirm',
     name: 'includeCommitBody',
     message: 'Include commit body in changelog?',
-    initial: false
+    initial: false,
   });
   settings.includeCommitBody = includeCommitBody;
 

@@ -14,7 +14,7 @@ function getAllProjects() {
   try {
     const output = execSync('npx nx show projects --json', {
       encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
     return JSON.parse(output);
   } catch (error) {
@@ -30,7 +30,7 @@ function getProjectConfig(projectName) {
   try {
     const output = execSync(`npx nx show project ${projectName} --json`, {
       encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
     return JSON.parse(output);
   } catch (error) {
@@ -117,7 +117,10 @@ function validateProjectConfig(projectName) {
   if (targets.version) {
     const versionConfig = targets.version;
 
-    if (!versionConfig.options?.versionFiles || versionConfig.options.versionFiles.length === 0) {
+    if (
+      !versionConfig.options?.versionFiles ||
+      versionConfig.options.versionFiles.length === 0
+    ) {
       errors.push('version: Missing required option "versionFiles"');
     }
   }
@@ -140,9 +143,15 @@ function validateProjectConfig(projectName) {
     }
 
     const validRegistryTypes = ['npm', 'github', 'custom'];
-    if (publishConfig.options?.registryType &&
-        !validRegistryTypes.includes(publishConfig.options.registryType)) {
-      errors.push(`publish: Invalid registryType "${publishConfig.options.registryType}". Must be one of: ${validRegistryTypes.join(', ')}`);
+    if (
+      publishConfig.options?.registryType &&
+      !validRegistryTypes.includes(publishConfig.options.registryType)
+    ) {
+      errors.push(
+        `publish: Invalid registryType "${
+          publishConfig.options.registryType
+        }". Must be one of: ${validRegistryTypes.join(', ')}`
+      );
     }
   }
 
@@ -150,7 +159,10 @@ function validateProjectConfig(projectName) {
   if (targets['project-release']) {
     const releaseConfig = targets['project-release'];
 
-    if (!releaseConfig.options?.versionFiles || releaseConfig.options.versionFiles.length === 0) {
+    if (
+      !releaseConfig.options?.versionFiles ||
+      releaseConfig.options.versionFiles.length === 0
+    ) {
       errors.push('project-release: Missing required option "versionFiles"');
     }
 
@@ -165,7 +177,7 @@ function validateProjectConfig(projectName) {
 
   return {
     valid: errors.length === 0,
-    errors
+    errors,
   };
 }
 
@@ -176,5 +188,5 @@ module.exports = {
   isPublishable,
   getUnconfiguredPublishableProjects,
   getProjectsWithReleaseConfig,
-  validateProjectConfig
+  validateProjectConfig,
 };

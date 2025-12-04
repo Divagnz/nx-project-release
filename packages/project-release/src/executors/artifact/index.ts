@@ -1,7 +1,15 @@
 import { ExecutorContext, logger } from '@nx/devkit';
 import { ArtifactExecutorSchema } from './schema';
-import { createWriteStream, existsSync, statSync, writeFileSync, unlinkSync, readFileSync, mkdirSync } from 'fs';
-import { join, basename, dirname } from 'path';
+import {
+  createWriteStream,
+  existsSync,
+  statSync,
+  writeFileSync,
+  unlinkSync,
+  readFileSync,
+  mkdirSync,
+} from 'fs';
+import { join } from 'path';
 import { glob } from 'glob';
 import { execSync } from 'child_process';
 
@@ -26,7 +34,7 @@ export default async function artifactExecutor(
   // 1. Resolve source directory
   const sourceDir = resolveTemplate(options.sourceDir, {
     projectName,
-    version
+    version,
   });
   const fullSourcePath = join(context.root, sourceDir);
 
@@ -43,10 +51,10 @@ export default async function artifactExecutor(
   const extension = getExtension(format);
 
   // 3. Resolve output directory
-  const outputDir = resolveTemplate(
-    options.outputDir || 'dist/artifacts',
-    { projectName, version }
-  );
+  const outputDir = resolveTemplate(options.outputDir || 'dist/artifacts', {
+    projectName,
+    version,
+  });
   const fullOutputPath = join(context.root, outputDir);
   mkdirSync(fullOutputPath, { recursive: true });
 
@@ -61,7 +69,7 @@ export default async function artifactExecutor(
       date,
       platform,
       arch,
-      extension
+      extension,
     }
   );
 
@@ -85,7 +93,9 @@ export default async function artifactExecutor(
 
     if (files.length === 0) {
       logger.warn('⚠️  No files found matching include/exclude patterns');
-      logger.info(`   Include patterns: ${JSON.stringify(options.include || ['**/*'])}`);
+      logger.info(
+        `   Include patterns: ${JSON.stringify(options.include || ['**/*'])}`
+      );
       if (options.exclude && options.exclude.length > 0) {
         logger.info(`   Exclude patterns: ${JSON.stringify(options.exclude)}`);
       }
@@ -97,12 +107,7 @@ export default async function artifactExecutor(
 
     switch (format) {
       case 'zip':
-        await createZipArchive(
-          fullSourcePath,
-          artifactPath,
-          files,
-          options
-        );
+        await createZipArchive(fullSourcePath, artifactPath, files, options);
         break;
 
       case 'tar':
@@ -134,9 +139,8 @@ export default async function artifactExecutor(
     return {
       success: true,
       artifactPath: artifactPath,
-      artifactSize: size
+      artifactSize: size,
     };
-
   } catch (error) {
     logger.error(`❌ Failed to create artifact: ${(error as Error).message}`);
     if ((error as any).stack) {
@@ -157,7 +161,7 @@ async function createZipArchive(
   return new Promise((resolve, reject) => {
     const output = createWriteStream(outputPath);
     const archive = archiver('zip', {
-      zlib: { level: options.compressionLevel || 6 }
+      zlib: { level: options.compressionLevel || 6 },
     });
 
     output.on('close', () => resolve());
@@ -202,7 +206,7 @@ async function createTarArchive(
   const gzip = format === 'tgz' || format === 'tar.gz';
 
   // Prepare files list, applying stripPrefix if needed
-  let filesToArchive = files;
+  const filesToArchive = files;
 
   if (options.stripPrefix) {
     // For tar, we can't easily strip prefix, so we'll need to use cwd cleverly
@@ -217,7 +221,7 @@ async function createTarArchive(
       gzip: gzip,
       portable: true,
       preservePaths: false,
-      ...(options.preservePermissions && { preserveOwner: false })
+      ...(options.preservePermissions && { preserveOwner: false }),
     },
     filesToArchive
   );
@@ -233,7 +237,7 @@ async function createTarArchive(
         {
           file: outputPath,
           cwd: sourceDir,
-          gzip: gzip
+          gzip: gzip,
         },
         ['.artifact-metadata.json']
       );
@@ -258,9 +262,9 @@ async function collectFiles(
     const matches = await glob(pattern, {
       cwd: sourceDir,
       dot: true,
-      nodir: true
+      nodir: true,
     });
-    matches.forEach(f => allFiles.add(f));
+    matches.forEach((f) => allFiles.add(f));
   }
 
   // Remove excluded files
@@ -268,15 +272,18 @@ async function collectFiles(
     const matches = await glob(pattern, {
       cwd: sourceDir,
       dot: true,
-      nodir: true
+      nodir: true,
     });
-    matches.forEach(f => allFiles.delete(f));
+    matches.forEach((f) => allFiles.delete(f));
   }
 
   return Array.from(allFiles).sort();
 }
 
-function resolveTemplate(template: string, variables: Record<string, string>): string {
+function resolveTemplate(
+  template: string,
+  variables: Record<string, string>
+): string {
   let result = template;
 
   for (const [key, value] of Object.entries(variables)) {
@@ -288,15 +295,23 @@ function resolveTemplate(template: string, variables: Record<string, string>): s
 
 function getExtension(format: string): string {
   switch (format) {
-    case 'zip': return 'zip';
-    case 'tar': return 'tar';
-    case 'tgz': return 'tgz';
-    case 'tar.gz': return 'tar.gz';
-    default: return format;
+    case 'zip':
+      return 'zip';
+    case 'tar':
+      return 'tar';
+    case 'tgz':
+      return 'tgz';
+    case 'tar.gz':
+      return 'tar.gz';
+    default:
+      return format;
   }
 }
 
-function getProjectVersion(projectName: string, context: ExecutorContext): string {
+function getProjectVersion(
+  projectName: string,
+  context: ExecutorContext
+): string {
   if (!projectName) {
     return '0.0.0';
   }
@@ -310,14 +325,14 @@ function getProjectVersion(projectName: string, context: ExecutorContext): strin
 
     // Try package.json
     const packageJsonPath = join(context.root, projectRoot, 'package.json');
-  if (existsSync(packageJsonPath)) {
-    try {
-      const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
-      if (pkg.version) return pkg.version;
-    } catch {
-      // Ignore
+    if (existsSync(packageJsonPath)) {
+      try {
+        const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
+        if (pkg.version) return pkg.version;
+      } catch {
+        // Ignore
+      }
     }
-  }
 
     // Try project.json
     const projectJsonPath = join(context.root, projectRoot, 'project.json');
@@ -341,7 +356,7 @@ function getGitShortHash(workspaceRoot: string): string {
     return execSync('git rev-parse --short HEAD', {
       cwd: workspaceRoot,
       encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'ignore']
+      stdio: ['pipe', 'pipe', 'ignore'],
     }).trim();
   } catch {
     return 'unknown';

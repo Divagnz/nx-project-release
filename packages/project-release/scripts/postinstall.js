@@ -28,20 +28,20 @@ function hasCommitlint(root) {
     'commitlint.config.js',
     'commitlint.config.ts',
     '.commitlintrc.json',
-    '.commitlintrc.js'
+    '.commitlintrc.js',
   ];
-  return configs.some(c => existsSync(join(root, c)));
+  return configs.some((c) => existsSync(join(root, c)));
 }
 
 // Prompt user yes/no
 function askQuestion(query) {
   const rl = readline.createInterface({
     input: process.stdin,
-    output: process.stdout
+    output: process.stdout,
   });
 
-  return new Promise(resolve => {
-    rl.question(query, answer => {
+  return new Promise((resolve) => {
+    rl.question(query, (answer) => {
       rl.close();
       resolve(answer);
     });
@@ -57,7 +57,9 @@ async function main() {
   }
 
   console.log('\n📦 nx-project-release installed!');
-  console.log('\n💡 Commitlint validates conventional commits for accurate changelogs.');
+  console.log(
+    '\n💡 Commitlint validates conventional commits for accurate changelogs.'
+  );
 
   const answer = await askQuestion('\nInstall commitlint? (y/n): ');
 
@@ -86,7 +88,6 @@ async function main() {
       console.log('\n✅ Commitlint configured!');
       console.log('\n💡 Next: Set up git hooks');
       console.log('   npx nx g nx-project-release:init\n');
-
     } catch (error) {
       console.error('\n⚠️  Installation failed:', error.message);
       console.log('\n💡 Install manually:');
@@ -101,7 +102,7 @@ async function main() {
   }
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error('Error:', err);
   process.exit(0);
 });

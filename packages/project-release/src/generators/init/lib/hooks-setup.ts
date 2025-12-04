@@ -1,4 +1,10 @@
-import { Tree, logger, readJson, updateJson, joinPathFragments } from '@nx/devkit';
+import {
+  Tree,
+  logger,
+  readJson,
+  updateJson,
+  joinPathFragments,
+} from '@nx/devkit';
 import { detectHookSystem, isHookConfigured } from './hooks-utils';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -11,7 +17,10 @@ export interface HookOptions {
 /**
  * Set up git hooks based on detected hook system
  */
-export async function setupGitHooks(tree: Tree, options: HookOptions): Promise<void> {
+export async function setupGitHooks(
+  tree: Tree,
+  options: HookOptions
+): Promise<void> {
   const hookSystem = detectHookSystem(tree);
 
   // Create hooks directory if needed
@@ -22,7 +31,10 @@ export async function setupGitHooks(tree: Tree, options: HookOptions): Promise<v
 
   // Set up hooks based on detected system
   if (hookSystem.type === 'husky') {
-    await setupHuskyHooks(tree, options, { type: 'husky', detected: hookSystem.detected });
+    await setupHuskyHooks(tree, options, {
+      type: 'husky',
+      detected: hookSystem.detected,
+    });
   } else {
     await setupSimpleGitHooks(tree, options);
   }
@@ -50,7 +62,11 @@ function copyHookScripts(tree: Tree): void {
   const hooksDir = '.nx-project-release/hooks';
   const templateDir = join(__dirname, '../hooks-templates');
 
-  const scripts = ['pre-commit.template.js', 'pre-push.template.js', 'utils.template.js'];
+  const scripts = [
+    'pre-commit.template.js',
+    'pre-push.template.js',
+    'utils.template.js',
+  ];
 
   for (const scriptFile of scripts) {
     const templatePath = join(templateDir, scriptFile);
@@ -85,7 +101,9 @@ async function setupHuskyHooks(
     const hookPath = '.husky/pre-commit';
 
     if (isHookConfigured(tree, hookSystem, 'pre-commit')) {
-      logger.warn(`⚠️  ${hookPath} already has nx-project-release hook, skipping`);
+      logger.warn(
+        `⚠️  ${hookPath} already has nx-project-release hook, skipping`
+      );
     } else {
       let content = '';
 
@@ -110,7 +128,9 @@ async function setupHuskyHooks(
     const hookPath = '.husky/pre-push';
 
     if (isHookConfigured(tree, hookSystem, 'pre-push')) {
-      logger.warn(`⚠️  ${hookPath} already has nx-project-release hook, skipping`);
+      logger.warn(
+        `⚠️  ${hookPath} already has nx-project-release hook, skipping`
+      );
     } else {
       let content = '';
 
@@ -135,7 +155,10 @@ async function setupHuskyHooks(
 /**
  * Set up hooks for simple-git-hooks
  */
-async function setupSimpleGitHooks(tree: Tree, options: HookOptions): Promise<void> {
+async function setupSimpleGitHooks(
+  tree: Tree,
+  options: HookOptions
+): Promise<void> {
   logger.info('⚙️  Configuring simple-git-hooks...');
 
   updateJson(tree, 'package.json', (json) => {
@@ -163,7 +186,9 @@ async function setupSimpleGitHooks(tree: Tree, options: HookOptions): Promise<vo
         logger.warn('⚠️  pre-commit hook already configured, skipping');
       } else if (existingHook) {
         // Combine with existing hook
-        json['simple-git-hooks']['pre-commit'] = `${existingHook} && ${ourHook}`;
+        json['simple-git-hooks'][
+          'pre-commit'
+        ] = `${existingHook} && ${ourHook}`;
         logger.info('✅ Added to existing pre-commit hook');
       } else {
         // Set new hook

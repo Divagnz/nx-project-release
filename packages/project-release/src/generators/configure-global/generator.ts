@@ -1,15 +1,13 @@
-import {
-  Tree,
-  readNxJson,
-  updateNxJson,
-  logger
-} from '@nx/devkit';
+import { Tree, readNxJson, updateNxJson, logger } from '@nx/devkit';
 import { ConfigureGlobalSchema } from './schema';
 import Enquirer from 'enquirer';
 
 const { prompt } = Enquirer;
 
-export default async function configureGlobalGenerator(tree: Tree, options: ConfigureGlobalSchema) {
+export default async function configureGlobalGenerator(
+  tree: Tree,
+  options: ConfigureGlobalSchema
+) {
   logger.info('');
   logger.info('🌍 Configure Global Settings');
   logger.info('');
@@ -36,7 +34,8 @@ export default async function configureGlobalGenerator(tree: Tree, options: Conf
   let changesCount = 0;
 
   if (options.projectsRelationship) {
-    nxJsonAny.projectRelease.projectsRelationship = options.projectsRelationship;
+    nxJsonAny.projectRelease.projectsRelationship =
+      options.projectsRelationship;
     logger.info(`✅ Set projectsRelationship: ${options.projectsRelationship}`);
     changesCount++;
   }
@@ -48,7 +47,12 @@ export default async function configureGlobalGenerator(tree: Tree, options: Conf
   }
 
   // Tag naming configuration
-  if (options.tagNamingFormat || options.tagNamingPrefix || options.tagNamingSuffix || options.includeProjectName !== undefined) {
+  if (
+    options.tagNamingFormat ||
+    options.tagNamingPrefix ||
+    options.tagNamingSuffix ||
+    options.includeProjectName !== undefined
+  ) {
     if (!nxJsonAny.projectRelease.tagNaming) {
       nxJsonAny.projectRelease.tagNaming = {};
     }
@@ -72,7 +76,8 @@ export default async function configureGlobalGenerator(tree: Tree, options: Conf
     }
 
     if (options.includeProjectName !== undefined) {
-      nxJsonAny.projectRelease.tagNaming.includeProjectName = options.includeProjectName;
+      nxJsonAny.projectRelease.tagNaming.includeProjectName =
+        options.includeProjectName;
       logger.info(`✅ Set includeProjectName: ${options.includeProjectName}`);
       changesCount++;
     }
@@ -111,7 +116,9 @@ export default async function configureGlobalGenerator(tree: Tree, options: Conf
     logger.info('💡 Next steps:');
     logger.info('   - These settings apply to all projects as defaults');
     logger.info('   - Project-specific settings override global settings');
-    logger.info('   - Use nx g nx-project-release:validate to view configuration');
+    logger.info(
+      '   - Use nx g nx-project-release:validate to view configuration'
+    );
   }
   logger.info('');
 }
@@ -134,15 +141,20 @@ async function promptGlobalSettings(): Promise<ConfigureGlobalSchema> {
   const settings: ConfigureGlobalSchema = {};
 
   // Projects relationship
-  const { projectsRelationship } = await prompt<{ projectsRelationship: 'independent' | 'fixed' }>({
+  const { projectsRelationship } = await prompt<{
+    projectsRelationship: 'independent' | 'fixed';
+  }>({
     type: 'select',
     name: 'projectsRelationship',
     message: 'Default versioning strategy:',
     choices: [
-      { name: 'independent', message: 'Independent - Each project has its own version' },
-      { name: 'fixed', message: 'Fixed - All projects share the same version' }
+      {
+        name: 'independent',
+        message: 'Independent - Each project has its own version',
+      },
+      { name: 'fixed', message: 'Fixed - All projects share the same version' },
     ],
-    initial: 0
+    initial: 0,
   });
   settings.projectsRelationship = projectsRelationship;
 
@@ -151,16 +163,16 @@ async function promptGlobalSettings(): Promise<ConfigureGlobalSchema> {
     type: 'input',
     name: 'versionFilesInput',
     message: 'Default version files (comma-separated):',
-    initial: 'package.json'
+    initial: 'package.json',
   });
-  settings.versionFiles = versionFilesInput.split(',').map(f => f.trim());
+  settings.versionFiles = versionFilesInput.split(',').map((f) => f.trim());
 
   // Tag naming
   const { configureTagNaming } = await prompt<{ configureTagNaming: boolean }>({
     type: 'confirm',
     name: 'configureTagNaming',
     message: 'Configure tag naming?',
-    initial: true
+    initial: true,
   });
 
   if (configureTagNaming) {
@@ -174,17 +186,23 @@ async function promptGlobalSettings(): Promise<ConfigureGlobalSchema> {
         message: 'Tag naming format:',
         choices: [
           { name: 'v{version}', message: 'v{version} (monolithic style)' },
-          { name: '{projectName}@{version}', message: '{projectName}@{version} (npm style)' },
-          { name: '{projectName}-v{version}', message: '{projectName}-v{version} (prefixed)' }
+          {
+            name: '{projectName}@{version}',
+            message: '{projectName}@{version} (npm style)',
+          },
+          {
+            name: '{projectName}-v{version}',
+            message: '{projectName}-v{version} (prefixed)',
+          },
         ],
-        initial: 0
+        initial: 0,
       },
       {
         type: 'confirm',
         name: 'includeProjectName',
         message: 'Include project name in tag?',
-        initial: false
-      }
+        initial: false,
+      },
     ]);
 
     settings.tagNamingFormat = tagSettings.tagNamingFormat;
@@ -198,9 +216,9 @@ async function promptGlobalSettings(): Promise<ConfigureGlobalSchema> {
     message: 'Changelog preset:',
     choices: [
       { name: 'angular', message: 'Angular (recommended)' },
-      { name: 'conventionalcommits', message: 'Conventional Commits' }
+      { name: 'conventionalcommits', message: 'Conventional Commits' },
     ],
-    initial: 0
+    initial: 0,
   });
   settings.changelogPreset = changelogPreset as any;
 
@@ -209,7 +227,7 @@ async function promptGlobalSettings(): Promise<ConfigureGlobalSchema> {
     type: 'confirm',
     name: 'configureRegistry',
     message: 'Configure default registry?',
-    initial: false
+    initial: false,
   });
 
   if (configureRegistry) {
@@ -227,15 +245,15 @@ async function promptGlobalSettings(): Promise<ConfigureGlobalSchema> {
           { name: 'nexus', message: 'Nexus/Sonatype' },
           { name: 's3', message: 'AWS S3' },
           { name: 'github', message: 'GitHub Packages' },
-          { name: 'none', message: 'No publishing (version only)' }
-        ]
+          { name: 'none', message: 'No publishing (version only)' },
+        ],
       },
       {
         type: 'input',
         name: 'registryUrl',
         message: 'Registry URL:',
-        initial: 'https://registry.npmjs.org'
-      }
+        initial: 'https://registry.npmjs.org',
+      },
     ]);
 
     settings.registryType = registrySettings.registryType as any;

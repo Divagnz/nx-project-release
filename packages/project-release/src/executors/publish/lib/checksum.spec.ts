@@ -7,7 +7,8 @@ import { calculateChecksum, calculateChecksums } from './checksum.js';
 describe('Checksum Utilities', () => {
   let tempDir: string;
   let testFilePath: string;
-  const testContent = 'Hello, World! This is a test file for checksum calculation.';
+  const testContent =
+    'Hello, World! This is a test file for checksum calculation.';
 
   beforeEach(() => {
     // Create a temporary directory
@@ -98,12 +99,16 @@ describe('Checksum Utilities', () => {
     describe('Error handling', () => {
       it('should throw error for non-existent file', () => {
         const nonExistentPath = path.join(tempDir, 'non-existent-file.txt');
-        expect(() => calculateChecksum(nonExistentPath, 'sha1')).toThrow('File not found');
+        expect(() => calculateChecksum(nonExistentPath, 'sha1')).toThrow(
+          'File not found'
+        );
       });
 
       it('should throw error with specific file path in error message', () => {
         const nonExistentPath = path.join(tempDir, 'non-existent-file.txt');
-        expect(() => calculateChecksum(nonExistentPath, 'md5')).toThrow(nonExistentPath);
+        expect(() => calculateChecksum(nonExistentPath, 'md5')).toThrow(
+          nonExistentPath
+        );
       });
     });
 
@@ -122,7 +127,9 @@ describe('Checksum Utilities', () => {
 
       it('should handle binary files', () => {
         const binaryFilePath = path.join(tempDir, 'binary-file.bin');
-        const binaryData = Buffer.from([0x00, 0x01, 0x02, 0x03, 0xFF, 0xFE, 0xFD]);
+        const binaryData = Buffer.from([
+          0x00, 0x01, 0x02, 0x03, 0xff, 0xfe, 0xfd,
+        ]);
         fs.writeFileSync(binaryFilePath, binaryData);
 
         const checksum = calculateChecksum(binaryFilePath, 'sha1');
@@ -198,7 +205,9 @@ describe('Checksum Utilities', () => {
 
     it('should handle file not found error', () => {
       const nonExistentPath = path.join(tempDir, 'non-existent-file.txt');
-      expect(() => calculateChecksums(nonExistentPath, ['sha1', 'md5'])).toThrow('File not found');
+      expect(() =>
+        calculateChecksums(nonExistentPath, ['sha1', 'md5'])
+      ).toThrow('File not found');
     });
 
     it('should work with only MD5', () => {

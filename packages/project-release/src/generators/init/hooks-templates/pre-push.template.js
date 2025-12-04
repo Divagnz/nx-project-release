@@ -4,7 +4,10 @@
  * Validates all release configurations before push
  */
 
-const { getProjectsWithReleaseConfig, validateProjectConfig } = require('./utils');
+const {
+  getProjectsWithReleaseConfig,
+  validateProjectConfig,
+} = require('./utils');
 
 function main() {
   console.log('🔍 Validating release configurations...');
@@ -28,7 +31,9 @@ function main() {
   }
 
   if (!hasErrors) {
-    console.log(`✅ All ${releaseProjects.length} release configurations are valid`);
+    console.log(
+      `✅ All ${releaseProjects.length} release configurations are valid`
+    );
     return;
   }
 
@@ -39,7 +44,7 @@ function main() {
 
   for (const { project, errors } of validationResults) {
     console.error(`📦 ${project}:`);
-    errors.forEach(error => {
+    errors.forEach((error) => {
       console.error(`   ❌ ${error}`);
     });
     console.log('');

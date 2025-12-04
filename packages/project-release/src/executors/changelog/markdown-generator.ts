@@ -1,4 +1,8 @@
-import { ParsedCommit, getCommitTypeTitle, COMMIT_TYPE_ORDER } from './commit-parser.js';
+import {
+  ParsedCommit,
+  getCommitTypeTitle,
+  COMMIT_TYPE_ORDER,
+} from './commit-parser.js';
 
 export interface ChangelogOptions {
   version?: string;
@@ -24,12 +28,14 @@ export function generateChangelogMarkdown(
   // Add version header if provided
   if (options.version) {
     const date = options.date || new Date().toISOString().split('T')[0];
-    markdown += `## [${options.version}](${options.compareUrl || options.version}) (${date})\n\n`;
+    markdown += `## [${options.version}](${
+      options.compareUrl || options.version
+    }) (${date})\n\n`;
   }
 
   // Separate breaking changes
-  const breakingChanges = commits.filter(c => c.breaking);
-  const regularCommits = commits.filter(c => !c.breaking);
+  const breakingChanges = commits.filter((c) => c.breaking);
+  const regularCommits = commits.filter((c) => !c.breaking);
 
   // Add breaking changes section first
   if (breakingChanges.length > 0) {
@@ -47,7 +53,7 @@ export function generateChangelogMarkdown(
   const grouped = groupByType(regularCommits);
 
   // Sort types by predefined order
-  const sortedTypes = COMMIT_TYPE_ORDER.filter(type => grouped.has(type));
+  const sortedTypes = COMMIT_TYPE_ORDER.filter((type) => grouped.has(type));
 
   // Add any types not in the predefined order
   for (const type of grouped.keys()) {
@@ -83,9 +89,9 @@ export function generateCompactChangelog(commits: ParsedCommit[]): string {
     return 'No changes';
   }
 
-  const breaking = commits.filter(c => c.breaking).length;
-  const features = commits.filter(c => c.type === 'feat').length;
-  const fixes = commits.filter(c => c.type === 'fix').length;
+  const breaking = commits.filter((c) => c.breaking).length;
+  const features = commits.filter((c) => c.type === 'feat').length;
+  const fixes = commits.filter((c) => c.type === 'fix').length;
   const other = commits.length - breaking - features - fixes;
 
   const parts: string[] = [];
@@ -158,7 +164,7 @@ export function generateWorkspaceChangelog(
   // Add commits without specific scope (global changes)
   const globalCommits = Array.from(commitsByProject.values())
     .flat()
-    .filter(c => !c.scope || c.scope === '*');
+    .filter((c) => !c.scope || c.scope === '*');
 
   if (globalCommits.length > 0) {
     markdown += `## Global Changes\n\n`;
@@ -177,7 +183,7 @@ export function getRepositoryUrl(cwd: string): string | undefined {
     const remoteUrl = execSync('git config --get remote.origin.url', {
       cwd,
       encoding: 'utf8',
-      stdio: 'pipe'
+      stdio: 'pipe',
     }).trim();
 
     // Convert SSH URL to HTTPS
@@ -197,7 +203,11 @@ export function getRepositoryUrl(cwd: string): string | undefined {
 /**
  * Get compare URL for version range
  */
-export function getCompareUrl(cwd: string, fromTag: string, toTag: string): string | undefined {
+export function getCompareUrl(
+  cwd: string,
+  fromTag: string,
+  toTag: string
+): string | undefined {
   const repoUrl = getRepositoryUrl(cwd);
   if (!repoUrl) return undefined;
 

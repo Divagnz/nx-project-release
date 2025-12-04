@@ -1,4 +1,9 @@
-import { PromiseExecutor, logger, ExecutorContext, createProjectGraphAsync } from '@nx/devkit';
+import {
+  PromiseExecutor,
+  logger,
+  ExecutorContext,
+  createProjectGraphAsync,
+} from '@nx/devkit';
 import { execSync } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -105,20 +110,23 @@ interface NxReleaseConfig {
     skip?: string[];
   };
   releaseGroups?: Record<string, ReleaseGroup>;
-  projectConfigs?: Record<string, {
-    registry?: {
-      type?: string;
-      url?: string;
-      access?: string;
-      distTag?: string;
-    };
-    versionFiles?: string[];
-    versionPath?: string;
-    buildTarget?: string;
-    publishDir?: string;
-    skip?: boolean;
-    releaseGroup?: string;
-  }>;
+  projectConfigs?: Record<
+    string,
+    {
+      registry?: {
+        type?: string;
+        url?: string;
+        access?: string;
+        distTag?: string;
+      };
+      versionFiles?: string[];
+      versionPath?: string;
+      buildTarget?: string;
+      publishDir?: string;
+      skip?: boolean;
+      releaseGroup?: string;
+    }
+  >;
 }
 
 function getNxReleaseConfig(context: ExecutorContext): NxReleaseConfig {
@@ -135,9 +143,15 @@ function getNxReleaseConfig(context: ExecutorContext): NxReleaseConfig {
   }
 }
 
-function mergeConfigWithNxJson(options: VersionExecutorSchema, context: ExecutorContext, projectName?: string): VersionExecutorSchema {
+function mergeConfigWithNxJson(
+  options: VersionExecutorSchema,
+  context: ExecutorContext,
+  projectName?: string
+): VersionExecutorSchema {
   const nxConfig = getNxReleaseConfig(context);
-  const nxProjectConfig = projectName ? nxConfig.projectConfigs?.[projectName] : undefined;
+  const nxProjectConfig = projectName
+    ? nxConfig.projectConfigs?.[projectName]
+    : undefined;
 
   // Determine release group for this project
   let releaseGroup: ReleaseGroup | undefined;
@@ -162,13 +176,21 @@ function mergeConfigWithNxJson(options: VersionExecutorSchema, context: Executor
 
   let projectJsonConfig: Record<string, unknown> = {};
   if (projectName && context.projectsConfigurations?.projects[projectName]) {
-    const projectRoot = context.projectsConfigurations.projects[projectName].root;
-    const projectJsonPath = path.join(context.root, projectRoot, 'project.json');
+    const projectRoot =
+      context.projectsConfigurations.projects[projectName].root;
+    const projectJsonPath = path.join(
+      context.root,
+      projectRoot,
+      'project.json'
+    );
 
     try {
       if (fs.existsSync(projectJsonPath)) {
-        const projectJson = JSON.parse(fs.readFileSync(projectJsonPath, 'utf8'));
-        projectJsonConfig = projectJson.targets?.['project-release']?.options || {};
+        const projectJson = JSON.parse(
+          fs.readFileSync(projectJsonPath, 'utf8')
+        );
+        projectJsonConfig =
+          projectJson.targets?.['project-release']?.options || {};
       }
     } catch {
       // Ignore project.json read errors
@@ -184,9 +206,10 @@ function mergeConfigWithNxJson(options: VersionExecutorSchema, context: Executor
 
   // Projects relationship (priority: options > release group > nx global config > default 'fixed')
   if (!merged.projectsRelationship) {
-    merged.projectsRelationship = releaseGroup?.projectsRelationship ||
-                                  nxConfig.projectsRelationship ||
-                                  'fixed';
+    merged.projectsRelationship =
+      releaseGroup?.projectsRelationship ||
+      nxConfig.projectsRelationship ||
+      'fixed';
   }
 
   // Version files - release group should override targetDefaults
@@ -194,18 +217,18 @@ function mergeConfigWithNxJson(options: VersionExecutorSchema, context: Executor
     merged.versionFiles = releaseGroup.versionFiles;
   } else if (!merged.versionFiles) {
     merged.versionFiles = (projectJsonConfig.versionFiles as string[]) ||
-                         nxProjectConfig?.versionFiles ||
-                         nxConfig.versionFiles ||
-                         ['project.json', 'package.json'];
+      nxProjectConfig?.versionFiles ||
+      nxConfig.versionFiles || ['project.json', 'package.json'];
   }
 
   // Version path
   if (!merged.versionPath) {
-    merged.versionPath = (projectJsonConfig.versionPath as string) ||
-                        releaseGroup?.versionPath ||
-                        nxProjectConfig?.versionPath ||
-                        nxConfig.versionPath ||
-                        'version';
+    merged.versionPath =
+      (projectJsonConfig.versionPath as string) ||
+      releaseGroup?.versionPath ||
+      nxProjectConfig?.versionPath ||
+      nxConfig.versionPath ||
+      'version';
   }
 
   // Tag naming
@@ -227,19 +250,27 @@ function mergeConfigWithNxJson(options: VersionExecutorSchema, context: Executor
   return merged;
 }
 
-function matchesProjectPattern(projectName: string, patterns: string[]): boolean {
-  return patterns.some(pattern => {
+function matchesProjectPattern(
+  projectName: string,
+  patterns: string[]
+): boolean {
+  return patterns.some((pattern) => {
     // Convert glob pattern to regex
-    const regexPattern = pattern
-      .replace(/\*/g, '.*')
-      .replace(/\?/g, '.');
+    const regexPattern = pattern.replace(/\*/g, '.*').replace(/\?/g, '.');
     const regex = new RegExp(`^${regexPattern}$`);
     return regex.test(projectName);
   });
 }
 
-const runExecutor: PromiseExecutor<VersionExecutorSchema> = async (options, context: ExecutorContext) => {
-  const mergedOptions = mergeConfigWithNxJson(options, context, context.projectName);
+const runExecutor: PromiseExecutor<VersionExecutorSchema> = async (
+  options,
+  context: ExecutorContext
+) => {
+  const mergedOptions = mergeConfigWithNxJson(
+    options,
+    context,
+    context.projectName
+  );
 
   // Check if project is excluded from releases
   if (context.projectName) {
@@ -247,8 +278,14 @@ const runExecutor: PromiseExecutor<VersionExecutorSchema> = async (options, cont
     const excludedProjects = nxJson?.projectRelease?.excludedProjects || [];
 
     if (excludedProjects.includes(context.projectName)) {
-      logger.info(`⏭️  Skipping ${context.projectName}: excluded from releases`);
-      return { success: true, skipped: true, reason: 'Project excluded from releases' };
+      logger.info(
+        `⏭️  Skipping ${context.projectName}: excluded from releases`
+      );
+      return {
+        success: true,
+        skipped: true,
+        reason: 'Project excluded from releases',
+      };
     }
   }
 
@@ -262,8 +299,17 @@ const runExecutor: PromiseExecutor<VersionExecutorSchema> = async (options, cont
 };
 
 // New workspace versioning functions
-async function handleWorkspaceVersioning(options: VersionExecutorSchema, context: ExecutorContext): Promise<{ success: boolean; error?: string; versions?: Record<string, string> }> {
-  logger.info('🔗 Running workspace versioning with dependency tracking and sync versioning');
+async function handleWorkspaceVersioning(
+  options: VersionExecutorSchema,
+  context: ExecutorContext
+): Promise<{
+  success: boolean;
+  error?: string;
+  versions?: Record<string, string>;
+}> {
+  logger.info(
+    '🔗 Running workspace versioning with dependency tracking and sync versioning'
+  );
 
   try {
     const projectsToVersion = new Set<string>();
@@ -277,23 +323,33 @@ async function handleWorkspaceVersioning(options: VersionExecutorSchema, context
 
     // Add sync projects if specified
     if (options.syncProjects && options.syncProjects.length > 0) {
-      options.syncProjects.forEach(project => projectsToVersion.add(project));
+      options.syncProjects.forEach((project) => projectsToVersion.add(project));
     }
 
     // Add all projects if syncVersions is true and no specific projects are specified
-    if (options.syncVersions && (!options.syncProjects || options.syncProjects.length === 0)) {
-      Object.keys(context.projectsConfigurations?.projects || {}).forEach(project => {
-        projectsToVersion.add(project);
-      });
+    if (
+      options.syncVersions &&
+      (!options.syncProjects || options.syncProjects.length === 0)
+    ) {
+      Object.keys(context.projectsConfigurations?.projects || {}).forEach(
+        (project) => {
+          projectsToVersion.add(project);
+        }
+      );
     }
 
     // Track dependencies if enabled
     if (options.trackDeps) {
-      const affectedProjects = getAffectedProjectsByDependencies(Array.from(projectsToVersion), projectDependencies);
-      affectedProjects.forEach(project => projectsToVersion.add(project));
+      const affectedProjects = getAffectedProjectsByDependencies(
+        Array.from(projectsToVersion),
+        projectDependencies
+      );
+      affectedProjects.forEach((project) => projectsToVersion.add(project));
     }
 
-    logger.info(`📦 Projects to version: ${Array.from(projectsToVersion).join(', ')}`);
+    logger.info(
+      `📦 Projects to version: ${Array.from(projectsToVersion).join(', ')}`
+    );
 
     // Determine version strategy
     let targetVersion: string | undefined;
@@ -302,21 +358,37 @@ async function handleWorkspaceVersioning(options: VersionExecutorSchema, context
       if (options.version) {
         targetVersion = options.version;
       } else if (options.syncStrategy === 'highest') {
-        targetVersion = await getHighestVersionAcrossProjects(Array.from(projectsToVersion), context);
+        targetVersion = await getHighestVersionAcrossProjects(
+          Array.from(projectsToVersion),
+          context
+        );
         if (options.releaseAs) {
-          targetVersion = semver.inc(targetVersion, options.releaseAs) || targetVersion;
+          targetVersion =
+            semver.inc(targetVersion, options.releaseAs) || targetVersion;
         }
       } else {
         // Default sync strategy: calculate version for the main project and use it for all
-        const mainProject = context.projectName || Array.from(projectsToVersion)[0];
-        const mainProjectVersion = await calculateNewVersionForProject(mainProject, options, context);
+        const mainProject =
+          context.projectName || Array.from(projectsToVersion)[0];
+        const mainProjectVersion = await calculateNewVersionForProject(
+          mainProject,
+          options,
+          context
+        );
         targetVersion = mainProjectVersion;
       }
       logger.info(`🎯 Sync version target: ${targetVersion}`);
     }
 
     // Version each project
-    const results: Array<{ project: string; success: boolean; version?: string; error?: string; skipped?: boolean; reason?: string }> = [];
+    const results: Array<{
+      project: string;
+      success: boolean;
+      version?: string;
+      error?: string;
+      skipped?: boolean;
+      reason?: string;
+    }> = [];
 
     for (const projectName of Array.from(projectsToVersion)) {
       try {
@@ -329,22 +401,38 @@ async function handleWorkspaceVersioning(options: VersionExecutorSchema, context
         const result = await versionSingleProject(projectOptions, {
           ...context,
           projectName,
-          projectsConfigurations: context.projectsConfigurations
+          projectsConfigurations: context.projectsConfigurations,
         });
 
         if (result.success) {
           if (result.skipped) {
             // Project was skipped (e.g., no version found)
-            results.push({ project: projectName, success: true, skipped: true, reason: result.reason });
-            logger.warn(`⏭️  ${projectName}: Skipped (${result.reason || 'unknown reason'})`);
+            results.push({
+              project: projectName,
+              success: true,
+              skipped: true,
+              reason: result.reason,
+            });
+            logger.warn(
+              `⏭️  ${projectName}: Skipped (${
+                result.reason || 'unknown reason'
+              })`
+            );
           } else {
-            const version = (result as { success: boolean; version?: string }).version || targetVersion || 'unknown';
+            const version =
+              (result as { success: boolean; version?: string }).version ||
+              targetVersion ||
+              'unknown';
             versions[projectName] = version;
             results.push({ project: projectName, success: true, version });
             logger.info(`✅ ${projectName}: ${version}`);
           }
         } else {
-          results.push({ project: projectName, success: false, error: result.error });
+          results.push({
+            project: projectName,
+            success: false,
+            error: result.error,
+          });
           logger.error(`❌ ${projectName}: ${result.error}`);
         }
       } catch (error) {
@@ -354,9 +442,13 @@ async function handleWorkspaceVersioning(options: VersionExecutorSchema, context
       }
     }
 
-    const successful = results.filter(r => r.success && !(r as any).skipped).length;
-    const skipped = results.filter(r => r.success && (r as any).skipped).length;
-    const failed = results.filter(r => !r.success).length;
+    const successful = results.filter(
+      (r) => r.success && !(r as any).skipped
+    ).length;
+    const skipped = results.filter(
+      (r) => r.success && (r as any).skipped
+    ).length;
+    const failed = results.filter((r) => !r.success).length;
 
     logger.info(`\n📊 Workspace Versioning Summary:`);
     logger.info(`✅ Successfully versioned: ${successful} projects`);
@@ -367,22 +459,28 @@ async function handleWorkspaceVersioning(options: VersionExecutorSchema, context
 
     if (skipped > 0) {
       logger.info(`\nSkipped projects:`);
-      results.filter(r => r.success && (r as any).skipped).forEach(r => {
-        logger.info(`  - ${r.project}: ${(r as any).reason || 'unknown reason'}`);
-      });
+      results
+        .filter((r) => r.success && (r as any).skipped)
+        .forEach((r) => {
+          logger.info(
+            `  - ${r.project}: ${(r as any).reason || 'unknown reason'}`
+          );
+        });
     }
 
     if (failed > 0) {
       logger.info(`\nFailed projects:`);
-      results.filter(r => !r.success).forEach(r => {
-        logger.info(`  - ${r.project}: ${r.error}`);
-      });
+      results
+        .filter((r) => !r.success)
+        .forEach((r) => {
+          logger.info(`  - ${r.project}: ${r.error}`);
+        });
     }
 
     return {
       success: failed === 0,
       error: failed > 0 ? `${failed} projects failed to version` : undefined,
-      versions
+      versions,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -391,7 +489,16 @@ async function handleWorkspaceVersioning(options: VersionExecutorSchema, context
   }
 }
 
-async function versionSingleProject(options: VersionExecutorSchema, context: ExecutorContext): Promise<{ success: boolean; error?: string; version?: string; skipped?: boolean; reason?: string }> {
+async function versionSingleProject(
+  options: VersionExecutorSchema,
+  context: ExecutorContext
+): Promise<{
+  success: boolean;
+  error?: string;
+  version?: string;
+  skipped?: boolean;
+  reason?: string;
+}> {
   if (!context.projectName) {
     return { success: false, error: 'No project name specified' };
   }
@@ -399,7 +506,9 @@ async function versionSingleProject(options: VersionExecutorSchema, context: Exe
   logger.info(`🔖 Versioning ${context.projectName}`);
 
   try {
-    const projectRoot = context.projectsConfigurations?.projects[context.projectName]?.root || context.projectName;
+    const projectRoot =
+      context.projectsConfigurations?.projects[context.projectName]?.root ||
+      context.projectName;
 
     let versionInfo: { version?: string; filePath?: string };
 
@@ -416,25 +525,37 @@ async function versionSingleProject(options: VersionExecutorSchema, context: Exe
 
     // Handle first release mode
     let currentVersion = versionInfo.version || '0.0.0';
-    let isFirstRelease = !versionInfo.version || versionInfo.version === '0.0.0';
+    let isFirstRelease =
+      !versionInfo.version || versionInfo.version === '0.0.0';
 
     // If no version found, handle based on mode
     if (!versionInfo.version && !options.firstRelease) {
       if (options.preview) {
         // Preview mode: provide detailed guidance
-        logger.warn(`⚠️  No version found for project '${context.projectName}'`);
+        logger.warn(
+          `⚠️  No version found for project '${context.projectName}'`
+        );
         logger.info('');
         logger.info('This project has no version information available.');
         logger.info('Options:');
-        logger.info('  1. Set an initial version using --version flag (e.g., --version=1.0.0)');
+        logger.info(
+          '  1. Set an initial version using --version flag (e.g., --version=1.0.0)'
+        );
         logger.info('  2. Use --firstRelease flag to start from 0.0.0');
         logger.info('  3. Configure version in package.json or project.json');
         logger.info('');
-        return { success: false, error: `No version found for project ${context.projectName}. Use --version, --firstRelease, or configure version in project files.` };
+        return {
+          success: false,
+          error: `No version found for project ${context.projectName}. Use --version, --firstRelease, or configure version in project files.`,
+        };
       } else {
         // Regular mode (CI/CD, affected, etc.): Skip with warning instead of failing
-        logger.warn(`⚠️  Skipping project '${context.projectName}': No version found`);
-        logger.info('💡 To version this project, use --firstRelease flag or configure version in project files');
+        logger.warn(
+          `⚠️  Skipping project '${context.projectName}': No version found`
+        );
+        logger.info(
+          '💡 To version this project, use --firstRelease flag or configure version in project files'
+        );
         return { success: true, skipped: true, reason: 'No version found' };
       }
     }
@@ -452,7 +573,9 @@ async function versionSingleProject(options: VersionExecutorSchema, context: Exe
           currentVersion = '0.0.0';
           isFirstRelease = true;
         }
-        logger.info(`First release mode: using version ${currentVersion} as starting point`);
+        logger.info(
+          `First release mode: using version ${currentVersion} as starting point`
+        );
       }
     }
 
@@ -469,9 +592,12 @@ async function versionSingleProject(options: VersionExecutorSchema, context: Exe
     } else if (options.releaseAs) {
       // Handle prerelease with preid
       if (options.releaseAs === 'prerelease' && options.preid) {
-        newVersion = semver.inc(currentVersion, 'prerelease', options.preid) || currentVersion;
+        newVersion =
+          semver.inc(currentVersion, 'prerelease', options.preid) ||
+          currentVersion;
       } else {
-        newVersion = semver.inc(currentVersion, options.releaseAs) || currentVersion;
+        newVersion =
+          semver.inc(currentVersion, options.releaseAs) || currentVersion;
       }
     } else {
       // Automatic mode - analyze commits to determine version bump
@@ -480,29 +606,41 @@ async function versionSingleProject(options: VersionExecutorSchema, context: Exe
       if (recommendedReleaseType && recommendedReleaseType !== 'none') {
         // Found conventional commits (feat/fix/breaking)
         if (isFirstRelease) {
-          const baseVersion = recommendedReleaseType === 'major' ? '1.0.0' :
-                            recommendedReleaseType === 'minor' ? '0.1.0' : '0.0.1';
+          const baseVersion =
+            recommendedReleaseType === 'major'
+              ? '1.0.0'
+              : recommendedReleaseType === 'minor'
+              ? '0.1.0'
+              : '0.0.1';
           newVersion = baseVersion;
         } else {
           // Handle prerelease with preid in automatic mode
           if (recommendedReleaseType === 'prerelease' && options.preid) {
-            newVersion = semver.inc(currentVersion, 'prerelease', options.preid) || currentVersion;
+            newVersion =
+              semver.inc(currentVersion, 'prerelease', options.preid) ||
+              currentVersion;
           } else {
-            newVersion = semver.inc(currentVersion, recommendedReleaseType) || currentVersion;
+            newVersion =
+              semver.inc(currentVersion, recommendedReleaseType) ||
+              currentVersion;
           }
         }
       } else if (recommendedReleaseType === 'none') {
         // Has commits affecting this project, but no conventional feat/fix/breaking commits
-        logger.warn('⚠️  No conventional commits (feat/fix/breaking) found since last release');
-        logger.info('💡 Defaulting to patch bump (use --releaseAs to specify different bump type)');
+        logger.warn(
+          '⚠️  No conventional commits (feat/fix/breaking) found since last release'
+        );
+        logger.info(
+          '💡 Defaulting to patch bump (use --releaseAs to specify different bump type)'
+        );
         newVersion = semver.inc(currentVersion, 'patch') || currentVersion;
       } else {
         // No commits at all - don't bump, require explicit intent
         throw new Error(
           'No commits found since last release.\n' +
-          'To create a release anyway, use:\n' +
-          '  --releaseAs=patch/minor/major  (specify bump type)\n' +
-          '  --version=x.y.z  (set explicit version)'
+            'To create a release anyway, use:\n' +
+            '  --releaseAs=patch/minor/major  (specify bump type)\n' +
+            '  --version=x.y.z  (set explicit version)'
         );
       }
     }
@@ -510,21 +648,38 @@ async function versionSingleProject(options: VersionExecutorSchema, context: Exe
     logger.info(`New version: ${newVersion}`);
 
     // Determine target file path if not set
-    const targetFilePath = versionInfo.filePath || path.join(context.root, projectRoot, options.versionFiles?.[0] || options.versionFile || 'project.json');
+    const targetFilePath =
+      versionInfo.filePath ||
+      path.join(
+        context.root,
+        projectRoot,
+        options.versionFiles?.[0] || options.versionFile || 'project.json'
+      );
 
     // Preview detailed information if requested
     if (options.preview) {
-      await showVersionChanges(context, projectRoot, options, currentVersion, newVersion, { version: versionInfo.version, filePath: targetFilePath });
+      await showVersionChanges(
+        context,
+        projectRoot,
+        options,
+        currentVersion,
+        newVersion,
+        { version: versionInfo.version, filePath: targetFilePath }
+      );
       return { success: true, version: newVersion };
     }
 
     if (options.dryRun) {
-      logger.info(`Would update version from ${currentVersion} to ${newVersion}`);
+      logger.info(
+        `Would update version from ${currentVersion} to ${newVersion}`
+      );
 
       // Check if lock file would be updated
       if (!options.skipLockFileUpdate && options.updateLockFile !== false) {
         const lockFiles = ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml'];
-        const existingLockFile = lockFiles.find(file => fs.existsSync(path.join(context.root, file)));
+        const existingLockFile = lockFiles.find((file) =>
+          fs.existsSync(path.join(context.root, file))
+        );
         if (existingLockFile) {
           logger.info(`Would update lock file: ${existingLockFile}`);
         }
@@ -533,14 +688,25 @@ async function versionSingleProject(options: VersionExecutorSchema, context: Exe
     }
 
     // Update version in file
-    await writeVersionToFile(context, projectRoot, options, newVersion, targetFilePath);
+    await writeVersionToFile(
+      context,
+      projectRoot,
+      options,
+      newVersion,
+      targetFilePath
+    );
 
     // Update lock files if needed (unless explicitly skipped)
     await updateLockFiles(context, options);
 
     // Execute post-targets if specified
     if (options.postTargets && options.postTargets.length > 0) {
-      await executePostTargets(options.postTargets, options.postTargetOptions || {}, context, newVersion);
+      await executePostTargets(
+        options.postTargets,
+        options.postTargetOptions || {},
+        context,
+        newVersion
+      );
     }
 
     logger.info(`✅ Successfully versioned to ${newVersion}`);
@@ -553,22 +719,24 @@ async function versionSingleProject(options: VersionExecutorSchema, context: Exe
 }
 
 // Enhanced dependency tracking with Nx project graph integration
-async function getWorkspaceDependencies(context: ExecutorContext): Promise<Record<string, string[]>> {
+async function getWorkspaceDependencies(
+  context: ExecutorContext
+): Promise<Record<string, string[]>> {
   try {
     // Use Nx project graph for more accurate dependency detection
     const projectGraph = await createProjectGraphAsync();
     const dependencies: Record<string, string[]> = {};
 
     // Initialize all projects
-    Object.keys(projectGraph.nodes).forEach(projectName => {
+    Object.keys(projectGraph.nodes).forEach((projectName) => {
       dependencies[projectName] = [];
     });
 
     // Use project graph dependencies
     Object.entries(projectGraph.dependencies).forEach(([projectName, deps]) => {
       dependencies[projectName] = deps
-        .filter(dep => dep.type !== 'npm') // Filter out npm dependencies, keep workspace deps
-        .map(dep => dep.target);
+        .filter((dep) => dep.type !== 'npm') // Filter out npm dependencies, keep workspace deps
+        .map((dep) => dep.target);
     });
 
     // Fallback to package.json analysis for additional dependencies
@@ -584,16 +752,27 @@ async function getWorkspaceDependencies(context: ExecutorContext): Promise<Recor
       try {
         const packageJsonPath = path.join(projectPath, 'package.json');
         if (fs.existsSync(packageJsonPath)) {
-          const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-          const deps = { ...packageJson.dependencies, ...packageJson.devDependencies };
+          const packageJson = JSON.parse(
+            fs.readFileSync(packageJsonPath, 'utf8')
+          );
+          const deps = {
+            ...packageJson.dependencies,
+            ...packageJson.devDependencies,
+          };
 
-          Object.keys(deps).forEach(depName => {
-            const dependentProject = Object.keys(projects).find(p => {
+          Object.keys(deps).forEach((depName) => {
+            const dependentProject = Object.keys(projects).find((p) => {
               const depProjectConfig = projects[p];
-              const depPackageJsonPath = path.join(context.root, depProjectConfig.root, 'package.json');
+              const depPackageJsonPath = path.join(
+                context.root,
+                depProjectConfig.root,
+                'package.json'
+              );
               if (fs.existsSync(depPackageJsonPath)) {
                 try {
-                  const depPackageJson = JSON.parse(fs.readFileSync(depPackageJsonPath, 'utf8'));
+                  const depPackageJson = JSON.parse(
+                    fs.readFileSync(depPackageJsonPath, 'utf8')
+                  );
                   return depPackageJson.name === depName;
                 } catch {
                   return false;
@@ -602,7 +781,11 @@ async function getWorkspaceDependencies(context: ExecutorContext): Promise<Recor
               return false;
             });
 
-            if (dependentProject && dependentProject !== projectName && !dependencies[projectName].includes(dependentProject)) {
+            if (
+              dependentProject &&
+              dependentProject !== projectName &&
+              !dependencies[projectName].includes(dependentProject)
+            ) {
               dependencies[projectName].push(dependentProject);
             }
           });
@@ -614,12 +797,16 @@ async function getWorkspaceDependencies(context: ExecutorContext): Promise<Recor
 
     return dependencies;
   } catch (error) {
-    logger.warn(`Failed to load project graph, falling back to basic dependency detection: ${error}`);
+    logger.warn(
+      `Failed to load project graph, falling back to basic dependency detection: ${error}`
+    );
     return getFallbackDependencies(context);
   }
 }
 
-function getFallbackDependencies(context: ExecutorContext): Record<string, string[]> {
+function getFallbackDependencies(
+  context: ExecutorContext
+): Record<string, string[]> {
   const dependencies: Record<string, string[]> = {};
   const projects = context.projectsConfigurations?.projects || {};
 
@@ -632,16 +819,27 @@ function getFallbackDependencies(context: ExecutorContext): Record<string, strin
     try {
       const packageJsonPath = path.join(projectPath, 'package.json');
       if (fs.existsSync(packageJsonPath)) {
-        const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-        const deps = { ...packageJson.dependencies, ...packageJson.devDependencies };
+        const packageJson = JSON.parse(
+          fs.readFileSync(packageJsonPath, 'utf8')
+        );
+        const deps = {
+          ...packageJson.dependencies,
+          ...packageJson.devDependencies,
+        };
 
-        Object.keys(deps).forEach(depName => {
-          const dependentProject = Object.keys(projects).find(p => {
+        Object.keys(deps).forEach((depName) => {
+          const dependentProject = Object.keys(projects).find((p) => {
             const depProjectConfig = projects[p];
-            const depPackageJsonPath = path.join(context.root, depProjectConfig.root, 'package.json');
+            const depPackageJsonPath = path.join(
+              context.root,
+              depProjectConfig.root,
+              'package.json'
+            );
             if (fs.existsSync(depPackageJsonPath)) {
               try {
-                const depPackageJson = JSON.parse(fs.readFileSync(depPackageJsonPath, 'utf8'));
+                const depPackageJson = JSON.parse(
+                  fs.readFileSync(depPackageJsonPath, 'utf8')
+                );
                 return depPackageJson.name === depName;
               } catch {
                 return false;
@@ -663,7 +861,10 @@ function getFallbackDependencies(context: ExecutorContext): Record<string, strin
   return dependencies;
 }
 
-function getAffectedProjectsByDependencies(changedProjects: string[], projectDependencies: Record<string, string[]>): string[] {
+function getAffectedProjectsByDependencies(
+  changedProjects: string[],
+  projectDependencies: Record<string, string[]>
+): string[] {
   const affected = new Set<string>();
   const queue = [...changedProjects];
 
@@ -683,12 +884,17 @@ function getAffectedProjectsByDependencies(changedProjects: string[], projectDep
   return Array.from(affected);
 }
 
-async function getHighestVersionAcrossProjects(projects: string[], context: ExecutorContext): Promise<string> {
+async function getHighestVersionAcrossProjects(
+  projects: string[],
+  context: ExecutorContext
+): Promise<string> {
   let highestVersion = '0.0.0';
 
   for (const projectName of projects) {
     try {
-      const projectRoot = context.projectsConfigurations?.projects[projectName]?.root || projectName;
+      const projectRoot =
+        context.projectsConfigurations?.projects[projectName]?.root ||
+        projectName;
       const versionInfo = await readVersionFromFile(context, projectRoot, {});
       const version = versionInfo.version || '0.0.0';
 
@@ -703,11 +909,17 @@ async function getHighestVersionAcrossProjects(projects: string[], context: Exec
   return highestVersion;
 }
 
-async function calculateNewVersionForProject(projectName: string, options: VersionExecutorSchema, context: ExecutorContext): Promise<string> {
-  const projectRoot = context.projectsConfigurations?.projects[projectName]?.root || projectName;
+async function calculateNewVersionForProject(
+  projectName: string,
+  options: VersionExecutorSchema,
+  context: ExecutorContext
+): Promise<string> {
+  const projectRoot =
+    context.projectsConfigurations?.projects[projectName]?.root || projectName;
   const versionInfo = await readVersionFromFile(context, projectRoot, options);
   const currentVersion = versionInfo.version || '0.0.0';
-  const isFirstRelease = !versionInfo.version || versionInfo.version === '0.0.0';
+  const isFirstRelease =
+    !versionInfo.version || versionInfo.version === '0.0.0';
 
   if (options.version) {
     return options.version;
@@ -719,24 +931,33 @@ async function calculateNewVersionForProject(projectName: string, options: Versi
     if (recommendedReleaseType && recommendedReleaseType !== 'none') {
       // Found conventional commits (feat/fix/breaking)
       if (isFirstRelease) {
-        return recommendedReleaseType === 'major' ? '1.0.0' :
-               recommendedReleaseType === 'minor' ? '0.1.0' : '0.0.1';
+        return recommendedReleaseType === 'major'
+          ? '1.0.0'
+          : recommendedReleaseType === 'minor'
+          ? '0.1.0'
+          : '0.0.1';
       } else {
-        return semver.inc(currentVersion, recommendedReleaseType) || currentVersion;
+        return (
+          semver.inc(currentVersion, recommendedReleaseType) || currentVersion
+        );
       }
     } else if (recommendedReleaseType === 'none') {
       // Has commits affecting this project, but no conventional feat/fix/breaking commits
       // User made changes (chore/test/docs/etc), so bump is reasonable
-      logger.warn('⚠️  No conventional commits (feat/fix/breaking) found since last release');
-      logger.info('💡 Defaulting to patch bump (use --releaseAs to specify different bump type)');
+      logger.warn(
+        '⚠️  No conventional commits (feat/fix/breaking) found since last release'
+      );
+      logger.info(
+        '💡 Defaulting to patch bump (use --releaseAs to specify different bump type)'
+      );
       return semver.inc(currentVersion, 'patch') || currentVersion;
     } else {
       // No commits at all - don't bump, require explicit intent
       throw new Error(
         'No commits found since last release.\n' +
-        'To create a release anyway, use:\n' +
-        '  --releaseAs=patch/minor/major  (specify bump type)\n' +
-        '  --version=x.y.z  (set explicit version)'
+          'To create a release anyway, use:\n' +
+          '  --releaseAs=patch/minor/major  (specify bump type)\n' +
+          '  --version=x.y.z  (set explicit version)'
       );
     }
   }
@@ -761,9 +982,21 @@ async function updateLockFiles(
   }
 
   const lockFiles = [
-    { file: 'package-lock.json', cmd: 'npm install --package-lock-only', type: 'npm' },
-    { file: 'yarn.lock', cmd: 'yarn install --mode update-lockfile', type: 'yarn' },
-    { file: 'pnpm-lock.yaml', cmd: 'pnpm install --lockfile-only', type: 'pnpm' }
+    {
+      file: 'package-lock.json',
+      cmd: 'npm install --package-lock-only',
+      type: 'npm',
+    },
+    {
+      file: 'yarn.lock',
+      cmd: 'yarn install --mode update-lockfile',
+      type: 'yarn',
+    },
+    {
+      file: 'pnpm-lock.yaml',
+      cmd: 'pnpm install --lockfile-only',
+      type: 'pnpm',
+    },
   ];
 
   for (const { file, cmd, type } of lockFiles) {
@@ -775,8 +1008,14 @@ async function updateLockFiles(
         logger.info(`✅ Updated ${file}`);
         return file;
       } catch (error) {
-        logger.warn(`⚠️ Failed to update ${file}: ${error instanceof Error ? error.message : String(error)}`);
-        logger.warn(`💡 You may need to update ${file} manually or ensure ${type} is installed`);
+        logger.warn(
+          `⚠️ Failed to update ${file}: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        );
+        logger.warn(
+          `💡 You may need to update ${file} manually or ensure ${type} is installed`
+        );
         // Return the file path even if update failed, so it can be staged if needed
         return file;
       }
@@ -784,7 +1023,9 @@ async function updateLockFiles(
   }
 
   // No lock file found
-  logger.info('ℹ️ No lock file detected (package-lock.json, yarn.lock, or pnpm-lock.yaml)');
+  logger.info(
+    'ℹ️ No lock file detected (package-lock.json, yarn.lock, or pnpm-lock.yaml)'
+  );
   return null;
 }
 
@@ -821,7 +1062,9 @@ async function readVersionFromFile(
           logger.info(`Found version ${version} in ${filePath}`);
           return { version, filePath };
         } else {
-          lastError = new Error(`Version field '${versionPath}' not found in ${filePath}`);
+          lastError = new Error(
+            `Version field '${versionPath}' not found in ${filePath}`
+          );
           continue;
         }
       } else {
@@ -835,12 +1078,19 @@ async function readVersionFromFile(
         }
       }
     } catch (error: unknown) {
-      lastError = new Error(`Could not read version from ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
+      lastError = new Error(
+        `Could not read version from ${filePath}: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
       continue;
     }
   }
 
-  throw lastError || new Error(`No version files found in ${versionFiles.join(', ')}`);
+  throw (
+    lastError ||
+    new Error(`No version files found in ${versionFiles.join(', ')}`)
+  );
 }
 
 async function writeVersionToFile(
@@ -863,17 +1113,27 @@ async function writeVersionToFile(
     }
     logger.info(`Updated version in ${filePath}`);
   } catch (error: unknown) {
-    throw new Error(`Failed to write version to ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(
+      `Failed to write version to ${filePath}: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
   }
 }
 
 function getNestedProperty(obj: Record<string, unknown>, path: string): string {
   return path.split('.').reduce((current, key) => {
-    return current && typeof current === 'object' ? (current as Record<string, unknown>)[key] : undefined;
+    return current && typeof current === 'object'
+      ? (current as Record<string, unknown>)[key]
+      : undefined;
   }, obj) as string;
 }
 
-function setNestedProperty(obj: Record<string, unknown>, path: string, value: string): void {
+function setNestedProperty(
+  obj: Record<string, unknown>,
+  path: string,
+  value: string
+): void {
   const keys = path.split('.');
   const lastKey = keys.pop();
   if (!lastKey) return;
@@ -909,7 +1169,11 @@ function generateTagName(
     defaultFormat = 'v{version}';
   }
 
-  const prefix = tagNaming.prefix || (tagNaming.includeProjectName !== false && !releaseGroupName ? `${projectName}-v` : '');
+  const prefix =
+    tagNaming.prefix ||
+    (tagNaming.includeProjectName !== false && !releaseGroupName
+      ? `${projectName}-v`
+      : '');
   const suffix = tagNaming.suffix || '';
   const format = tagNaming.format || defaultFormat;
 
@@ -921,7 +1185,11 @@ function generateTagName(
     .replace('{releaseGroupName}', releaseGroupName || '');
 }
 
-function generateConventionalCommitMessage(projectName: string, version: string, isFirstRelease?: boolean): string {
+function generateConventionalCommitMessage(
+  projectName: string,
+  version: string,
+  isFirstRelease?: boolean
+): string {
   const prefix = isFirstRelease ? 'feat(release)' : 'chore(release)';
   return `${prefix}: ${projectName} version ${version}`;
 }
@@ -932,16 +1200,21 @@ function generateConventionalCommitMessage(projectName: string, version: string,
 //   - ReleaseType (major/minor/patch) - Found conventional commits
 //   - 'none' - Has commits but no conventional ones
 //   - null - No commits at all
-async function analyzeConventionalCommits(context: ExecutorContext): Promise<semver.ReleaseType | null | 'none'> {
+async function analyzeConventionalCommits(
+  context: ExecutorContext
+): Promise<semver.ReleaseType | null | 'none'> {
   try {
     let gitCommand = 'git log --format="%s" --no-merges';
 
     try {
-      const lastTag = execSync(`git tag --list --sort=-version:refname | grep -E "^${context.projectName}-v|^v" | head -1`, {
-        cwd: context.root,
-        encoding: 'utf8',
-        stdio: 'pipe'
-      }).trim();
+      const lastTag = execSync(
+        `git tag --list --sort=-version:refname | grep -E "^${context.projectName}-v|^v" | head -1`,
+        {
+          cwd: context.root,
+          encoding: 'utf8',
+          stdio: 'pipe',
+        }
+      ).trim();
 
       if (lastTag) {
         gitCommand += ` ${lastTag}..HEAD`;
@@ -953,13 +1226,13 @@ async function analyzeConventionalCommits(context: ExecutorContext): Promise<sem
     const commits = execSync(gitCommand, {
       cwd: context.root,
       encoding: 'utf8',
-      stdio: 'pipe'
+      stdio: 'pipe',
     }).trim();
 
     // No commits at all since last tag
     if (!commits) return null;
 
-    const commitLines = commits.split('\n').filter(line => line.trim());
+    const commitLines = commits.split('\n').filter((line) => line.trim());
     const projectName = context.projectName || '';
 
     // Filter commits using enhanced syntax (for commit message analysis)
@@ -1006,52 +1279,68 @@ async function executePostTargets(
 
   try {
     // Create observables for each target execution
-    const targetExecutions$ = postTargets.map(targetName => {
-      return from(executeTarget(targetName, postTargetOptions, context, newVersion)).pipe(
-        tap(result => {
+    const targetExecutions$ = postTargets.map((targetName) => {
+      return from(
+        executeTarget(targetName, postTargetOptions, context, newVersion)
+      ).pipe(
+        tap((result) => {
           if (result.success) {
-            logger.info(`✅ Post-target '${targetName}' completed successfully`);
+            logger.info(
+              `✅ Post-target '${targetName}' completed successfully`
+            );
           } else {
-            logger.error(`❌ Post-target '${targetName}' failed: ${result.error}`);
+            logger.error(
+              `❌ Post-target '${targetName}' failed: ${result.error}`
+            );
           }
         }),
-        map(result => ({ targetName, ...result })),
-        catchError(error => {
-          const errorMsg = error instanceof Error ? error.message : String(error);
-          logger.error(`❌ Post-target '${targetName}' failed with error: ${errorMsg}`);
+        map((result) => ({ targetName, ...result })),
+        catchError((error) => {
+          const errorMsg =
+            error instanceof Error ? error.message : String(error);
+          logger.error(
+            `❌ Post-target '${targetName}' failed with error: ${errorMsg}`
+          );
           return of({ targetName, success: false, error: errorMsg });
         })
       );
     });
 
     // Execute all targets concurrently using forkJoin
-    const results = await forkJoin(targetExecutions$).pipe(
-      tap(allResults => {
-        const successful = allResults.filter(r => r.success).length;
-        const failed = allResults.filter(r => !r.success).length;
+    const results = await forkJoin(targetExecutions$)
+      .pipe(
+        tap((allResults) => {
+          const successful = allResults.filter((r) => r.success).length;
+          const failed = allResults.filter((r) => !r.success).length;
 
-        logger.info(`\n📊 Post-targets Summary:`);
-        logger.info(`✅ Successful: ${successful}/${allResults.length}`);
+          logger.info(`\n📊 Post-targets Summary:`);
+          logger.info(`✅ Successful: ${successful}/${allResults.length}`);
 
-        if (failed > 0) {
-          logger.info(`❌ Failed: ${failed}/${allResults.length}`);
-          logger.info(`Failed targets:`);
-          allResults.filter(r => !r.success).forEach(r => {
-            logger.info(`  - ${r.targetName}: ${r.error}`);
-          });
-        }
-      }),
-      finalize(() => {
-        logger.info(`🏁 Post-targets execution completed`);
-      })
-    ).toPromise();
+          if (failed > 0) {
+            logger.info(`❌ Failed: ${failed}/${allResults.length}`);
+            logger.info(`Failed targets:`);
+            allResults
+              .filter((r) => !r.success)
+              .forEach((r) => {
+                logger.info(`  - ${r.targetName}: ${r.error}`);
+              });
+          }
+        }),
+        finalize(() => {
+          logger.info(`🏁 Post-targets execution completed`);
+        })
+      )
+      .toPromise();
 
     // Check if any targets failed and potentially throw
-    const failed = results?.filter(r => !r.success) || [];
+    const failed = results?.filter((r) => !r.success) || [];
     if (failed.length > 0) {
-      throw new Error(`${failed.length} post-targets failed: ${failed.map(f => f.targetName).join(', ')}`);
+      throw new Error(
+        `${failed.length} post-targets failed: ${failed
+          .map((f) => f.targetName)
+          .join(', ')}`
+      );
     }
-
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error(`❌ Post-targets execution failed: ${errorMessage}`);
@@ -1069,19 +1358,29 @@ async function executeTarget(
     logger.info(`🎯 Executing post-target: ${targetName}`);
 
     // Get current version for token replacement
-    const currentVersion = context.projectName ? await getCurrentVersionForProject(context.projectName, context) : undefined;
+    const currentVersion = context.projectName
+      ? await getCurrentVersionForProject(context.projectName, context)
+      : undefined;
 
     // Replace all tokens in options using enhanced token replacement
-    const processedOptions = replaceTokens(options, context, newVersion, currentVersion);
+    const processedOptions = replaceTokens(
+      options,
+      context,
+      newVersion,
+      currentVersion
+    );
 
     if (!context.projectName) {
       throw new Error('No project name available for target execution');
     }
 
     // Check if target exists in current project
-    const project = context.projectsConfigurations?.projects[context.projectName];
+    const project =
+      context.projectsConfigurations?.projects[context.projectName];
     if (!project?.targets?.[targetName]) {
-      throw new Error(`Target '${targetName}' not found in project '${context.projectName}'`);
+      throw new Error(
+        `Target '${targetName}' not found in project '${context.projectName}'`
+      );
     }
 
     const target = project.targets[targetName];
@@ -1099,20 +1398,24 @@ async function executeTarget(
 
     execSync(command, {
       cwd: context.root,
-      stdio: 'inherit'
+      stdio: 'inherit',
     });
 
     return { success: true };
-
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return { success: false, error: errorMessage };
   }
 }
 
-async function getCurrentVersionForProject(projectName: string, context: ExecutorContext): Promise<string | undefined> {
+async function getCurrentVersionForProject(
+  projectName: string,
+  context: ExecutorContext
+): Promise<string | undefined> {
   try {
-    const projectRoot = context.projectsConfigurations?.projects[projectName]?.root || projectName;
+    const projectRoot =
+      context.projectsConfigurations?.projects[projectName]?.root ||
+      projectName;
     const versionInfo = await readVersionFromFile(context, projectRoot, {});
     return versionInfo.version;
   } catch {
@@ -1170,12 +1473,20 @@ async function showVersionChanges(
 
   // Git operations
   logger.info('🗂 Git Operations:');
-  const shouldCommit = options.gitCommit ?? (options.skipCommit === false ? true : false);
-  const shouldTag = options.gitTag ?? (options.skipTag === false ? true : false);
+  const shouldCommit =
+    options.gitCommit ?? (options.skipCommit === false ? true : false);
+  const shouldTag =
+    options.gitTag ?? (options.skipTag === false ? true : false);
   const shouldPush = options.gitPush ?? false;
 
   if (shouldCommit) {
-    const commitMessage = options.gitCommitMessage || generateConventionalCommitMessage(context.projectName, newVersion, !versionInfo.version || versionInfo.version === '0.0.0');
+    const commitMessage =
+      options.gitCommitMessage ||
+      generateConventionalCommitMessage(
+        context.projectName,
+        newVersion,
+        !versionInfo.version || versionInfo.version === '0.0.0'
+      );
     logger.info(`  ✓ Commit: "${commitMessage}"`);
   } else {
     logger.info(`  ⊘ Commit: Skipped`);
@@ -1204,13 +1515,19 @@ async function showVersionChanges(
     const branchName = options.releaseBranchName || `release/v${newVersion}`;
     logger.info(`  ✓ Release branch: ${branchName}`);
     if (options.createPR) {
-      const prTitle = options.prTitle || `chore(release): ${context.projectName} v${newVersion}`;
+      const prTitle =
+        options.prTitle ||
+        `chore(release): ${context.projectName} v${newVersion}`;
       logger.info(`    → Create PR: "${prTitle}"`);
     }
   }
 
   // Merge after release
-  if (options.mergeAfterRelease && options.mergeToBranches && options.mergeToBranches.length > 0) {
+  if (
+    options.mergeAfterRelease &&
+    options.mergeToBranches &&
+    options.mergeToBranches.length > 0
+  ) {
     logger.info(`  ✓ Merge to: ${options.mergeToBranches.join(', ')}`);
     logger.info(`    Strategy: ${options.mergeStrategy || 'merge'}`);
   }
@@ -1221,10 +1538,13 @@ async function showVersionChanges(
   logger.info('⚙️ Configuration:');
   const nxConfig = getNxReleaseConfig(context);
   const hasNxConfig = Object.keys(nxConfig).length > 0;
-  const hasProjectConfig = context.projectsConfigurations?.projects[context.projectName];
+  const hasProjectConfig =
+    context.projectsConfigurations?.projects[context.projectName];
 
   logger.info(`  nx.json: ${hasNxConfig ? '✓ Found' : '⊘ Not found'}`);
-  logger.info(`  project.json: ${hasProjectConfig ? '✓ Found' : '⊘ Not found'}`);
+  logger.info(
+    `  project.json: ${hasProjectConfig ? '✓ Found' : '⊘ Not found'}`
+  );
   logger.info(`  Version path: ${options.versionPath || 'version'}`);
   logger.info('');
 
@@ -1233,11 +1553,14 @@ async function showVersionChanges(
     try {
       let gitCommand = 'git log --format="%s" --no-merges -10';
       try {
-        const lastTag = execSync(`git tag --list --sort=-version:refname | grep -E "^${context.projectName}-v|^v" | head -1`, {
-          cwd: context.root,
-          encoding: 'utf8',
-          stdio: 'pipe'
-        }).trim();
+        const lastTag = execSync(
+          `git tag --list --sort=-version:refname | grep -E "^${context.projectName}-v|^v" | head -1`,
+          {
+            cwd: context.root,
+            encoding: 'utf8',
+            stdio: 'pipe',
+          }
+        ).trim();
 
         if (lastTag) {
           gitCommand += ` ${lastTag}..HEAD`;
@@ -1252,16 +1575,31 @@ async function showVersionChanges(
       const commits = execSync(gitCommand, {
         cwd: context.root,
         encoding: 'utf8',
-        stdio: 'pipe'
+        stdio: 'pipe',
       }).trim();
 
       if (commits) {
-        const commitLines = commits.split('\n').filter(line => line.trim()).slice(0, 5);
-        commitLines.forEach(commit => {
-          const type = commit.includes('BREAKING CHANGE') || commit.includes('!:') ? 'BREAKING' :
-                      commit.startsWith('feat') ? 'FEATURE' :
-                      commit.startsWith('fix') ? 'FIX' : 'OTHER';
-          const icon = type === 'BREAKING' ? '💥' : type === 'FEATURE' ? '✨' : type === 'FIX' ? '🐛' : '📝';
+        const commitLines = commits
+          .split('\n')
+          .filter((line) => line.trim())
+          .slice(0, 5);
+        commitLines.forEach((commit) => {
+          const type =
+            commit.includes('BREAKING CHANGE') || commit.includes('!:')
+              ? 'BREAKING'
+              : commit.startsWith('feat')
+              ? 'FEATURE'
+              : commit.startsWith('fix')
+              ? 'FIX'
+              : 'OTHER';
+          const icon =
+            type === 'BREAKING'
+              ? '💥'
+              : type === 'FEATURE'
+              ? '✨'
+              : type === 'FIX'
+              ? '🐛'
+              : '📝';
           logger.info(`    ${icon} ${commit.trim()}`);
         });
       } else {
@@ -1274,7 +1612,9 @@ async function showVersionChanges(
   }
 
   logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  logger.info('💡 Use --dryRun to preview without showing this detailed analysis');
+  logger.info(
+    '💡 Use --dryRun to preview without showing this detailed analysis'
+  );
   logger.info('');
 }
 
@@ -1291,7 +1631,9 @@ async function createPullRequest(
     try {
       execSync('gh --version', { stdio: 'pipe' });
     } catch {
-      throw new Error('GitHub CLI (gh) is not installed. Install it from https://cli.github.com/');
+      throw new Error(
+        'GitHub CLI (gh) is not installed. Install it from https://cli.github.com/'
+      );
     }
 
     // Detect base branch (main or master)
@@ -1300,7 +1642,7 @@ async function createPullRequest(
       try {
         const mainExists = execSync('git rev-parse --verify main', {
           cwd: context.root,
-          stdio: 'pipe'
+          stdio: 'pipe',
         });
         baseBranch = 'main';
       } catch {
@@ -1309,11 +1651,15 @@ async function createPullRequest(
     }
 
     // Build PR title
-    const prTitle = options.prTitle || `chore(release): {projectName} v{version}`;
+    const prTitle =
+      options.prTitle || `chore(release): {projectName} v{version}`;
     const interpolatedTitle = prTitle
       .replace(/{version}/g, version)
       .replace(/{projectName}/g, context.projectName || '')
-      .replace(/{tag}/g, generateTagName(context.projectName || '', version, options));
+      .replace(
+        /{tag}/g,
+        generateTagName(context.projectName || '', version, options)
+      );
 
     // Build PR body
     let prBody = options.prBody || '';
@@ -1324,8 +1670,14 @@ async function createPullRequest(
 
     // Try to read changelog for PR body
     if (prBody.includes('{changelog}')) {
-      const projectRoot = context.projectsConfigurations?.projects[context.projectName]?.root || context.projectName;
-      const changelogPath = path.join(context.root, projectRoot, 'CHANGELOG.md');
+      const projectRoot =
+        context.projectsConfigurations?.projects[context.projectName]?.root ||
+        context.projectName;
+      const changelogPath = path.join(
+        context.root,
+        projectRoot,
+        'CHANGELOG.md'
+      );
 
       let changelog = '';
       if (fs.existsSync(changelogPath)) {
@@ -1343,7 +1695,10 @@ async function createPullRequest(
     prBody = prBody
       .replace(/{version}/g, version)
       .replace(/{projectName}/g, context.projectName || '')
-      .replace(/{tag}/g, generateTagName(context.projectName || '', version, options));
+      .replace(
+        /{tag}/g,
+        generateTagName(context.projectName || '', version, options)
+      );
 
     // Write PR body to temp file to avoid shell escaping issues
     const tempFile = path.join(context.root, '.gh-pr-body.tmp');
@@ -1357,14 +1712,17 @@ async function createPullRequest(
     }
 
     if (options.prLabels) {
-      const labels = options.prLabels.split(',').map(l => l.trim()).join(',');
+      const labels = options.prLabels
+        .split(',')
+        .map((l) => l.trim())
+        .join(',');
       prCmd += ` --label "${labels}"`;
     }
 
     const prUrl = execSync(prCmd, {
       cwd: context.root,
       encoding: 'utf-8',
-      stdio: 'pipe'
+      stdio: 'pipe',
     }).trim();
 
     // Clean up temp file
@@ -1374,7 +1732,11 @@ async function createPullRequest(
 
     logger.info(`✅ Created pull request: ${prUrl}`);
   } catch (error) {
-    throw new Error(`Failed to create PR: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(
+      `Failed to create PR: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
   }
 }
 
@@ -1391,7 +1753,9 @@ async function createGitHubRelease(
     try {
       execSync('gh --version', { stdio: 'pipe' });
     } catch {
-      throw new Error('GitHub CLI (gh) is not installed. Install it from https://cli.github.com/');
+      throw new Error(
+        'GitHub CLI (gh) is not installed. Install it from https://cli.github.com/'
+      );
     }
 
     // Determine release notes
@@ -1399,8 +1763,14 @@ async function createGitHubRelease(
 
     if (!releaseNotes) {
       // Try to read from CHANGELOG.md
-      const projectRoot = context.projectsConfigurations?.projects[context.projectName]?.root || context.projectName;
-      const changelogPath = path.join(context.root, projectRoot, 'CHANGELOG.md');
+      const projectRoot =
+        context.projectsConfigurations?.projects[context.projectName]?.root ||
+        context.projectName;
+      const changelogPath = path.join(
+        context.root,
+        projectRoot,
+        'CHANGELOG.md'
+      );
 
       if (fs.existsSync(changelogPath)) {
         const changelog = fs.readFileSync(changelogPath, 'utf8');
@@ -1450,7 +1820,11 @@ async function createGitHubRelease(
 
     logger.info(`✅ Created GitHub release: ${tag}`);
   } catch (error) {
-    throw new Error(`Failed to create GitHub release: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(
+      `Failed to create GitHub release: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
   }
 }
 
@@ -1469,11 +1843,16 @@ function replaceTokens(
     if (typeof value === 'string') {
       result[key] = replaceStringTokens(value, tokens);
     } else if (Array.isArray(value)) {
-      result[key] = value.map(item =>
+      result[key] = value.map((item) =>
         typeof item === 'string' ? replaceStringTokens(item, tokens) : item
       );
     } else if (value && typeof value === 'object') {
-      result[key] = replaceTokens(value as Record<string, unknown>, context, newVersion, currentVersion);
+      result[key] = replaceTokens(
+        value as Record<string, unknown>,
+        context,
+        newVersion,
+        currentVersion
+      );
     } else {
       result[key] = value;
     }
@@ -1482,7 +1861,11 @@ function replaceTokens(
   return result;
 }
 
-function getTokenValues(context: ExecutorContext, newVersion?: string, currentVersion?: string): Record<string, string> {
+function getTokenValues(
+  context: ExecutorContext,
+  newVersion?: string,
+  currentVersion?: string
+): Record<string, string> {
   const projectName = context.projectName || '';
   const projectConfig = context.projectsConfigurations?.projects[projectName];
   const projectRoot = projectConfig?.root || projectName;
@@ -1525,7 +1908,10 @@ function getTokenValues(context: ExecutorContext, newVersion?: string, currentVe
   };
 }
 
-function replaceStringTokens(str: string, tokens: Record<string, string>): string {
+function replaceStringTokens(
+  str: string,
+  tokens: Record<string, string>
+): string {
   let result = str;
 
   // Replace all tokens
@@ -1542,8 +1928,13 @@ function replaceStringTokens(str: string, tokens: Record<string, string>): strin
         const [trueValue, falseValue] = options.split(':');
 
         // Extract variables and evaluate simple conditions
-        const conditionResult = evaluateSimpleCondition(condition.trim(), tokens);
-        return conditionResult ? trueValue.trim().replace(/'/g, '') : falseValue.trim().replace(/'/g, '');
+        const conditionResult = evaluateSimpleCondition(
+          condition.trim(),
+          tokens
+        );
+        return conditionResult
+          ? trueValue.trim().replace(/'/g, '')
+          : falseValue.trim().replace(/'/g, '');
       }
 
       // Direct token replacement
@@ -1557,10 +1948,13 @@ function replaceStringTokens(str: string, tokens: Record<string, string>): strin
   return result;
 }
 
-function evaluateSimpleCondition(condition: string, tokens: Record<string, string>): boolean {
+function evaluateSimpleCondition(
+  condition: string,
+  tokens: Record<string, string>
+): boolean {
   // Handle simple equality conditions like "NODE_ENV === 'production'"
   if (condition.includes('===')) {
-    const [left, right] = condition.split('===').map(s => s.trim());
+    const [left, right] = condition.split('===').map((s) => s.trim());
     const leftValue = tokens[`\${${left}}`] || left;
     const rightValue = right.replace(/'/g, '').replace(/"/g, '');
     return leftValue === rightValue;
@@ -1568,7 +1962,7 @@ function evaluateSimpleCondition(condition: string, tokens: Record<string, strin
 
   // Handle simple inequality conditions
   if (condition.includes('!==')) {
-    const [left, right] = condition.split('!==').map(s => s.trim());
+    const [left, right] = condition.split('!==').map((s) => s.trim());
     const leftValue = tokens[`\${${left}}`] || left;
     const rightValue = right.replace(/'/g, '').replace(/"/g, '');
     return leftValue !== rightValue;
@@ -1587,7 +1981,7 @@ function getBranchName(context: ExecutorContext): string {
     const branch = execSync('git rev-parse --abbrev-ref HEAD', {
       cwd: context.root,
       encoding: 'utf8',
-      stdio: 'pipe'
+      stdio: 'pipe',
     }).trim();
     return branch;
   } catch {
@@ -1600,7 +1994,7 @@ function getGitCommit(context: ExecutorContext): string {
     const commit = execSync('git rev-parse --short HEAD', {
       cwd: context.root,
       encoding: 'utf8',
-      stdio: 'pipe'
+      stdio: 'pipe',
     }).trim();
     return commit;
   } catch {
@@ -1608,13 +2002,19 @@ function getGitCommit(context: ExecutorContext): string {
   }
 }
 
-function getLatestGitTag(context: ExecutorContext, projectName: string): string {
+function getLatestGitTag(
+  context: ExecutorContext,
+  projectName: string
+): string {
   try {
-    const tag = execSync(`git tag --list --sort=-version:refname | grep -E "^${projectName}-v|^v" | head -1`, {
-      cwd: context.root,
-      encoding: 'utf8',
-      stdio: 'pipe'
-    }).trim();
+    const tag = execSync(
+      `git tag --list --sort=-version:refname | grep -E "^${projectName}-v|^v" | head -1`,
+      {
+        cwd: context.root,
+        encoding: 'utf8',
+        stdio: 'pipe',
+      }
+    ).trim();
     return tag;
   } catch {
     return '';
@@ -1622,7 +2022,10 @@ function getLatestGitTag(context: ExecutorContext, projectName: string): string 
 }
 
 // Enhanced commit filtering with skip/target syntax
-function filterCommitsForProject(commits: string[], projectName: string): string[] {
+function filterCommitsForProject(
+  commits: string[],
+  projectName: string
+): string[] {
   const relevantCommits: string[] = [];
 
   for (const commit of commits) {
@@ -1631,7 +2034,7 @@ function filterCommitsForProject(commits: string[], projectName: string): string
     // Check for skip syntax: [skip project-name] or [skip all]
     const skipMatch = line.match(/\[skip\s+([^\]]+)\]/i);
     if (skipMatch) {
-      const skipTargets = skipMatch[1].split(',').map(s => s.trim());
+      const skipTargets = skipMatch[1].split(',').map((s) => s.trim());
 
       // Skip if this project is explicitly skipped or "all" is skipped
       if (skipTargets.includes(projectName) || skipTargets.includes('all')) {
@@ -1642,7 +2045,7 @@ function filterCommitsForProject(commits: string[], projectName: string): string
     // Check for target syntax: [target project-name] or [only project-name]
     const targetMatch = line.match(/\[(target|only)\s+([^\]]+)\]/i);
     if (targetMatch) {
-      const targetProjects = targetMatch[2].split(',').map(s => s.trim());
+      const targetProjects = targetMatch[2].split(',').map((s) => s.trim());
 
       // Only include if this project is explicitly targeted
       if (!targetProjects.includes(projectName)) {

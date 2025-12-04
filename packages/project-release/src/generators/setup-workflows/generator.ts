@@ -1,9 +1,18 @@
-import { Tree, formatFiles, logger, generateFiles, joinPathFragments } from '@nx/devkit';
+import {
+  Tree,
+  formatFiles,
+  logger,
+  generateFiles,
+  joinPathFragments,
+} from '@nx/devkit';
 import * as path from 'path';
 import { SetupWorkflowsSchema } from './schema';
 import { readFileSync } from 'fs';
 
-export async function setupWorkflowsGenerator(tree: Tree, options: SetupWorkflowsSchema) {
+export async function setupWorkflowsGenerator(
+  tree: Tree,
+  options: SetupWorkflowsSchema
+) {
   logger.info('');
   logger.info('⚙️  Setting up CI/CD workflows...');
   logger.info('');
@@ -26,7 +35,7 @@ export async function setupWorkflowsGenerator(tree: Tree, options: SetupWorkflow
     autoMergeReleasePR: options.autoMergeReleasePR || false,
     triggerPaths: options.triggerPaths || [],
     nodeVersion: options.nodeVersion || '20',
-    twoStepRelease: options.twoStepRelease || false
+    twoStepRelease: options.twoStepRelease || false,
   };
 
   // Create workflows directory
@@ -36,42 +45,54 @@ export async function setupWorkflowsGenerator(tree: Tree, options: SetupWorkflow
   }
 
   // Generate workflows based on type
-  const workflowsToCreate: Array<{name: string; template: string}> = [];
+  const workflowsToCreate: Array<{ name: string; template: string }> = [];
 
   // If two-step release is enabled, override workflow selection
   if (normalizedOptions.twoStepRelease) {
     workflowsToCreate.push(
       { name: 'release-pr.yml', template: 'github-two-step-pr.yml.template' },
-      { name: 'publish-release.yml', template: 'github-two-step-publish.yml.template' }
+      {
+        name: 'publish-release.yml',
+        template: 'github-two-step-publish.yml.template',
+      }
     );
   } else if (normalizedOptions.workflowType === 'all') {
     workflowsToCreate.push(
-      { name: 'release-publish.yml', template: 'github-release-publish.yml.template' },
-      { name: 'release-affected.yml', template: 'github-affected.yml.template' },
+      {
+        name: 'release-publish.yml',
+        template: 'github-release-publish.yml.template',
+      },
+      {
+        name: 'release-affected.yml',
+        template: 'github-affected.yml.template',
+      },
       { name: 'release-manual.yml', template: 'github-manual.yml.template' },
       { name: 'release-on-merge.yml', template: 'github-merge.yml.template' },
-      { name: 'pr-validation.yml', template: 'github-pr-validation.yml.template' }
+      {
+        name: 'pr-validation.yml',
+        template: 'github-pr-validation.yml.template',
+      }
     );
   } else {
     const templateMap = {
       'release-publish': 'github-release-publish.yml.template',
-      'affected': 'github-affected.yml.template',
-      'manual': 'github-manual.yml.template',
+      affected: 'github-affected.yml.template',
+      manual: 'github-manual.yml.template',
       'on-merge': 'github-merge.yml.template',
-      'pr-validation': 'github-pr-validation.yml.template'
+      'pr-validation': 'github-pr-validation.yml.template',
     };
 
     const fileNameMap = {
       'release-publish': 'release-publish.yml',
-      'affected': 'release-affected.yml',
-      'manual': 'release-manual.yml',
+      affected: 'release-affected.yml',
+      manual: 'release-manual.yml',
       'on-merge': 'release-on-merge.yml',
-      'pr-validation': 'pr-validation.yml'
+      'pr-validation': 'pr-validation.yml',
     };
 
     workflowsToCreate.push({
       name: fileNameMap[normalizedOptions.workflowType],
-      template: templateMap[normalizedOptions.workflowType]
+      template: templateMap[normalizedOptions.workflowType],
     });
   }
 
@@ -86,7 +107,9 @@ export async function setupWorkflowsGenerator(tree: Tree, options: SetupWorkflow
       try {
         templateContent = readFileSync(templatePath, 'utf-8');
       } catch (err) {
-        logger.warn(`⚠️  Template not found: ${workflow.template} at ${templatePath}`);
+        logger.warn(
+          `⚠️  Template not found: ${workflow.template} at ${templatePath}`
+        );
         continue;
       }
 
@@ -94,24 +117,36 @@ export async function setupWorkflowsGenerator(tree: Tree, options: SetupWorkflow
       let renderedContent = templateContent;
 
       // Replace template variables
-      renderedContent = renderedContent.replace(/<%=\s*defaultBranch\s*%>/g, normalizedOptions.defaultBranch);
-      renderedContent = renderedContent.replace(/<%=\s*nodeVersion\s*%>/g, normalizedOptions.nodeVersion);
-      renderedContent = renderedContent.replace(/<%=\s*createGitHubRelease\s*%>/g, String(normalizedOptions.createGitHubRelease));
+      renderedContent = renderedContent.replace(
+        /<%=\s*defaultBranch\s*%>/g,
+        normalizedOptions.defaultBranch
+      );
+      renderedContent = renderedContent.replace(
+        /<%=\s*nodeVersion\s*%>/g,
+        normalizedOptions.nodeVersion
+      );
+      renderedContent = renderedContent.replace(
+        /<%=\s*createGitHubRelease\s*%>/g,
+        String(normalizedOptions.createGitHubRelease)
+      );
 
       // Handle conditionals
       renderedContent = handleConditionals(renderedContent, {
         enableWorkflowDispatch: normalizedOptions.enableWorkflowDispatch,
         createGitHubRelease: normalizedOptions.createGitHubRelease,
         triggerPaths: normalizedOptions.triggerPaths,
-        hasTriggerPaths: normalizedOptions.triggerPaths.length > 0
+        hasTriggerPaths: normalizedOptions.triggerPaths.length > 0,
       });
 
       // Handle triggerPaths array
       if (normalizedOptions.triggerPaths.length > 0) {
         const pathsSection = normalizedOptions.triggerPaths
-          .map(p => `      - '${p}'`)
+          .map((p) => `      - '${p}'`)
           .join('\n');
-        const triggerPathsRegex = new RegExp('<% triggerPaths\\.forEach\\(path => \\{ %>[\\s\\S]*?<% \\}\\); %>', 'g');
+        const triggerPathsRegex = new RegExp(
+          '<% triggerPaths\\.forEach\\(path => \\{ %>[\\s\\S]*?<% \\}\\); %>',
+          'g'
+        );
         renderedContent = renderedContent.replace(
           triggerPathsRegex,
           pathsSection
@@ -122,7 +157,11 @@ export async function setupWorkflowsGenerator(tree: Tree, options: SetupWorkflow
       tree.write(outputPath, renderedContent);
       logger.info(`✅ Created ${outputPath}`);
     } catch (error) {
-      logger.error(`❌ Failed to create ${workflow.name}: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error(
+        `❌ Failed to create ${workflow.name}: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
     }
   }
 
@@ -134,8 +173,12 @@ export async function setupWorkflowsGenerator(tree: Tree, options: SetupWorkflow
 
   if (normalizedOptions.twoStepRelease) {
     logger.info('🔄 Two-Step Release Workflow:');
-    logger.info('   Step 1: release-pr.yml - Version, Changelog, Tag (on push)');
-    logger.info('   Step 2: publish-release.yml - Build, Artifact, Publish (triggered by release commit)');
+    logger.info(
+      '   Step 1: release-pr.yml - Version, Changelog, Tag (on push)'
+    );
+    logger.info(
+      '   Step 2: publish-release.yml - Build, Artifact, Publish (triggered by release commit)'
+    );
     logger.info('');
   }
 
@@ -151,11 +194,17 @@ export async function setupWorkflowsGenerator(tree: Tree, options: SetupWorkflow
 /**
  * Handle conditional blocks in templates
  */
-function handleConditionals(template: string, context: Record<string, any>): string {
+function handleConditionals(
+  template: string,
+  context: Record<string, any>
+): string {
   let result = template;
 
   // Handle <% if (condition) { %> ... <% } %> blocks
-  const conditionalRegex = new RegExp('<%\\s*if\\s*\\((.*?)\\)\\s*\\{\\s*%>([\\s\\S]*?)<%\\s*}\\s*%>', 'g');
+  const conditionalRegex = new RegExp(
+    '<%\\s*if\\s*\\((.*?)\\)\\s*\\{\\s*%>([\\s\\S]*?)<%\\s*}\\s*%>',
+    'g'
+  );
 
   result = result.replace(conditionalRegex, (match, condition, content) => {
     // Evaluate simple conditions
@@ -169,28 +218,33 @@ function handleConditionals(template: string, context: Record<string, any>): str
 /**
  * Evaluate simple conditions from templates
  */
-function evaluateCondition(condition: string, context: Record<string, any>): boolean {
+function evaluateCondition(
+  condition: string,
+  context: Record<string, any>
+): boolean {
   // Handle simple variable checks
   if (condition.includes('&&')) {
-    const parts = condition.split('&&').map(p => p.trim());
-    return parts.every(part => evaluateCondition(part, context));
+    const parts = condition.split('&&').map((p) => p.trim());
+    return parts.every((part) => evaluateCondition(part, context));
   }
 
   if (condition.includes('||')) {
-    const parts = condition.split('||').map(p => p.trim());
-    return parts.some(part => evaluateCondition(part, context));
+    const parts = condition.split('||').map((p) => p.trim());
+    return parts.some((part) => evaluateCondition(part, context));
   }
 
   // Handle array length checks
   if (condition.includes('.length >')) {
-    const [varName, comparison] = condition.split('.length >').map(s => s.trim());
+    const [varName, comparison] = condition
+      .split('.length >')
+      .map((s) => s.trim());
     const value = context[varName];
     const threshold = parseInt(comparison);
     return Array.isArray(value) && value.length > threshold;
   }
 
   // Handle simple variable truthiness
-  const cleanCondition = condition.replace(/^\!/, '').trim();
+  const cleanCondition = condition.replace(/^!/, '').trim();
   const isNegated = condition.startsWith('!');
   const value = context[cleanCondition];
 
