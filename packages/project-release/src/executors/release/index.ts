@@ -59,14 +59,20 @@ export default async function releaseExecutor(
     }
 
     // Get release group configuration for proper tag formatting
-    const { group, groupName } = getReleaseGroupForProject(projectName, context);
+    const { group, groupName } = getReleaseGroupForProject(
+      projectName,
+      context
+    );
     const nxConfig = getNxReleaseConfig(context);
 
     // Generate tag using proper logic
     const tag = generateTagName(projectName, version, {
       tagPrefix: options.tagPrefix,
       tagNaming: group?.tagNaming,
-      projectsRelationship: group?.projectsRelationship || nxConfig.projectsRelationship || 'independent',
+      projectsRelationship:
+        group?.projectsRelationship ||
+        nxConfig.projectsRelationship ||
+        'independent',
       releaseGroup: groupName,
     });
 
