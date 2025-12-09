@@ -77,28 +77,12 @@ export default async function configureVersionGenerator(
         versionOptions.versionFiles = ['package.json'];
       }
 
-      // Update tag naming
-      if (
-        options.tagNamingFormat ||
-        options.tagNamingPrefix ||
-        options.tagNamingSuffix ||
-        options.includeProjectName !== undefined
-      ) {
-        versionOptions.tagNaming = versionOptions.tagNaming || {};
-
-        if (options.tagNamingFormat) {
-          versionOptions.tagNaming.format = options.tagNamingFormat;
-        }
-        if (options.tagNamingPrefix !== undefined) {
-          versionOptions.tagNaming.prefix = options.tagNamingPrefix;
-        }
-        if (options.tagNamingSuffix !== undefined) {
-          versionOptions.tagNaming.suffix = options.tagNamingSuffix;
-        }
-        if (options.includeProjectName !== undefined) {
-          versionOptions.tagNaming.includeProjectName =
-            options.includeProjectName;
-        }
+      // Update validation strategy
+      if (options.validationStrategy && options.validationStrategy.length > 0) {
+        versionOptions.validationStrategy = options.validationStrategy;
+      } else if (!versionOptions.validationStrategy) {
+        // Default to all strategies in precedence order
+        versionOptions.validationStrategy = ['registry', 'git-tags', 'disk'];
       }
 
       // Update bump dependents
@@ -141,70 +125,31 @@ async function promptVersionSettings(
   });
   settings.versionFiles = versionFilesInput.split(',').map((f) => f.trim());
 
-  // Tag naming format
-  const { useCustomTagNaming } = await prompt<{ useCustomTagNaming: boolean }>({
-    type: 'confirm',
-    name: 'useCustomTagNaming',
-    message: 'Configure custom tag naming?',
-    initial: false,
-  });
-
-  if (useCustomTagNaming) {
-    const tagSettings = await prompt<{
-      tagNamingFormat?: string;
-      tagNamingPrefix?: string;
-      includeProjectName?: boolean;
-    }>([
-      {
-        type: 'select',
-        name: 'tagNamingFormat',
-        message: 'Tag naming format:',
-        choices: [
-          { name: 'v{version}', message: 'v{version} (e.g., v1.0.0)' },
-          {
-            name: '{projectName}@{version}',
-            message: '{projectName}@{version} (e.g., my-app@1.0.0)',
-          },
-          {
-            name: '{projectName}-v{version}',
-            message: '{projectName}-v{version} (e.g., my-app-v1.0.0)',
-          },
-          { name: 'custom', message: 'Custom format' },
-        ],
-      },
-      {
-        type: 'input',
-        name: 'tagNamingPrefix',
-        message: 'Tag prefix (optional):',
-        initial: '',
-      },
-      {
-        type: 'confirm',
-        name: 'includeProjectName',
-        message: 'Include project name in tag?',
-        initial: false,
-      },
-    ]);
-
-    if (tagSettings.tagNamingFormat === 'custom') {
-      const { customFormat } = await prompt<{ customFormat: string }>({
-        type: 'input',
-        name: 'customFormat',
-        message: 'Custom tag format (use {version}, {projectName}):',
-        initial: 'v{version}',
-      });
-      settings.tagNamingFormat = customFormat;
-    } else {
-      settings.tagNamingFormat = tagSettings.tagNamingFormat;
+  // Validation strategy
+  const { validationStrategy } = await prompt<{ validationStrategy: string[] }>(
+    {
+      type: 'multiselect',
+      name: 'validationStrategy',
+      message: 'Which validation strategies to use? (checked in order: registry → git-tags → disk)',
+      choices: [
+        {
+          name: 'registry',
+          message: 'Registry (check npm/docker/etc - highest precedence)',
+        },
+        { name: 'git-tags', message: 'Git tags (check git history)' },
+        {
+          name: 'disk',
+          message: 'Disk (check package.json/project.json - lowest precedence)',
+        },
+      ],
+      initial: ['registry', 'git-tags', 'disk'],
+      // @ts-expect-error - enquirer types are incomplete
+      hint: 'Space to select, Enter to confirm',
     }
-
-    if (tagSettings.tagNamingPrefix) {
-      settings.tagNamingPrefix = tagSettings.tagNamingPrefix;
-    }
-    if (tagSettings.includeProjectName !== undefined) {
-      settings.includeProjectName = tagSettings.includeProjectName;
-    }
-  }
+  );
+  settings.validationStrategy = validationStrategy as Array<
+    'registry' | 'git-tags' | 'disk'
+  >;
 
   // Bump dependents
   const { bumpDependents } = await prompt<{ bumpDependents: boolean }>({

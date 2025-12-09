@@ -1,0 +1,113 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "cli": "nx",
+  "$id": "ConfigurePublish",
+  "title": "Configure Publish Targets",
+  "description": "Configure publish targets for projects with global registry settings",
+  "type": "object",
+  "properties": {
+    "projects": {
+      "type": "array",
+      "description": "Project names to configure (interactive multi-select)",
+      "items": {
+        "type": "string"
+      }
+    },
+    "project": {
+      "type": "string",
+      "description": "Single project name (for CLI usage - will be converted to projects array)"
+    },
+    "configureRegistries": {
+      "type": "array",
+      "description": "Which registry types to configure (multi-select)",
+      "items": {
+        "type": "string",
+        "enum": ["npm", "nexus", "s3", "custom"]
+      },
+      "x-prompt": {
+        "message": "Which registries do you want to configure?",
+        "type": "multiselect",
+        "items": [
+          { "value": "npm", "label": "NPM Registry" },
+          { "value": "nexus", "label": "Nexus Repository" },
+          { "value": "s3", "label": "AWS S3" },
+          { "value": "custom", "label": "Custom Registry" }
+        ]
+      }
+    },
+    "skipExisting": {
+      "type": "boolean",
+      "description": "Skip projects that already have a publish target",
+      "default": true
+    },
+    "updateArtifactDependency": {
+      "type": "boolean",
+      "description": "Add artifact target as dependency if it exists",
+      "default": true
+    },
+    "npmRegistry": {
+      "type": "string",
+      "description": "NPM registry URL (for npm registryType)",
+      "default": "https://registry.npmjs.org"
+    },
+    "npmDistTag": {
+      "type": "string",
+      "description": "NPM distribution tag",
+      "default": "latest"
+    },
+    "npmAccess": {
+      "type": "string",
+      "enum": ["public", "restricted"],
+      "description": "NPM package access level",
+      "default": "public"
+    },
+    "nexusUrl": {
+      "type": "string",
+      "description": "Nexus repository URL (for nexus registryType)"
+    },
+    "nexusRepository": {
+      "type": "string",
+      "description": "Nexus repository name (for nexus registryType)"
+    },
+    "nexusPathStrategy": {
+      "type": "string",
+      "enum": ["flat", "version", "hash", "semver"],
+      "description": "Nexus path strategy",
+      "default": "version"
+    },
+    "s3Bucket": {
+      "type": "string",
+      "description": "S3 bucket name (for s3 registryType)"
+    },
+    "s3Prefix": {
+      "type": "string",
+      "description": "S3 key prefix (for s3 registryType)"
+    },
+    "s3Region": {
+      "type": "string",
+      "description": "AWS region (for s3 registryType)",
+      "default": "us-east-1"
+    },
+    "s3PathStrategy": {
+      "type": "string",
+      "enum": ["flat", "version", "hash", "semver"],
+      "description": "S3 path strategy",
+      "default": "version"
+    },
+    "customRegistryUrl": {
+      "type": "string",
+      "description": "Custom registry URL (for custom registryType)"
+    },
+    "listExisting": {
+      "type": "boolean",
+      "description": "List existing registry configurations before prompting",
+      "default": true
+    },
+    "interactive": {
+      "type": "boolean",
+      "description": "Use interactive mode",
+      "default": true
+    }
+  },
+  "required": []
+}

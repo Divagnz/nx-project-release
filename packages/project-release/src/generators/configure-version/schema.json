@@ -31,21 +31,23 @@
       "description": "Initial version for projects without version",
       "default": "0.1.0"
     },
-    "tagNamingFormat": {
-      "type": "string",
-      "description": "Git tag naming format (e.g., v{version}, {projectName}@{version})"
-    },
-    "tagNamingPrefix": {
-      "type": "string",
-      "description": "Tag prefix (e.g., v, release-)"
-    },
-    "tagNamingSuffix": {
-      "type": "string",
-      "description": "Tag suffix"
-    },
-    "includeProjectName": {
-      "type": "boolean",
-      "description": "Include project name in tag"
+    "validationStrategy": {
+      "type": "array",
+      "description": "Version validation strategies (checked in precedence order: registry > git-tags > disk)",
+      "items": {
+        "type": "string",
+        "enum": ["registry", "git-tags", "disk"]
+      },
+      "default": ["registry", "git-tags", "disk"],
+      "x-prompt": {
+        "message": "Which validation strategies to use?",
+        "type": "multiselect",
+        "items": [
+          { "value": "registry", "label": "Registry (check npm/docker/etc - highest precedence)" },
+          { "value": "git-tags", "label": "Git tags (check git history)" },
+          { "value": "disk", "label": "Disk (check package.json/project.json - lowest precedence)" }
+        ]
+      }
     },
     "bumpDependents": {
       "type": "boolean",
