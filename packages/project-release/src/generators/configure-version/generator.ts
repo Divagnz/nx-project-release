@@ -143,9 +143,8 @@ async function promptVersionSettings(
         },
       ],
       initial: ['registry', 'git-tags', 'disk'],
-      // @ts-expect-error - enquirer types are incomplete
       hint: 'Space to select, Enter to confirm',
-    }
+    } as any
   );
   settings.validationStrategy = validationStrategy as Array<
     'registry' | 'git-tags' | 'disk'
