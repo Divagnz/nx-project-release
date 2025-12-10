@@ -8,7 +8,6 @@ export interface ConfigureReleaseGroupsSchema {
     | 'docker'
     | 'custom'
     | 'none';
-  registryUrl?: string;
   versionStrategy?: 'independent' | 'fixed';
   versionFiles?: string[];
   projects?: string[];

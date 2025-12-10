@@ -90,19 +90,6 @@ export default async function configureGlobalGenerator(
     changesCount++;
   }
 
-  // Registry configuration
-  if (options.registryType) {
-    nxJsonAny.projectRelease.registryType = options.registryType;
-    logger.info(`✅ Set registryType: ${options.registryType}`);
-    changesCount++;
-  }
-
-  if (options.registryUrl) {
-    nxJsonAny.projectRelease.registryUrl = options.registryUrl;
-    logger.info(`✅ Set registryUrl: ${options.registryUrl}`);
-    changesCount++;
-  }
-
   updateNxJson(tree, nxJson);
 
   logger.info('');
@@ -119,6 +106,9 @@ export default async function configureGlobalGenerator(
     logger.info(
       '   - Use nx g nx-project-release:validate to view configuration'
     );
+    logger.info('');
+    logger.info('💡 To configure registries, use:');
+    logger.info('   nx g nx-project-release:configure-publish');
   }
   logger.info('');
 }
@@ -131,9 +121,7 @@ function hasAnyOption(options: ConfigureGlobalSchema): boolean {
     options.tagNamingPrefix ||
     options.tagNamingSuffix ||
     options.includeProjectName !== undefined ||
-    options.changelogPreset ||
-    options.registryType ||
-    options.registryUrl
+    options.changelogPreset
   );
 }
 
@@ -221,46 +209,6 @@ async function promptGlobalSettings(): Promise<ConfigureGlobalSchema> {
     initial: 0,
   });
   settings.changelogPreset = changelogPreset as any;
-
-  // Registry type
-  const { configureRegistry } = await prompt<{ configureRegistry: boolean }>({
-    type: 'confirm',
-    name: 'configureRegistry',
-    message: 'Configure default registry?',
-    initial: false,
-  });
-
-  if (configureRegistry) {
-    const registrySettings = await prompt<{
-      registryType: string;
-      registryUrl?: string;
-    }>([
-      {
-        type: 'select',
-        name: 'registryType',
-        message: 'Registry type:',
-        choices: [
-          { name: 'npm', message: 'NPM Registry' },
-          { name: 'docker', message: 'Docker Registry' },
-          { name: 'nexus', message: 'Nexus/Sonatype' },
-          { name: 's3', message: 'AWS S3' },
-          { name: 'github', message: 'GitHub Packages' },
-          { name: 'none', message: 'No publishing (version only)' },
-        ],
-      },
-      {
-        type: 'input',
-        name: 'registryUrl',
-        message: 'Registry URL:',
-        initial: 'https://registry.npmjs.org',
-      },
-    ]);
-
-    settings.registryType = registrySettings.registryType as any;
-    if (registrySettings.registryUrl) {
-      settings.registryUrl = registrySettings.registryUrl;
-    }
-  }
 
   return settings;
 }

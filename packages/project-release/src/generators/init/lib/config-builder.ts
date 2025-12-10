@@ -212,7 +212,7 @@ export function updateNxJsonConfiguration(
     for (const group of answers.releaseGroups) {
       nxJsonAny.projectRelease.releaseGroups[group.groupName] = {
         registryType: group.registryType,
-        registryUrl: group.registryUrl,
+        // registryUrl removed - references projectRelease.registries instead
         versionStrategy: group.versionStrategy,
         versionFiles: group.versionFiles,
         pathStrategy: group.pathStrategy,

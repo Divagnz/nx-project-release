@@ -2,8 +2,8 @@
   "$schema": "http://json-schema.org/schema",
   "cli": "nx",
   "$id": "ConfigureRelease",
-  "title": "Configure Project Release",
-  "description": "Add or update release configuration for a specific project",
+  "title": "Configure Platform Release",
+  "description": "Configure GitHub/GitLab platform release settings (release notes, artifacts, draft/prerelease flags). For tag configuration use configure-global, for exclusions use exclude-projects.",
   "type": "object",
   "properties": {
     "projects": {
@@ -17,64 +17,74 @@
       "type": "string",
       "description": "Single project name (for CLI usage - will be converted to projects array)"
     },
-    "registryType": {
+    "platform": {
       "type": "string",
-      "enum": ["npm", "nexus", "s3", "github", "docker", "custom", "none"],
-      "description": "Registry type for publishing",
-      "default": "npm",
+      "enum": ["github", "gitlab", "none"],
+      "description": "Release platform",
+      "default": "github",
       "x-prompt": {
-        "message": "Which registry type?",
+        "message": "Which release platform?",
         "type": "list",
         "items": [
-          { "value": "npm", "label": "NPM (npmjs.org or private)" },
-          { "value": "docker", "label": "Docker (container registry)" },
-          { "value": "nexus", "label": "Nexus (Sonatype)" },
-          { "value": "s3", "label": "AWS S3" },
-          { "value": "github", "label": "GitHub Releases" },
-          { "value": "custom", "label": "Custom registry" },
-          { "value": "none", "label": "No publishing (version & tag only)" }
+          { "value": "github", "label": "GitHub (create GitHub releases)" },
+          { "value": "gitlab", "label": "GitLab (create GitLab releases)" },
+          { "value": "none", "label": "None (git tags only, no platform release)" }
         ]
       }
     },
-    "registryUrl": {
+    "releaseNotes": {
       "type": "string",
-      "description": "Registry URL (optional - will use default for registry type if not provided)",
+      "enum": ["changelog", "auto-generate", "both"],
+      "description": "How to generate release notes",
+      "default": "changelog",
       "x-prompt": {
-        "message": "Registry URL? (Press Enter to use default for selected registry type)",
+        "message": "How to generate release notes?",
+        "type": "list",
+        "items": [
+          { "value": "changelog", "label": "Use changelog file (CHANGELOG.md)" },
+          { "value": "auto-generate", "label": "Auto-generate from commits" },
+          { "value": "both", "label": "Both (try changelog, fallback to auto-generate)" }
+        ]
+      }
+    },
+    "changelogFile": {
+      "type": "string",
+      "description": "Changelog file path",
+      "default": "CHANGELOG.md",
+      "x-prompt": {
+        "message": "Changelog file path?",
         "type": "input"
       }
     },
-    "versionFiles": {
+    "prerelease": {
+      "type": "boolean",
+      "description": "Mark releases as prerelease (per-project)",
+      "default": false
+    },
+    "draft": {
+      "type": "boolean",
+      "description": "Create releases as draft (per-project)",
+      "default": false
+    },
+    "attachArtifacts": {
+      "type": "boolean",
+      "description": "Attach artifacts from artifact target to releases (per-project)"
+    },
+    "assetPatterns": {
       "type": "array",
-      "description": "Files to update with version",
+      "description": "Custom asset glob patterns to attach to releases",
       "items": {
         "type": "string"
       },
-      "default": ["package.json"]
+      "examples": [
+        ["dist/artifacts/{projectName}-*.tgz"],
+        ["dist/**/*.zip", "build/**/*.tar.gz"]
+      ]
     },
-    "initialVersion": {
-      "type": "string",
-      "description": "Initial version if not set (default: 0.1.0)",
-      "default": "0.1.0"
-    },
-    "addToReleaseGroup": {
+    "interactive": {
       "type": "boolean",
-      "description": "Add to an existing release group? (set programmatically)",
-      "default": false
-    },
-    "releaseGroupName": {
-      "type": "string",
-      "description": "Name of release group to add project to (set programmatically or via CLI)"
-    },
-    "createNewGroup": {
-      "type": "boolean",
-      "description": "Create a new release group?",
-      "default": false
-    },
-    "skipInstall": {
-      "type": "boolean",
-      "description": "Skip npm install",
-      "default": false
+      "description": "Use interactive mode",
+      "default": true
     }
   },
   "required": []

@@ -1,19 +1,12 @@
 export interface ConfigureReleaseSchema {
   projects?: string[];
   project?: string;
-  registryType?:
-    | 'npm'
-    | 'nexus'
-    | 's3'
-    | 'github'
-    | 'docker'
-    | 'custom'
-    | 'none';
-  registryUrl?: string;
-  versionFiles?: string[];
-  initialVersion?: string;
-  addToReleaseGroup?: boolean;
-  releaseGroupName?: string;
-  createNewGroup?: boolean;
-  skipInstall?: boolean;
+  platform?: 'github' | 'gitlab' | 'none';
+  releaseNotes?: 'changelog' | 'auto-generate' | 'both';
+  changelogFile?: string;
+  prerelease?: boolean;
+  draft?: boolean;
+  attachArtifacts?: boolean;
+  assetPatterns?: string[];
+  interactive?: boolean;
 }

@@ -13,10 +13,10 @@
     },
     "registryType": {
       "type": "string",
-      "description": "Registry type for this group",
+      "description": "Registry type for this group (must be configured via nx g nx-project-release:configure-publish first)",
       "enum": ["npm", "nexus", "s3", "github", "docker", "custom", "none"],
       "x-prompt": {
-        "message": "Which registry type?",
+        "message": "Which registry type? (Registry must be configured via configure-publish first)",
         "type": "list",
         "items": [
           { "value": "npm", "label": "NPM (npmjs.org or private)" },
@@ -28,11 +28,6 @@
           { "value": "none", "label": "No publishing (version & tag only)" }
         ]
       }
-    },
-    "registryUrl": {
-      "type": "string",
-      "description": "Registry URL",
-      "x-prompt": "Registry URL? (Press Enter to use default for selected registry type)"
     },
     "versionStrategy": {
       "type": "string",

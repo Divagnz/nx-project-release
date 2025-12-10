@@ -97,17 +97,14 @@ export default async function configureArtifactGenerator(
     logger.info(
       `  nx run ${projectsToConfig[0]}:artifact              # Create artifact`
     );
-    logger.info(
-      `  nx run ${projectsToConfig[0]}:publish              # Build → Artifact → Publish`
-    );
   } else {
     logger.info(
       `  nx run <project>:artifact                         # Create artifact`
     );
-    logger.info(
-      `  nx run <project>:publish                          # Build → Artifact → Publish`
-    );
   }
+  logger.info('');
+  logger.info('💡 Next step: Configure publish targets with:');
+  logger.info('  nx g nx-project-release:configure-publish');
   logger.info('');
 
   return;
@@ -145,20 +142,6 @@ function configureProjectArtifact(
     },
     outputs: ['{workspaceRoot}/dist/artifacts'],
   };
-
-  // Update publish target if it exists and updatePublish is true
-  if (options.updatePublish !== false && projectConfig.targets['publish']) {
-    const publishTarget = projectConfig.targets['publish'];
-    publishTarget.dependsOn = publishTarget.dependsOn || [];
-
-    if (!publishTarget.dependsOn.includes('artifact')) {
-      publishTarget.dependsOn.push('artifact');
-    }
-
-    // Set artifactPath to use artifact target output
-    publishTarget.options = publishTarget.options || {};
-    publishTarget.options.artifactPath = `dist/artifacts/{projectName}-{version}.${extension}`;
-  }
 
   updateProjectConfiguration(tree, projectName, projectConfig);
 

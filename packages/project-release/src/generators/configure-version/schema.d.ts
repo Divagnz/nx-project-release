@@ -3,10 +3,7 @@ export interface ConfigureVersionSchema {
   versionFiles?: string[];
   versionStrategy?: 'independent' | 'fixed';
   initialVersion?: string;
-  tagNamingFormat?: string;
-  tagNamingPrefix?: string;
-  tagNamingSuffix?: string;
-  includeProjectName?: boolean;
+  validationStrategy?: Array<'registry' | 'git-tags' | 'disk'>;
   bumpDependents?: boolean;
   interactive?: boolean;
 }

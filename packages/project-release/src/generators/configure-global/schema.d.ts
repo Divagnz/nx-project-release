@@ -11,14 +11,5 @@ export interface ConfigureGlobalSchema {
     | 'atom'
     | 'ember'
     | 'jshint';
-  registryType?:
-    | 'npm'
-    | 'nexus'
-    | 's3'
-    | 'github'
-    | 'docker'
-    | 'custom'
-    | 'none';
-  registryUrl?: string;
   interactive?: boolean;
 }

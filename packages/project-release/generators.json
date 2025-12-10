@@ -31,6 +31,7 @@
       "description": "Manage which projects are excluded from versioning and releases"
     },
     "configure-version": {
+
       "factory": "./src/generators/configure-version/generator",
       "schema": "./src/generators/configure-version/schema.json",
       "description": "Configure version settings for one or multiple projects"
@@ -54,6 +55,11 @@
       "factory": "./src/generators/configure-artifact/generator",
       "schema": "./src/generators/configure-artifact/schema.json",
       "description": "Configure artifact creation for one or multiple projects"
+    },
+    "configure-publish": {
+      "factory": "./src/generators/configure-publish/generator",
+      "schema": "./src/generators/configure-publish/schema.json",
+      "description": "Configure publish targets for projects with global registry settings"
     }
   }
 }

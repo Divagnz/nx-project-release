@@ -84,10 +84,25 @@ export async function resetGenerator(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const nxJsonAny = nxJson as any;
     if (nxJsonAny.projectRelease) {
+      const hasRegistries =
+        nxJsonAny.projectRelease.registries &&
+        Object.keys(nxJsonAny.projectRelease.registries).length > 0;
+      const hasReleaseGroups =
+        nxJsonAny.projectRelease.releaseGroups &&
+        Object.keys(nxJsonAny.projectRelease.releaseGroups).length > 0;
+
       delete nxJsonAny.projectRelease;
       nxJsonModified = true;
       itemsRemoved++;
+
       logger.info('✅ Removed projectRelease configuration from nx.json');
+      if (hasRegistries) {
+        logger.info('   - Removed registry configurations (configure-publish)');
+      }
+      if (hasReleaseGroups) {
+        logger.info('   - Removed release groups (configure-release-groups)');
+      }
+      logger.info('   - Removed global settings (configure-global)');
     }
 
     if (nxJsonModified) {
