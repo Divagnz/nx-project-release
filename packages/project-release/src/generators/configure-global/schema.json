@@ -39,15 +39,6 @@
       "description": "Default changelog preset",
       "enum": ["angular", "conventionalcommits", "atom", "ember", "jshint"]
     },
-    "registryType": {
-      "type": "string",
-      "description": "Default registry type",
-      "enum": ["npm", "nexus", "s3", "github", "docker", "custom", "none"]
-    },
-    "registryUrl": {
-      "type": "string",
-      "description": "Default registry URL"
-    },
     "interactive": {
       "type": "boolean",
       "description": "Use interactive mode",

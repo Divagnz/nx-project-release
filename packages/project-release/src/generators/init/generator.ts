@@ -13,6 +13,7 @@ import {
 import { setupGitHooks } from './lib/hooks-setup';
 import { setupCommitValidation } from './lib/commit-validation-setup';
 import { createGitHubWorkflows } from './lib/workflows-setup';
+import configurePublishGenerator from '../configure-publish/generator';
 
 export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
   logger.info('');
@@ -103,6 +104,11 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     ) {
       // Pass true if user skipped wizard in prompts
       updateNxJsonConfiguration(tree, answers, answers._wizardSkipped || false);
+
+      // Configure registries using configure-publish
+      if (answers.registriesToConfigure && answers.registriesToConfigure.size > 0) {
+        await configureRegistriesFromInit(tree, answers.registriesToConfigure);
+      }
     }
 
     // Add targets to projects if requested
@@ -224,6 +230,50 @@ export async function initGenerator(tree: Tree, options: InitGeneratorSchema) {
     );
     logger.info('');
   };
+}
+
+async function configureRegistriesFromInit(
+  tree: Tree,
+  registries: Map<string, any>
+): Promise<void> {
+  logger.info('');
+  logger.info('📦 Setting up registries...');
+  logger.info('');
+
+  for (const [registryType, config] of registries.entries()) {
+    // Map the collected config to configure-publish options
+    const publishOptions: any = {
+      configureRegistries: [registryType],
+      interactive: false,
+    };
+
+    switch (registryType) {
+      case 'npm':
+        publishOptions.npmRegistry = config.registry;
+        publishOptions.npmDistTag = config.distTag;
+        publishOptions.npmAccess = config.access;
+        break;
+      case 'nexus':
+        publishOptions.nexusUrl = config.nexusUrl;
+        publishOptions.nexusRepository = config.nexusRepository;
+        publishOptions.nexusPathStrategy = config.pathStrategy;
+        break;
+      case 's3':
+        publishOptions.s3Bucket = config.s3Bucket;
+        publishOptions.s3Prefix = config.s3Prefix;
+        publishOptions.s3Region = config.s3Region;
+        publishOptions.s3PathStrategy = config.pathStrategy;
+        break;
+      case 'custom':
+        publishOptions.customRegistryUrl = config.customRegistryUrl;
+        break;
+    }
+
+    // Call configure-publish
+    await configurePublishGenerator(tree, publishOptions);
+  }
+
+  logger.info('✅ All registries configured via configure-publish');
 }
 
 export default initGenerator;

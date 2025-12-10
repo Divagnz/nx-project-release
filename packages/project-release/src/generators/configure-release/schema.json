@@ -2,8 +2,8 @@
   "$schema": "http://json-schema.org/schema",
   "cli": "nx",
   "$id": "ConfigureRelease",
-  "title": "Configure Project Release",
-  "description": "Configure release settings for projects (tags, platform releases, release notes, artifacts)",
+  "title": "Configure Platform Release",
+  "description": "Configure GitHub/GitLab platform release settings (release notes, artifacts, draft/prerelease flags). For tag configuration use configure-global, for exclusions use exclude-projects.",
   "type": "object",
   "properties": {
     "projects": {
@@ -30,23 +30,6 @@
           { "value": "gitlab", "label": "GitLab (create GitLab releases)" },
           { "value": "none", "label": "None (git tags only, no platform release)" }
         ]
-      }
-    },
-    "tagPrefix": {
-      "type": "string",
-      "description": "Git tag prefix",
-      "default": "",
-      "x-prompt": {
-        "message": "Tag prefix? (e.g., 'v', 'release-', or empty)",
-        "type": "input"
-      }
-    },
-    "tagFormat": {
-      "type": "string",
-      "description": "Tag format template (use {version}, {projectName} placeholders)",
-      "x-prompt": {
-        "message": "Tag format? (use {version}, {projectName} placeholders)",
-        "type": "input"
       }
     },
     "releaseNotes": {
@@ -97,13 +80,6 @@
         ["dist/artifacts/{projectName}-*.tgz"],
         ["dist/**/*.zip", "build/**/*.tar.gz"]
       ]
-    },
-    "excludeProjects": {
-      "type": "array",
-      "description": "Projects to exclude from releases (workspace-wide)",
-      "items": {
-        "type": "string"
-      }
     },
     "interactive": {
       "type": "boolean",

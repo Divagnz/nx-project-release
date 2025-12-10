@@ -18,11 +18,15 @@ export default async function configureReleaseGenerator(
 ) {
   logger.info('');
   logger.info('═══════════════════════════════════════════════════════');
-  logger.info('   Configure Release Settings');
+  logger.info('   Configure Platform Release Settings');
   logger.info('═══════════════════════════════════════════════════════');
   logger.info('');
+  logger.info('ℹ️  This generator configures GitHub/GitLab platform releases');
+  logger.info('   For tag configuration: nx g nx-project-release:configure-global');
+  logger.info('   For exclusions: nx g nx-project-release:exclude-projects');
+  logger.info('');
 
-  // Step 1: Workspace-Level Configuration
+  // Step 1: Platform & Release Notes Configuration
   const workspaceConfig = await promptWorkspaceConfig(options);
   updateWorkspaceDefaults(tree, workspaceConfig);
 
@@ -34,11 +38,7 @@ export default async function configureReleaseGenerator(
     return;
   }
 
-  // Step 3: Exclusion Configuration
-  const excludedProjects = await selectExcludedProjects(tree, options);
-  updateExcludedProjects(tree, excludedProjects);
-
-  // Step 4: Per-Project Configuration
+  // Step 3: Per-Project Configuration
   const projectConfigs = await configureProjects(
     tree,
     selectedProjects,
@@ -52,16 +52,15 @@ export default async function configureReleaseGenerator(
 
   logger.info('');
   logger.info('═══════════════════════════════════════════════════════');
-  logger.info('   ✅ Release Configuration Complete!');
+  logger.info('   ✅ Platform Release Configuration Complete!');
   logger.info('═══════════════════════════════════════════════════════');
   logger.info('');
-  logger.info(`Configured ${selectedProjects.length} project(s) for releases`);
-  logger.info(`Excluded ${excludedProjects.length} project(s) from releases`);
+  logger.info(`Configured ${selectedProjects.length} project(s) for platform releases`);
   logger.info('');
   logger.info('Next steps:');
   logger.info('  1. Run version executor to bump version');
   logger.info('  2. Run changelog executor to generate changelog');
-  logger.info('  3. Run release executor to create release');
+  logger.info('  3. Run release executor to create GitHub/GitLab release');
   logger.info('');
   logger.info('Example:');
   logger.info(`  nx run ${selectedProjects[0]}:release --dryRun`);
@@ -74,7 +73,7 @@ export default async function configureReleaseGenerator(
 async function promptWorkspaceConfig(
   options: ConfigureReleaseSchema
 ): Promise<WorkspaceConfig> {
-  logger.info('📋 Workspace-Level Configuration');
+  logger.info('📋 Platform & Release Notes Configuration');
   logger.info('   (These settings apply to all projects)');
   logger.info('');
 
@@ -96,33 +95,6 @@ async function promptWorkspaceConfig(
     config.platform = platform as 'github' | 'gitlab' | 'none';
   } else {
     config.platform = options.platform;
-  }
-
-  // Tag prefix
-  if (options.tagPrefix === undefined) {
-    const { tagPrefix } = await prompt<{ tagPrefix: string }>({
-      type: 'input',
-      name: 'tagPrefix',
-      message: "Tag prefix? (e.g., 'v', 'release-', or empty)",
-      initial: 'v',
-    });
-    config.tagPrefix = tagPrefix;
-  } else {
-    config.tagPrefix = options.tagPrefix;
-  }
-
-  // Tag format
-  if (!options.tagFormat) {
-    const { tagFormat } = await prompt<{ tagFormat: string }>({
-      type: 'input',
-      name: 'tagFormat',
-      message:
-        'Tag format? (use {version}, {projectName} placeholders, or leave empty for default)',
-      initial: '',
-    });
-    config.tagFormat = tagFormat || undefined;
-  } else {
-    config.tagFormat = options.tagFormat;
   }
 
   // Release notes strategy
@@ -172,12 +144,8 @@ async function promptWorkspaceConfig(
   }
 
   logger.info('');
-  logger.info('✅ Workspace configuration:');
+  logger.info('✅ Platform configuration:');
   logger.info(`   Platform: ${config.platform}`);
-  logger.info(`   Tag prefix: ${config.tagPrefix || '(none)'}`);
-  if (config.tagFormat) {
-    logger.info(`   Tag format: ${config.tagFormat}`);
-  }
   logger.info(`   Release notes: ${config.releaseNotes}`);
   if (config.releaseNotes !== 'auto-generate') {
     logger.info(`   Changelog file: ${config.changelogFile}`);
@@ -222,54 +190,7 @@ async function selectProjects(
 }
 
 /**
- * Step 3: Select projects to exclude from releases (workspace-wide)
- */
-async function selectExcludedProjects(
-  tree: Tree,
-  options: ConfigureReleaseSchema
-): Promise<string[]> {
-  logger.info('');
-  logger.info('🚫 Exclude Projects (Workspace-Wide)');
-  logger.info('');
-
-  // If provided via CLI
-  if (options.excludeProjects && options.excludeProjects.length > 0) {
-    return options.excludeProjects;
-  }
-
-  const allProjects = Array.from(getProjects(tree).keys());
-
-  // Get current exclusions
-  const nxJson = readNxJson(tree);
-  const currentExcluded =
-    (nxJson as any)?.projectRelease?.excludedProjects || [];
-
-  const { wantExclude } = await prompt<{ wantExclude: boolean }>({
-    type: 'confirm',
-    name: 'wantExclude',
-    message: `Exclude projects from releases? (Current: ${currentExcluded.length} excluded)`,
-    initial: currentExcluded.length > 0,
-  });
-
-  if (!wantExclude) {
-    return currentExcluded;
-  }
-
-  const { excludedProjects } = await prompt<{ excludedProjects: string[] }>({
-    type: 'multiselect',
-    name: 'excludedProjects',
-    message: 'Select projects to exclude from releases:',
-    choices: allProjects,
-    initial: currentExcluded,
-    // @ts-expect-error - enquirer types are incomplete
-    hint: 'Space to select, Enter to confirm',
-  });
-
-  return excludedProjects;
-}
-
-/**
- * Step 4: Configure each project individually
+ * Step 3: Configure each project individually
  */
 async function configureProjects(
   tree: Tree,
@@ -379,16 +300,6 @@ function updateWorkspaceDefaults(tree: Tree, config: WorkspaceConfig): void {
     releaseDefaults.options.createGitLabRelease = true;
   }
 
-  // Tag prefix
-  if (config.tagPrefix !== undefined) {
-    releaseDefaults.options.tagPrefix = config.tagPrefix;
-  }
-
-  // Tag format (if custom)
-  if (config.tagFormat) {
-    releaseDefaults.options.tagFormat = config.tagFormat;
-  }
-
   // Release notes
   if (config.releaseNotes === 'changelog') {
     releaseDefaults.options.generateNotes = false;
@@ -406,30 +317,6 @@ function updateWorkspaceDefaults(tree: Tree, config: WorkspaceConfig): void {
   updateNxJson(tree, nxJson);
 
   logger.info('✅ Updated nx.json targetDefaults');
-}
-
-/**
- * Update nx.json with excluded projects
- */
-function updateExcludedProjects(tree: Tree, excludedProjects: string[]): void {
-  const nxJson = readNxJson(tree);
-  if (!nxJson) {
-    throw new Error('Could not read nx.json');
-  }
-
-  const nxJsonAny = nxJson as any;
-
-  if (!nxJsonAny.projectRelease) {
-    nxJsonAny.projectRelease = {};
-  }
-
-  nxJsonAny.projectRelease.excludedProjects = excludedProjects;
-
-  updateNxJson(tree, nxJson);
-
-  if (excludedProjects.length > 0) {
-    logger.info(`✅ Updated excluded projects: ${excludedProjects.join(', ')}`);
-  }
 }
 
 /**
@@ -475,8 +362,6 @@ function applyProjectConfig(
 // Type definitions
 interface WorkspaceConfig {
   platform?: 'github' | 'gitlab' | 'none';
-  tagPrefix?: string;
-  tagFormat?: string;
   releaseNotes?: 'changelog' | 'auto-generate' | 'both';
   changelogFile?: string;
 }

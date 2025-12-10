@@ -58,13 +58,31 @@ function getMinimalDefaults(tree: Tree): ConfigAnswers {
 export interface ReleaseGroup {
   groupName: string;
   registryType: 'npm' | 'nexus' | 's3' | 'github' | 'custom' | 'none';
-  registryUrl?: string;
+  // registryUrl removed - now managed centrally by configure-publish
   versionStrategy: 'git-tag' | 'disk' | 'registry';
   versionFiles: string[];
   pathStrategy?: 'version' | 'hash' | 'flat';
   tagPrefix?: string;
   tagFormat?: string;
   projects: string[];
+}
+
+export interface RegistryConfig {
+  type: 'npm' | 'nexus' | 's3' | 'github' | 'custom';
+  // npm-specific
+  registry?: string;
+  distTag?: string;
+  access?: 'public' | 'restricted';
+  // nexus-specific
+  nexusUrl?: string;
+  nexusRepository?: string;
+  pathStrategy?: 'flat' | 'version' | 'hash' | 'semver';
+  // s3-specific (also uses pathStrategy)
+  s3Bucket?: string;
+  s3Prefix?: string;
+  s3Region?: string;
+  // custom
+  customRegistryUrl?: string;
 }
 
 export interface ConfigAnswers {
@@ -136,6 +154,8 @@ export interface ConfigAnswers {
   access: 'public' | 'restricted';
   distTag: string;
   buildTarget: string;
+  // NEW: Collect unique registries for configure-publish
+  registriesToConfigure?: Map<string, RegistryConfig>;
   pathStrategy?: 'version' | 'hash' | 'flat';
   configureReleaseGroups: boolean;
   releaseGroupsConfig?: {
@@ -660,6 +680,7 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
   logger.info('');
 
   const releaseGroups: ReleaseGroup[] = [];
+  const registriesToConfigure = new Map<string, RegistryConfig>();
   let addMore = true;
 
   while (addMore) {
@@ -719,24 +740,25 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
         ],
       });
       registryType = registryTypeResponse.registryType;
+
+      // Collect registry configuration if not already collected
+      if (!registriesToConfigure.has(registryType)) {
+        const registryConfig = await collectRegistryConfig(
+          registryType,
+          groupName
+        );
+        registriesToConfigure.set(registryType, registryConfig);
+      } else {
+        logger.info('');
+        logger.info(
+          `ℹ️  ${registryType.toUpperCase()} registry already configured`
+        );
+        logger.info('');
+      }
     } else {
       logger.info('');
       logger.info(`  Skipping registry configuration (version-only group)`);
       logger.info('');
-    }
-
-    // Registry URL (if needed)
-    let registryUrl: string | undefined;
-    if (registryType === 'github') {
-      registryUrl = 'https://npm.pkg.github.com';
-    } else if (registryType === 'custom') {
-      const response = await prompt<{ registryUrl: string }>({
-        type: 'input',
-        name: 'registryUrl',
-        message: `[${groupName}] Custom registry URL:`,
-        initial: 'https://registry.npmjs.org',
-      });
-      registryUrl = response.registryUrl;
     }
 
     // Version strategy
@@ -814,7 +836,7 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     releaseGroups.push({
       groupName,
       registryType,
-      registryUrl,
+      // registryUrl removed - now managed centrally by configure-publish
       versionStrategy,
       versionFiles,
       pathStrategy,
@@ -937,7 +959,7 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     projectChangelogs,
     workspaceChangelog,
     registryType: releaseGroups[0]?.registryType || 'npm',
-    registryUrl: releaseGroups[0]?.registryUrl || 'https://registry.npmjs.org',
+    registryUrl: 'https://registry.npmjs.org', // Legacy field - use default (actual registry in projectRelease.registries)
     access,
     distTag,
     buildTarget,
@@ -962,5 +984,159 @@ export async function promptForConfig(tree: Tree): Promise<ConfigAnswers> {
     workflowType,
     createReleaseBranch,
     autoCreatePR,
+    registriesToConfigure,
   };
+}
+
+async function collectRegistryConfig(
+  registryType: 'npm' | 'nexus' | 's3' | 'github' | 'custom',
+  groupName: string
+): Promise<RegistryConfig> {
+  logger.info('');
+  logger.info(`⚙️  Configure ${registryType.toUpperCase()} Registry`);
+  logger.info(`   (Used by: ${groupName})`);
+  logger.info('');
+
+  const config: RegistryConfig = { type: registryType };
+
+  switch (registryType) {
+    case 'npm': {
+      const npmConfig = await prompt<{
+        registry: string;
+        distTag: string;
+        access: 'public' | 'restricted';
+      }>([
+        {
+          type: 'input',
+          name: 'registry',
+          message: 'NPM Registry URL:',
+          initial: 'https://registry.npmjs.org',
+        },
+        {
+          type: 'input',
+          name: 'distTag',
+          message: 'Distribution tag:',
+          initial: 'latest',
+        },
+        {
+          type: 'select',
+          name: 'access',
+          message: 'Package access:',
+          choices: [
+            { name: 'public', message: 'Public' },
+            { name: 'restricted', message: 'Restricted (scoped packages)' },
+          ],
+        },
+      ]);
+      config.registry = npmConfig.registry;
+      config.distTag = npmConfig.distTag;
+      config.access = npmConfig.access;
+      break;
+    }
+
+    case 'nexus': {
+      const nexusConfig = await prompt<{
+        nexusUrl: string;
+        nexusRepository: string;
+        pathStrategy: 'flat' | 'version' | 'hash' | 'semver';
+      }>([
+        {
+          type: 'input',
+          name: 'nexusUrl',
+          message: 'Nexus URL:',
+          initial: 'https://nexus.company.com',
+        },
+        {
+          type: 'input',
+          name: 'nexusRepository',
+          message: 'Nexus Repository name:',
+          initial: 'releases',
+        },
+        {
+          type: 'select',
+          name: 'pathStrategy',
+          message: 'Path strategy:',
+          choices: [
+            { name: 'version', message: 'Version-based (recommended)' },
+            { name: 'hash', message: 'Hash-based' },
+            { name: 'semver', message: 'Semver hierarchy' },
+            { name: 'flat', message: 'Flat (no subdirectories)' },
+          ],
+        },
+      ]);
+      config.nexusUrl = nexusConfig.nexusUrl;
+      config.nexusRepository = nexusConfig.nexusRepository;
+      config.pathStrategy = nexusConfig.pathStrategy;
+      break;
+    }
+
+    case 's3': {
+      const s3Config = await prompt<{
+        s3Bucket: string;
+        s3Prefix: string;
+        s3Region: string;
+        pathStrategy: 'flat' | 'version' | 'hash' | 'semver';
+      }>([
+        {
+          type: 'input',
+          name: 's3Bucket',
+          message: 'S3 Bucket name:',
+          initial: 'my-artifacts-bucket',
+        },
+        {
+          type: 'input',
+          name: 's3Prefix',
+          message: 'S3 Key prefix:',
+          initial: 'releases/',
+        },
+        {
+          type: 'input',
+          name: 's3Region',
+          message: 'AWS Region:',
+          initial: 'us-east-1',
+        },
+        {
+          type: 'select',
+          name: 'pathStrategy',
+          message: 'Path strategy:',
+          choices: [
+            { name: 'version', message: 'Version-based (recommended)' },
+            { name: 'hash', message: 'Hash-based' },
+            { name: 'semver', message: 'Semver hierarchy' },
+            { name: 'flat', message: 'Flat (no subdirectories)' },
+          ],
+        },
+      ]);
+      config.s3Bucket = s3Config.s3Bucket;
+      config.s3Prefix = s3Config.s3Prefix;
+      config.s3Region = s3Config.s3Region;
+      config.pathStrategy = s3Config.pathStrategy;
+      break;
+    }
+
+    case 'github': {
+      const githubConfig = await prompt<{ registry: string }>({
+        type: 'input',
+        name: 'registry',
+        message: 'GitHub Packages URL:',
+        initial: 'https://npm.pkg.github.com',
+      });
+      config.registry = githubConfig.registry;
+      break;
+    }
+
+    case 'custom': {
+      const customConfig = await prompt<{ customRegistryUrl: string }>({
+        type: 'input',
+        name: 'customRegistryUrl',
+        message: 'Custom registry URL:',
+        initial: 'https://registry.example.com',
+      });
+      config.customRegistryUrl = customConfig.customRegistryUrl;
+      break;
+    }
+  }
+
+  logger.info(`✅ ${registryType.toUpperCase()} registry configured`);
+  return config;
 }

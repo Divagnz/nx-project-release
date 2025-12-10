@@ -148,11 +148,26 @@ export default async function configureReleaseGroupsGenerator(
   };
 
   if (options.registryType) {
+    // Validate that this registry type exists in configure-publish
+    const configuredRegistries = nxJsonAny.projectRelease?.registries || {};
+    if (!configuredRegistries[options.registryType]) {
+      logger.warn(
+        `⚠️  Registry type '${options.registryType}' not configured in workspace`
+      );
+      logger.info('💡 Configure registries first with:');
+      logger.info('   nx g nx-project-release:configure-publish');
+      logger.info('');
+      const { continueAnyway } = await prompt<{ continueAnyway: boolean }>({
+        type: 'confirm',
+        name: 'continueAnyway',
+        message: 'Continue anyway?',
+        initial: false,
+      });
+      if (!continueAnyway) {
+        return;
+      }
+    }
     groupConfig.registryType = options.registryType;
-  }
-
-  if (options.registryUrl) {
-    groupConfig.registryUrl = options.registryUrl;
   }
 
   if (options.versionStrategy) {
@@ -247,7 +262,6 @@ export default async function configureReleaseGroupsGenerator(
 function hasAnyOption(options: ConfigureReleaseGroupsSchema): boolean {
   return !!(
     options.registryType ||
-    options.registryUrl ||
     options.versionStrategy ||
     options.versionFiles ||
     options.projects ||
@@ -262,6 +276,25 @@ async function promptGroupConfiguration(
   tree: Tree
 ): Promise<Partial<ConfigureReleaseGroupsSchema>> {
   const config: Partial<ConfigureReleaseGroupsSchema> = {};
+
+  // Get configured registries from nx.json
+  const nxJson = readNxJson(tree);
+  const nxJsonAny = nxJson as any;
+  const configuredRegistries = nxJsonAny?.projectRelease?.registries || {};
+  const availableTypes = Object.keys(configuredRegistries);
+
+  // Show available registries
+  if (availableTypes.length > 0) {
+    logger.info('');
+    logger.info(
+      `✅ Available configured registries: ${availableTypes.join(', ')}`
+    );
+    logger.info('');
+  } else {
+    logger.warn('⚠️  No registries configured yet');
+    logger.info('💡 Run: nx g nx-project-release:configure-publish');
+    logger.info('');
+  }
 
   // Registry type
   const { registryType } = await prompt<{ registryType: string }>({
@@ -279,25 +312,6 @@ async function promptGroupConfiguration(
     initial: existingGroup.registryType || 'npm',
   });
   config.registryType = registryType as any;
-
-  // Registry URL
-  if (registryType !== 'none') {
-    const defaultUrls: Record<string, string> = {
-      npm: 'https://registry.npmjs.org',
-      docker: 'ghcr.io/myorg',
-      github: 'npm.pkg.github.com',
-      nexus: 'https://nexus.company.com/repository/releases',
-      s3: 's3://my-bucket/releases',
-    };
-
-    const { registryUrl } = await prompt<{ registryUrl: string }>({
-      type: 'input',
-      name: 'registryUrl',
-      message: 'Registry URL:',
-      initial: existingGroup.registryUrl || defaultUrls[registryType] || '',
-    });
-    config.registryUrl = registryUrl;
-  }
 
   // Version strategy
   const { versionStrategy } = await prompt<{ versionStrategy: string }>({
@@ -401,9 +415,9 @@ function listReleaseGroups(releaseGroups: any) {
     const group = releaseGroups[groupName];
     logger.info(`  ${groupName}`);
     logger.info(`    Registry: ${group.registryType || 'not set'}`);
-    if (group.registryUrl) {
-      logger.info(`    URL: ${group.registryUrl}`);
-    }
+    logger.info(
+      `    (Registry details configured in: nx g nx-project-release:configure-publish)`
+    );
     logger.info(`    Strategy: ${group.versionStrategy || 'independent'}`);
     logger.info(`    Projects: ${group.projects?.length || 0}`);
     if (group.projectPatterns && group.projectPatterns.length > 0) {
