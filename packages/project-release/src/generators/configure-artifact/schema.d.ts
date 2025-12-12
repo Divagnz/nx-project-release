@@ -6,5 +6,11 @@ export interface ConfigureArtifactSchema {
   artifactName?: string;
   dependsOn?: string[];
   exclude?: string[];
+  outputDir?: string;
+  include?: string[];
+  compressionLevel?: number;
+  preservePermissions?: boolean;
+  stripPrefix?: string;
+  metadata?: Record<string, any>;
   updatePublish?: boolean;
 }

@@ -65,6 +65,42 @@
         ["**/*.map", "**/*.spec.ts"],
         ["**/test/**", "**/*.test.js"]
       ]
+    },
+    "outputDir": {
+      "type": "string",
+      "description": "Where to place the artifact (supports template variables: {projectName}, {version})",
+      "default": "dist/artifacts",
+      "x-prompt": "Output directory for artifacts?"
+    },
+    "include": {
+      "type": "array",
+      "description": "Glob patterns to include (default: all files)",
+      "items": {
+        "type": "string"
+      },
+      "default": ["**/*"]
+    },
+    "compressionLevel": {
+      "type": "number",
+      "description": "Compression level (0-9, where 9 is maximum compression)",
+      "default": 6,
+      "minimum": 0,
+      "maximum": 9
+    },
+    "preservePermissions": {
+      "type": "boolean",
+      "description": "Preserve file permissions (Unix-based systems)",
+      "default": true
+    },
+    "stripPrefix": {
+      "type": "string",
+      "description": "Remove prefix from archive paths (e.g., 'dist/apps/myapp')",
+      "examples": ["dist/apps/web-app", "build/output"]
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional metadata to include in artifact manifest (.artifact-metadata.json)",
+      "additionalProperties": true
     }
   }
 }
