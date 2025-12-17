@@ -62,14 +62,50 @@ export default async function configureArtifactGenerator(
     const projectConfig = readProjectConfiguration(tree, projectsToConfig[0]);
     const suggestedDir = `dist/${projectConfig.root}`;
 
-    const { dir } = await prompt<{ dir: string }>({
+    const { sourceDir: sourceDirValue } = await prompt<{ sourceDir: string }>({
       type: 'input',
-      name: 'dir',
+      name: 'sourceDir',
       message:
         'Source directory to archive? (use {projectName} as placeholder)',
       initial: suggestedDir,
     } as any);
-    sourceDir = dir;
+    sourceDir = sourceDirValue;
+  }
+
+  // Get output directory if not provided
+  let outputDir = options.outputDir;
+  if (!outputDir && projectsToConfig.length === 1) {
+    const { outputDir: outputDirValue } = await prompt<{ outputDir: string }>({
+      type: 'input',
+      name: 'outputDir',
+      message: 'Output directory for artifacts?',
+      initial: 'dist/artifacts',
+    } as any);
+    outputDir = outputDirValue;
+  }
+
+  // Get compression level if not provided
+  let compressionLevel = options.compressionLevel;
+  if (compressionLevel === undefined && projectsToConfig.length === 1) {
+    const { level } = await prompt<{ level: number }>({
+      type: 'numeral',
+      name: 'level',
+      message: 'Compression level (0-9, where 9 is max)?',
+      initial: 6,
+    } as any);
+    compressionLevel = level;
+  }
+
+  // Get preservePermissions if not provided
+  let preservePermissions = options.preservePermissions;
+  if (preservePermissions === undefined && projectsToConfig.length === 1) {
+    const { preserve } = await prompt<{ preserve: boolean }>({
+      type: 'confirm',
+      name: 'preserve',
+      message: 'Preserve file permissions (Unix)?',
+      initial: true,
+    } as any);
+    preservePermissions = preserve;
   }
 
   // Configure each project
@@ -77,7 +113,10 @@ export default async function configureArtifactGenerator(
     configureProjectArtifact(tree, projectName, {
       ...options,
       sourceDir: sourceDir || `dist/{projectName}`,
+      outputDir: outputDir,
       format,
+      compressionLevel,
+      preservePermissions,
     });
   }
 
@@ -128,18 +167,44 @@ function configureProjectArtifact(
 
   // Add artifact target
   projectConfig.targets = projectConfig.targets || {};
+
+  // Build options object
+  const artifactOptions: any = {
+    sourceDir,
+    outputDir: options.outputDir || 'dist/artifacts',
+    artifactName: options.artifactName || `{projectName}-{version}.${extension}`,
+    format: format,
+  };
+
+  // Add optional options only if provided
+  if (options.include && options.include.length > 0) {
+    artifactOptions.include = options.include;
+  }
+
+  if (options.exclude && options.exclude.length > 0) {
+    artifactOptions.exclude = options.exclude;
+  }
+
+  if (options.compressionLevel !== undefined) {
+    artifactOptions.compressionLevel = options.compressionLevel;
+  }
+
+  if (options.preservePermissions !== undefined) {
+    artifactOptions.preservePermissions = options.preservePermissions;
+  }
+
+  if (options.stripPrefix) {
+    artifactOptions.stripPrefix = options.stripPrefix;
+  }
+
+  if (options.metadata) {
+    artifactOptions.metadata = options.metadata;
+  }
+
   projectConfig.targets['artifact'] = {
     executor: 'nx-project-release:artifact',
     dependsOn: options.dependsOn || ['build'],
-    options: {
-      sourceDir,
-      outputDir: 'dist/artifacts',
-      artifactName:
-        options.artifactName || `{projectName}-{version}.${extension}`,
-      format: format,
-      ...(options.exclude &&
-        options.exclude.length > 0 && { exclude: options.exclude }),
-    },
+    options: artifactOptions,
     outputs: ['{workspaceRoot}/dist/artifacts'],
   };
 
