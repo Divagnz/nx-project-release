@@ -70,6 +70,11 @@ export default async function configureChangelogGenerator(
 
       const changelogOptions = projectConfig.targets['changelog'].options || {};
 
+      // Update dry run
+      if (options.dryRun !== undefined) {
+        changelogOptions.dryRun = options.dryRun;
+      }
+
       // Update changelog file (always provide default)
       if (options.changelogFile) {
         changelogOptions.changelogFile = options.changelogFile;
@@ -84,30 +89,63 @@ export default async function configureChangelogGenerator(
         changelogOptions.preset = 'angular';
       }
 
-      // Update infile
+      // Update from
+      if (options.from) {
+        changelogOptions.from = options.from;
+      }
+
+      // Update to
+      if (options.to) {
+        changelogOptions.to = options.to;
+      }
+
+      // Update release count (default changed to 1 to match executor)
+      if (options.releaseCount !== undefined) {
+        changelogOptions.releaseCount = options.releaseCount;
+      } else if (changelogOptions.releaseCount === undefined) {
+        changelogOptions.releaseCount = 1;
+      }
+
+      // Update skip unstable (default changed to true to match executor)
+      if (options.skipUnstable !== undefined) {
+        changelogOptions.skipUnstable = options.skipUnstable;
+      } else if (changelogOptions.skipUnstable === undefined) {
+        changelogOptions.skipUnstable = true;
+      }
+
+      // Update append
+      if (options.append !== undefined) {
+        changelogOptions.append = options.append;
+      }
+
+      // Update context
+      if (options.context) {
+        changelogOptions.context = options.context;
+      }
+
+      // Update workspace changelog
+      if (options.workspaceChangelog !== undefined) {
+        changelogOptions.workspaceChangelog = options.workspaceChangelog;
+      }
+
+      // Update project changelogs
+      if (options.projectChangelogs !== undefined) {
+        changelogOptions.projectChangelogs = options.projectChangelogs;
+      }
+
+      // Update infile (generator-specific)
       if (options.infile) {
         changelogOptions.infile = options.infile;
       }
 
-      // Update release count (always provide default)
-      if (options.releaseCount !== undefined) {
-        changelogOptions.releaseCount = options.releaseCount;
-      } else if (changelogOptions.releaseCount === undefined) {
-        changelogOptions.releaseCount = 0; // 0 means all releases
-      }
-
-      // Update skip unstable (always provide default)
-      if (options.skipUnstable !== undefined) {
-        changelogOptions.skipUnstable = options.skipUnstable;
-      } else if (changelogOptions.skipUnstable === undefined) {
-        changelogOptions.skipUnstable = false;
-      }
-
-      // Update include commit body (always provide default)
+      // Update include commit body (generator-specific)
       if (options.includeCommitBody !== undefined) {
         changelogOptions.includeCommitBody = options.includeCommitBody;
-      } else if (changelogOptions.includeCommitBody === undefined) {
-        changelogOptions.includeCommitBody = false;
+      }
+
+      // Update interactive
+      if (options.interactive !== undefined) {
+        changelogOptions.interactive = options.interactive;
       }
 
       projectConfig.targets['changelog'].options = changelogOptions;
@@ -154,30 +192,93 @@ async function promptChangelogSettings(
       { name: 'angular', message: 'Angular (recommended)' },
       { name: 'conventionalcommits', message: 'Conventional Commits' },
       { name: 'atom', message: 'Atom' },
+      { name: 'codemirror', message: 'CodeMirror' },
       { name: 'ember', message: 'Ember' },
+      { name: 'eslint', message: 'ESLint' },
+      { name: 'express', message: 'Express' },
+      { name: 'jquery', message: 'jQuery' },
       { name: 'jshint', message: 'JSHint' },
     ],
     initial: 0,
   });
   settings.preset = preset as any;
 
-  // Release count
+  // Release count (default changed to 1 to match executor)
   const { releaseCount } = await prompt<{ releaseCount: number }>({
     type: 'numeral',
     name: 'releaseCount',
-    message: 'Number of releases to generate (0 for all):',
-    initial: 0,
+    message: 'Number of releases to include:',
+    initial: 1,
   });
   settings.releaseCount = releaseCount;
 
-  // Skip unstable
+  // Skip unstable (default changed to true to match executor)
   const { skipUnstable } = await prompt<{ skipUnstable: boolean }>({
     type: 'confirm',
     name: 'skipUnstable',
-    message: 'Skip unstable/pre-release versions?',
-    initial: false,
+    message: 'Skip unstable/prerelease versions?',
+    initial: true,
   });
   settings.skipUnstable = skipUnstable;
+
+  // Append to existing changelog
+  const { append } = await prompt<{ append: boolean }>({
+    type: 'confirm',
+    name: 'append',
+    message: 'Append to existing changelog instead of replacing?',
+    initial: true,
+  });
+  settings.append = append;
+
+  // Workspace changelog
+  const { workspaceChangelog } = await prompt<{ workspaceChangelog: boolean }>({
+    type: 'confirm',
+    name: 'workspaceChangelog',
+    message: 'Generate workspace-level CHANGELOG.md at root?',
+    initial: false,
+  });
+  settings.workspaceChangelog = workspaceChangelog;
+
+  // Project changelogs (conditional)
+  if (workspaceChangelog) {
+    const { projectChangelogs } = await prompt<{ projectChangelogs: boolean }>({
+      type: 'confirm',
+      name: 'projectChangelogs',
+      message: 'Also generate individual project changelogs?',
+      initial: false,
+    });
+    settings.projectChangelogs = projectChangelogs;
+  }
+
+  // Version range (optional)
+  const { configureVersionRange } = await prompt<{
+    configureVersionRange: boolean;
+  }>({
+    type: 'confirm',
+    name: 'configureVersionRange',
+    message: 'Configure version range (from/to tags)?',
+    initial: false,
+  });
+
+  if (configureVersionRange) {
+    const { from } = await prompt<{ from: string }>({
+      type: 'input',
+      name: 'from',
+      message: 'Generate changelog from this version/tag (optional):',
+    });
+    if (from) {
+      settings.from = from;
+    }
+
+    const { to } = await prompt<{ to: string }>({
+      type: 'input',
+      name: 'to',
+      message: 'Generate changelog to this version/tag (optional):',
+    });
+    if (to) {
+      settings.to = to;
+    }
+  }
 
   // Include commit body
   const { includeCommitBody } = await prompt<{ includeCommitBody: boolean }>({
