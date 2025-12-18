@@ -13,39 +13,85 @@
         "type": "string"
       }
     },
+    "dryRun": {
+      "type": "boolean",
+      "description": "Preview changelog without writing to file",
+      "default": false
+    },
     "changelogFile": {
       "type": "string",
-      "description": "Changelog file name",
+      "description": "Path to changelog file",
       "default": "CHANGELOG.md"
     },
     "preset": {
       "type": "string",
-      "description": "Conventional changelog preset",
-      "enum": ["angular", "conventionalcommits", "atom", "ember", "jshint"],
+      "description": "Conventional commits preset to use",
+      "enum": [
+        "angular",
+        "atom",
+        "codemirror",
+        "conventionalcommits",
+        "ember",
+        "eslint",
+        "express",
+        "jquery",
+        "jshint"
+      ],
       "default": "angular"
     },
-    "infile": {
+    "from": {
       "type": "string",
-      "description": "Read existing changelog from this file"
+      "description": "Generate changelog from this version/tag"
+    },
+    "to": {
+      "type": "string",
+      "description": "Generate changelog to this version/tag"
     },
     "releaseCount": {
       "type": "number",
-      "description": "Number of releases to generate changelog for (0 for all)",
-      "default": 0
+      "description": "Number of releases to include",
+      "default": 1
     },
     "skipUnstable": {
       "type": "boolean",
-      "description": "Skip unstable versions (pre-releases)",
+      "description": "Skip unstable/prerelease versions",
+      "default": true
+    },
+    "append": {
+      "type": "boolean",
+      "description": "Append to existing changelog instead of replacing",
+      "default": true
+    },
+    "context": {
+      "type": "object",
+      "description": "Additional context for changelog generation",
+      "additionalProperties": true
+    },
+    "workspaceChangelog": {
+      "type": "boolean",
+      "description": "Generate a workspace-level CHANGELOG.md at the root containing all changes across all projects",
       "default": false
+    },
+    "projectChangelogs": {
+      "type": "boolean",
+      "description": "When generating workspace changelog, also generate individual project changelogs",
+      "default": false
+    },
+    "infile": {
+      "type": "string",
+      "description": "Read existing changelog from this file (generator-specific option)"
     },
     "includeCommitBody": {
       "type": "boolean",
-      "description": "Include commit body in changelog",
+      "description": "Include commit body in changelog (generator-specific option)",
       "default": false
     },
     "interactive": {
-      "type": "boolean",
-      "description": "Use interactive mode",
+      "oneOf": [
+        { "type": "boolean" },
+        { "type": "string", "enum": ["all", "workspace", "projects"] }
+      ],
+      "description": "Use interactive mode. Options: true (all), 'workspace', 'projects', or 'all'",
       "default": true
     }
   }
