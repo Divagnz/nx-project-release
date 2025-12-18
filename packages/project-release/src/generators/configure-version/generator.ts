@@ -18,6 +18,9 @@ export default async function configureVersionGenerator(
   logger.info('⚙️  Configure Version Settings');
   logger.info('');
 
+  // Apply backward compatibility layer
+  applyBackwardCompatibility(options);
+
   const allProjects = Array.from(getProjects(tree).keys());
   let projectsToProcess: string[] = [];
 
@@ -77,17 +80,65 @@ export default async function configureVersionGenerator(
         versionOptions.versionFiles = ['package.json'];
       }
 
-      // Update validation strategy
-      if (options.validationStrategy && options.validationStrategy.length > 0) {
-        versionOptions.validationStrategy = options.validationStrategy;
-      } else if (!versionOptions.validationStrategy) {
-        // Default to all strategies in precedence order
-        versionOptions.validationStrategy = ['registry', 'git-tags', 'disk'];
+      // Update version path
+      if (options.versionPath !== undefined) {
+        versionOptions.versionPath = options.versionPath;
       }
 
-      // Update bump dependents
-      if (options.bumpDependents !== undefined) {
-        versionOptions.bumpDependents = options.bumpDependents;
+      // Update projects relationship
+      if (options.projectsRelationship !== undefined) {
+        versionOptions.projectsRelationship = options.projectsRelationship;
+      }
+
+      // Update initial version
+      if (options.initialVersion !== undefined) {
+        versionOptions.initialVersion = options.initialVersion;
+      }
+
+      // Update current version resolver (NEW - replaces validationStrategy)
+      if (options.currentVersionResolver !== undefined) {
+        versionOptions.currentVersionResolver = options.currentVersionResolver;
+      }
+
+      // Update fallback resolver
+      if (options.fallbackCurrentVersionResolver !== undefined) {
+        versionOptions.fallbackCurrentVersionResolver =
+          options.fallbackCurrentVersionResolver;
+      }
+
+      // Update track deps (NEW - replaces bumpDependents)
+      if (options.trackDeps !== undefined) {
+        versionOptions.trackDeps = options.trackDeps;
+      }
+
+      // Update tag naming
+      if (options.tagNaming !== undefined) {
+        versionOptions.tagNaming = options.tagNaming;
+      }
+
+      // Update sync versions
+      if (options.syncVersions !== undefined) {
+        versionOptions.syncVersions = options.syncVersions;
+      }
+
+      // Update sync projects
+      if (options.syncProjects && options.syncProjects.length > 0) {
+        versionOptions.syncProjects = options.syncProjects;
+      }
+
+      // Update sync strategy
+      if (options.syncStrategy !== undefined) {
+        versionOptions.syncStrategy = options.syncStrategy;
+      }
+
+      // Update post targets
+      if (options.postTargets && options.postTargets.length > 0) {
+        versionOptions.postTargets = options.postTargets;
+      }
+
+      // Update post target options
+      if (options.postTargetOptions !== undefined) {
+        versionOptions.postTargetOptions = options.postTargetOptions;
       }
 
       projectConfig.targets['version'].options = versionOptions;
@@ -111,6 +162,73 @@ export default async function configureVersionGenerator(
   logger.info('');
 }
 
+/**
+ * Apply backward compatibility for deprecated options
+ * Maps old option names to new ones and logs deprecation warnings
+ */
+function applyBackwardCompatibility(options: ConfigureVersionSchema): void {
+  // versionStrategy → projectsRelationship
+  if (options.versionStrategy !== undefined) {
+    logger.warn(
+      '⚠️  DEPRECATED: "versionStrategy" is deprecated. Use "projectsRelationship" instead.'
+    );
+    if (options.projectsRelationship === undefined) {
+      options.projectsRelationship = options.versionStrategy;
+    }
+  }
+
+  // bumpDependents → trackDeps
+  if (options.bumpDependents !== undefined) {
+    logger.warn(
+      '⚠️  DEPRECATED: "bumpDependents" is deprecated. Use "trackDeps" instead.'
+    );
+    if (options.trackDeps === undefined) {
+      options.trackDeps = options.bumpDependents;
+    }
+  }
+
+  // validationStrategy (array) → currentVersionResolver + fallbackCurrentVersionResolver
+  if (options.validationStrategy && options.validationStrategy.length > 0) {
+    logger.warn(
+      '⚠️  DEPRECATED: "validationStrategy" is deprecated. Use "currentVersionResolver" and "fallbackCurrentVersionResolver" instead.'
+    );
+
+    // Map old validation strategy to new resolver pattern
+    if (options.currentVersionResolver === undefined) {
+      // Use first strategy as primary resolver
+      const primary = options.validationStrategy[0];
+      options.currentVersionResolver = mapValidationStrategyToResolver(primary);
+    }
+
+    if (
+      options.fallbackCurrentVersionResolver === undefined &&
+      options.validationStrategy.length > 1
+    ) {
+      // Use second strategy as fallback
+      const fallback = options.validationStrategy[1];
+      options.fallbackCurrentVersionResolver =
+        mapValidationStrategyToResolver(fallback);
+    }
+  }
+}
+
+/**
+ * Map old validationStrategy values to new resolver values
+ */
+function mapValidationStrategyToResolver(
+  strategy: 'registry' | 'git-tags' | 'disk'
+): 'disk' | 'git-tag' | 'registry' {
+  const mapping: Record<
+    'registry' | 'git-tags' | 'disk',
+    'disk' | 'git-tag' | 'registry'
+  > = {
+    registry: 'registry',
+    'git-tags': 'git-tag',
+    disk: 'disk',
+  };
+  return mapping[strategy];
+}
+
 async function promptVersionSettings(
   options: ConfigureVersionSchema
 ): Promise<Partial<ConfigureVersionSchema>> {
@@ -125,39 +243,54 @@ async function promptVersionSettings(
   });
   settings.versionFiles = versionFilesInput.split(',').map((f) => f.trim());
 
-  // Validation strategy
-  const { validationStrategy } = await prompt<{ validationStrategy: string[] }>(
-    {
-      type: 'multiselect',
-      name: 'validationStrategy',
-      message: 'Which validation strategies to use? (checked in order: registry → git-tags → disk)',
-      choices: [
-        {
-          name: 'registry',
-          message: 'Registry (check npm/docker/etc - highest precedence)',
-        },
-        { name: 'git-tags', message: 'Git tags (check git history)' },
-        {
-          name: 'disk',
-          message: 'Disk (check package.json/project.json - lowest precedence)',
-        },
-      ],
-      initial: ['registry', 'git-tags', 'disk'],
-      hint: 'Space to select, Enter to confirm',
-    } as any
-  );
-  settings.validationStrategy = validationStrategy as Array<
-    'registry' | 'git-tags' | 'disk'
-  >;
+  // Current version resolver (replaces validationStrategy)
+  const { currentVersionResolver } = await prompt<{
+    currentVersionResolver: 'disk' | 'git-tag' | 'registry';
+  }>({
+    type: 'select',
+    name: 'currentVersionResolver',
+    message: 'How to resolve current version?',
+    choices: [
+      { name: 'disk', message: 'Disk (read from version files)' },
+      { name: 'git-tag', message: 'Git tags (find latest tag)' },
+      { name: 'registry', message: 'Registry (query package registry)' },
+    ],
+    initial: 'disk',
+  } as any);
+  settings.currentVersionResolver = currentVersionResolver;
 
-  // Bump dependents
-  const { bumpDependents } = await prompt<{ bumpDependents: boolean }>({
+  // Fallback resolver
+  const { useFallback } = await prompt<{ useFallback: boolean }>({
     type: 'confirm',
-    name: 'bumpDependents',
-    message: 'Automatically bump dependent projects?',
+    name: 'useFallback',
+    message: 'Configure fallback resolver if primary fails?',
     initial: false,
   });
-  settings.bumpDependents = bumpDependents;
+
+  if (useFallback) {
+    const { fallbackCurrentVersionResolver } = await prompt<{
+      fallbackCurrentVersionResolver: 'disk' | 'git-tag' | 'registry';
+    }>({
+      type: 'select',
+      name: 'fallbackCurrentVersionResolver',
+      message: 'Fallback resolver:',
+      choices: [
+        { name: 'disk', message: 'Disk (read from version files)' },
+        { name: 'git-tag', message: 'Git tags (find latest tag)' },
+        { name: 'registry', message: 'Registry (query package registry)' },
+      ],
+    } as any);
+    settings.fallbackCurrentVersionResolver = fallbackCurrentVersionResolver;
+  }
+
+  // Track dependencies (replaces bumpDependents)
+  const { trackDeps } = await prompt<{ trackDeps: boolean }>({
+    type: 'confirm',
+    name: 'trackDeps',
+    message: 'Track workspace dependencies and auto-version dependent projects?',
+    initial: false,
+  });
+  settings.trackDeps = trackDeps;
 
   return settings;
 }

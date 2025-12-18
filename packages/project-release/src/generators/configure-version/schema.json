@@ -22,7 +22,14 @@
     },
     "versionStrategy": {
       "type": "string",
-      "description": "Versioning strategy",
+      "description": "DEPRECATED: Use projectsRelationship instead. Versioning strategy",
+      "enum": ["independent", "fixed"],
+      "default": "independent",
+      "deprecated": true
+    },
+    "projectsRelationship": {
+      "type": "string",
+      "description": "How projects should be versioned: 'independent' (each has own version) or 'fixed' (all share same version)",
       "enum": ["independent", "fixed"],
       "default": "independent"
     },
@@ -31,27 +38,102 @@
       "description": "Initial version for projects without version",
       "default": "0.1.0"
     },
+    "versionPath": {
+      "type": "string",
+      "description": "JSON path to version field in version files",
+      "default": "version"
+    },
     "validationStrategy": {
       "type": "array",
-      "description": "Version validation strategies (checked in precedence order: registry > git-tags > disk)",
+      "description": "DEPRECATED: Use currentVersionResolver and fallbackCurrentVersionResolver instead. Version validation strategies",
       "items": {
         "type": "string",
         "enum": ["registry", "git-tags", "disk"]
       },
-      "default": ["registry", "git-tags", "disk"],
+      "deprecated": true
+    },
+    "currentVersionResolver": {
+      "type": "string",
+      "description": "Strategy for resolving current version",
+      "enum": ["disk", "git-tag", "registry"],
+      "default": "disk",
       "x-prompt": {
-        "message": "Which validation strategies to use?",
-        "type": "multiselect",
+        "message": "How to resolve current version?",
+        "type": "list",
         "items": [
-          { "value": "registry", "label": "Registry (check npm/docker/etc - highest precedence)" },
-          { "value": "git-tags", "label": "Git tags (check git history)" },
-          { "value": "disk", "label": "Disk (check package.json/project.json - lowest precedence)" }
+          { "value": "disk", "label": "Disk (read from version files)" },
+          { "value": "git-tag", "label": "Git tags (find latest tag)" },
+          { "value": "registry", "label": "Registry (query package registry)" }
         ]
       }
     },
+    "fallbackCurrentVersionResolver": {
+      "type": "string",
+      "description": "Fallback strategy if primary resolver fails",
+      "enum": ["disk", "git-tag", "registry"]
+    },
     "bumpDependents": {
       "type": "boolean",
-      "description": "Automatically bump dependent projects"
+      "description": "DEPRECATED: Use trackDeps instead. Automatically bump dependent projects",
+      "deprecated": true
+    },
+    "trackDeps": {
+      "type": "boolean",
+      "description": "Track workspace dependencies and automatically version dependent projects when their dependencies change"
+    },
+    "tagNaming": {
+      "type": "object",
+      "description": "Tag naming configuration",
+      "properties": {
+        "prefix": {
+          "type": "string",
+          "description": "Tag prefix"
+        },
+        "suffix": {
+          "type": "string",
+          "description": "Tag suffix"
+        },
+        "format": {
+          "type": "string",
+          "description": "Tag format string (supports placeholders: {prefix}, {version}, {suffix}, {projectName})",
+          "default": "{prefix}{version}{suffix}"
+        },
+        "includeProjectName": {
+          "type": "boolean",
+          "description": "Include project name in tag",
+          "default": true
+        }
+      }
+    },
+    "syncVersions": {
+      "type": "boolean",
+      "description": "Synchronize versions across multiple projects in the workspace",
+      "default": false
+    },
+    "syncProjects": {
+      "type": "array",
+      "description": "Specific projects to synchronize versions with (if not specified, syncs with all projects when syncVersions is true)",
+      "items": {
+        "type": "string"
+      }
+    },
+    "syncStrategy": {
+      "type": "string",
+      "description": "Strategy for sync versioning: 'highest' uses the highest existing version, 'bump' calculates new version from the main project",
+      "enum": ["highest", "bump"],
+      "default": "bump"
+    },
+    "postTargets": {
+      "type": "array",
+      "description": "List of targets to execute after successful versioning (e.g., ['build', 'test', 'changelog'])",
+      "items": {
+        "type": "string"
+      }
+    },
+    "postTargetOptions": {
+      "type": "object",
+      "description": "Options to pass to post-targets. Use {version} placeholder to inject the new version",
+      "additionalProperties": true
     },
     "interactive": {
       "type": "boolean",
