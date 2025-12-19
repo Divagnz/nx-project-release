@@ -699,6 +699,106 @@ async function versionSingleProject(
     // Update lock files if needed (unless explicitly skipped)
     await updateLockFiles(context, options);
 
+    // Perform git operations if requested
+    const shouldCommit =
+      options.gitCommit ?? (options.skipCommit === false ? true : false);
+    const shouldTag =
+      options.gitTag ?? (options.skipTag === false ? true : false);
+    const shouldPush = options.gitPush ?? false;
+
+    if (shouldCommit || shouldTag || shouldPush) {
+      try {
+        // Stage changes (git add)
+        const filesToAdd = [targetFilePath];
+
+        // Add lock files if they were updated
+        if (!options.skipLockFileUpdate && options.updateLockFile !== false) {
+          const lockFiles = [
+            'package-lock.json',
+            'yarn.lock',
+            'pnpm-lock.yaml',
+          ];
+          lockFiles.forEach((lockFile) => {
+            const lockFilePath = path.join(context.root, lockFile);
+            if (fs.existsSync(lockFilePath)) {
+              filesToAdd.push(lockFilePath);
+            }
+          });
+        }
+
+        // Stage files
+        if (options.stageChanges !== false) {
+          execSync(`git add ${filesToAdd.join(' ')}`, {
+            cwd: context.root,
+            stdio: 'pipe',
+          });
+          logger.info(`📝 Staged ${filesToAdd.length} file(s) for commit`);
+        }
+
+        // Commit changes
+        if (shouldCommit) {
+          const commitMessage =
+            options.gitCommitMessage ||
+            generateConventionalCommitMessage(
+              context.projectName,
+              newVersion,
+              !versionInfo.version || versionInfo.version === '0.0.0'
+            );
+
+          // Escape message for shell safety
+          const escapedMessage = commitMessage.replace(/"/g, '\\"');
+          const commitArgs = options.gitCommitArgs || '';
+          execSync(`git commit -m "${escapedMessage}" ${commitArgs}`.trim(), {
+            cwd: context.root,
+            stdio: 'pipe',
+          });
+          logger.info(`✅ Committed: "${commitMessage}"`);
+        }
+
+        // Create git tag
+        if (shouldTag) {
+          const tag = generateTagName(context.projectName, newVersion, options);
+          const tagMessage = options.gitTagMessage || tag;
+          const escapedTagMessage = tagMessage.replace(/"/g, '\\"');
+          const tagArgs = options.gitTagArgs || '';
+          execSync(
+            `git tag -a ${tag} -m "${escapedTagMessage}" ${tagArgs}`.trim(),
+            {
+              cwd: context.root,
+              stdio: 'pipe',
+            }
+          );
+          logger.info(`🏷️  Created tag: ${tag}`);
+        }
+
+        // Push changes and tags
+        if (shouldPush) {
+          const remote = options.gitRemote || 'origin';
+          const pushArgs = options.gitPushArgs || '';
+
+          // Push commits
+          execSync(`git push ${remote} ${pushArgs}`.trim(), {
+            cwd: context.root,
+            stdio: 'pipe',
+          });
+          logger.info(`📤 Pushed commits to ${remote}`);
+
+          // Push tags if they were created
+          if (shouldTag) {
+            execSync(`git push ${remote} --tags ${pushArgs}`.trim(), {
+              cwd: context.root,
+              stdio: 'pipe',
+            });
+            logger.info(`📤 Pushed tags to ${remote}`);
+          }
+        }
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        logger.error(`❌ Git operation failed: ${errorMsg}`);
+        throw new Error(`Git operation failed: ${errorMsg}`);
+      }
+    }
+
     // Execute post-targets if specified
     if (options.postTargets && options.postTargets.length > 0) {
       await executePostTargets(
