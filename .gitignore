@@ -6,6 +6,8 @@
 # MCP configuration
 .mcp/
 ·mcp*
+.kiro/
+·kiro*
 .mcp.json
 .mcp.json.local
 

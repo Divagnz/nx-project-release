@@ -103,6 +103,13 @@ export default async function artifactExecutor(
     }
 
     // 6. Create artifact
+    if (options.dryRun) {
+      logger.info('🔍 Dry run — no archive will be written to disk');
+      logger.info(`   Would create: ${artifactPath}`);
+      logger.info(`   Files to include: ${files.length}`);
+      return { success: true };
+    }
+
     logger.info('🔨 Creating artifact...');
 
     switch (format) {
@@ -209,9 +216,9 @@ async function createTarArchive(
   const filesToArchive = files;
 
   if (options.stripPrefix) {
-    // For tar, we can't easily strip prefix, so we'll need to use cwd cleverly
-    // or just include all files as-is and document this limitation
-    logger.warn('⚠️  stripPrefix is not fully supported for tar archives');
+    logger.warn(
+      `⚠️  stripPrefix is not supported for '${format}' format and will be ignored`
+    );
   }
 
   await tar.create(

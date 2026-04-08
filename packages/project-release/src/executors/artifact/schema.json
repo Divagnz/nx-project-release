@@ -66,13 +66,18 @@
     },
     "stripPrefix": {
       "type": "string",
-      "description": "Remove prefix from archive paths",
+      "description": "Remove prefix from archive entry paths. Only supported for 'zip' format. For 'tar', 'tgz', and 'tar.gz' formats this option is ignored and a warning is logged.",
       "examples": ["dist/apps/web-app", "build/output"]
     },
     "metadata": {
       "type": "object",
       "description": "Additional metadata to include in artifact manifest (.artifact-metadata.json)",
       "additionalProperties": true
+    },
+    "dryRun": {
+      "type": "boolean",
+      "description": "Log what would be created without writing any files to disk",
+      "default": false
     }
   },
   "required": ["sourceDir", "outputDir"]

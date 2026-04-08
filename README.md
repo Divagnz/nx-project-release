@@ -1,4 +1,4 @@
-artio# nx-project-release
+# nx-project-release
 
 <a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
 
@@ -12,15 +12,19 @@ artio# nx-project-release
 
 A polyglot Nx plugin for automated semantic versioning, changelog generation, and publishing for any project type in your monorepo.
 
-## 🆕 Latest Updates (v0.0.31+)
+## 🆕 Latest Updates (v0.0.37+)
 
+- **🐛 Bug Fix** - `{version}` token now correctly substituted in git commit messages
+- **🐛 Bug Fix** - `matchesProjectPattern` regex now safe against dots and special characters in project names
+- **🐛 Bug Fix** - `generateTagName` logic aligned between version and release executors
+- **⚠️ Deprecation Warnings** - `skipCommit` and `skipTag` options now log deprecation warnings pointing to `gitCommit: false` / `gitTag: false`
+- **📝 Schema Docs** - `stripPrefix` in artifact executor now documents its zip-only limitation
+- **🧪 Test Coverage** - Expanded from ~30% to ≥70% across all executors and generators
 - **📦 Optimized Artifact Handling** - Artifacts no longer committed to git, keeping repositories clean
 - **🎯 Project-Specific Artifacts** - GitHub releases automatically attach only matching artifacts per project
 - **🔄 Two-Step Workflows** - Optional workflow split: Step 1 (version/changelog/tag) → Step 2 (build/artifact/publish)
-- **🎯 Improved Version Detection** - Removed redundant affected checks, now trusts Nx's affected detection completely
 - **🚫 Project Exclusion** - Automatic skipping of excluded projects in `nx affected` workflows
 - **🔒 Security Updates** - Updated glob dependency to v13+ for improved security
-- **🐛 Bug Fixes** - Fixed ESM compatibility issues with fs-extra and artifact executor
 
 ## ✨ Features
 
@@ -183,8 +187,9 @@ nx run my-project:artifact --exclude='**/*.map' --exclude='**/*.spec.ts'
 - `--include` - Glob patterns to include (default: `**/*`)
 - `--exclude` - Glob patterns to exclude
 - `--compressionLevel` - 0-9, where 9 is maximum (default: 6)
-- `--stripPrefix` - Remove prefix from archive paths
+- `--stripPrefix` - Remove prefix from archive paths (**zip format only**; ignored for tar/tgz/tar.gz)
 - `--metadata` - Additional metadata for manifest
+- `--dryRun` - Log what would be created without writing any files to disk
 
 ### publish
 
@@ -833,6 +838,8 @@ nx g nx-project-release:reset-config --dryRun
 | `firstRelease`        | boolean | First release mode                            | false   |
 | `gitCommit`           | boolean | Create git commit                             | false   |
 | `gitTag`              | boolean | Create git tag                                | false   |
+| `skipCommit`          | boolean | **Deprecated** — use `gitCommit: false`       | -       |
+| `skipTag`             | boolean | **Deprecated** — use `gitTag: false`          | -       |
 | `ciOnly`              | boolean | Restrict git ops to CI only                   | true    |
 | `createReleaseBranch` | boolean | Create release branch                         | false   |
 | `createPR`            | boolean | Auto-create PR                                | false   |

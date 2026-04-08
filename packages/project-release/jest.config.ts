@@ -24,10 +24,10 @@ export default {
   // Phase 2: Executors (changelog, publish completed; project-release, version pending)
   coverageThreshold: {
     global: {
-      branches: 23,
-      functions: 30,
-      lines: 29,
-      statements: 30,
+      branches: 60,
+      functions: 70,
+      lines: 70,
+      statements: 70,
     },
   },
 };

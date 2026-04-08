@@ -255,9 +255,10 @@ nx run my-project:artifact --artifactName='{projectName}-{version}-{platform}-{a
 - `include` - Glob patterns for files to include (default: `['**/*']`)
 - `exclude` - Glob patterns for files to exclude
 - `compressionLevel` - Compression level 0-9 (default: 6)
-- `stripPrefix` - Remove prefix from paths in archive
+- `stripPrefix` - Remove prefix from paths in archive (**zip format only**; ignored for tar/tgz/tar.gz with a warning)
 - `metadata` - Custom metadata to include in `.artifact-metadata.json`
 - `preservePermissions` - Preserve file permissions in tar archives
+- `dryRun` - Log what would be created without writing any files to disk
 
 **Use cases:**
 

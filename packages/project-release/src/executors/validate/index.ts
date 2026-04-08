@@ -2,12 +2,35 @@ import {
   ExecutorContext,
   logger,
   readJsonFile,
-  workspaceRoot,
 } from '@nx/devkit';
 import { ValidateExecutorSchema } from './schema';
+
+interface ValidationHealth {
+  warnings: string[];
+  errors: string[];
+}
+
+interface ValidationSummary {
+  projectName: string;
+  global: Record<string, unknown>;
+  projectConfig: Record<string, unknown>;
+  releaseGroup: { name: string; [key: string]: unknown } | null;
+  health: ValidationHealth;
+}
+
+interface ProjectReleaseConfig {
+  projectsRelationship?: string;
+  versionFiles?: string[];
+  tagNaming?: { format?: string; prefix?: string; includeProjectName?: boolean };
+  registryType?: string;
+  registryUrl?: string;
+  excludedProjects?: string[];
+  releaseGroups?: Record<string, { projects: string[]; [key: string]: unknown }>;
+}
+
 import * as chalk from 'chalk';
 import { join } from 'path';
-import { existsSync, readdirSync, statSync } from 'fs';
+import { existsSync, readdirSync } from 'fs';
 
 export default async function validateExecutor(
   options: ValidateExecutorSchema,
@@ -39,10 +62,10 @@ export default async function validateExecutor(
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const nxJsonAny = nxJson as any;
+  const nxJsonAny = nxJson as { projectRelease?: ProjectReleaseConfig };
   const projectRelease = nxJsonAny?.projectRelease || {};
 
-  const summary: any = {
+  const summary: ValidationSummary = {
     projectName: projectName,
     global: {},
     projectConfig: {},
@@ -138,7 +161,7 @@ export default async function validateExecutor(
     for (const [groupName, group] of Object.entries(
       projectRelease.releaseGroups
     )) {
-      const groupProjects = (group as any).projects || [];
+      const groupProjects = (group as { projects: string[] }).projects || [];
       if (groupProjects.includes(projectName)) {
         projectReleaseGroup = groupName;
         logger.info(
@@ -149,17 +172,17 @@ export default async function validateExecutor(
         if (options.verbose) {
           logger.info(
             `    Registry: ${chalk.cyan(
-              (group as any).registryType || 'not set'
+              (group as Record<string, unknown>)['registryType'] || 'not set'
             )}`
           );
           logger.info(
             `    Strategy: ${chalk.cyan(
-              (group as any).versionStrategy || 'independent'
+              (group as Record<string, unknown>)['versionStrategy'] || 'independent'
             )}`
           );
           logger.info(`    Projects: ${groupProjects.length}`);
         }
-        summary.releaseGroup = { name: groupName, ...(group as any) };
+        summary.releaseGroup = { name: groupName, ...group };
       } else if (options.verbose) {
         logger.info(
           `  ${chalk.gray('○')} ${groupName} (${groupProjects.length} projects)`
@@ -185,29 +208,29 @@ export default async function validateExecutor(
 
   // Version target
   if (targets['version']) {
-    const versionOptions = targets['version'].options || {};
+    const versionOptions = (targets['version'].options || {}) as Record<string, unknown>;
     logger.info(`  ${chalk.green('✓')} Version Executor Configured`);
-    if (versionOptions.versionFiles) {
+    if (versionOptions['versionFiles']) {
       logger.info(
         `    Version Files: ${chalk.cyan(
-          versionOptions.versionFiles.join(', ')
+          (versionOptions['versionFiles'] as string[]).join(', ')
         )}`
       );
-      summary.projectConfig.versionFiles = versionOptions.versionFiles;
+      summary.projectConfig.versionFiles = versionOptions['versionFiles'];
     }
-    if (versionOptions.tagNaming) {
+    if (versionOptions['tagNaming']) {
       logger.info(
         `    Tag Naming: ${chalk.cyan(
-          JSON.stringify(versionOptions.tagNaming)
+          JSON.stringify(versionOptions['tagNaming'])
         )}`
       );
-      summary.projectConfig.tagNaming = versionOptions.tagNaming;
+      summary.projectConfig.tagNaming = versionOptions['tagNaming'];
     }
-    if (versionOptions.bumpDependents !== undefined) {
+    if (versionOptions['bumpDependents'] !== undefined) {
       logger.info(
-        `    Bump Dependents: ${chalk.cyan(versionOptions.bumpDependents)}`
+        `    Bump Dependents: ${chalk.cyan(versionOptions['bumpDependents'])}`
       );
-      summary.projectConfig.bumpDependents = versionOptions.bumpDependents;
+      summary.projectConfig.bumpDependents = versionOptions['bumpDependents'];
     }
   } else {
     logger.info(`  ${chalk.red('✗')} Version Executor Not Configured`);
@@ -216,15 +239,15 @@ export default async function validateExecutor(
 
   // Changelog target
   if (targets['changelog']) {
-    const changelogOptions = targets['changelog'].options || {};
+    const changelogOptions = (targets['changelog'].options || {}) as Record<string, unknown>;
     logger.info(`  ${chalk.green('✓')} Changelog Executor Configured`);
-    if (changelogOptions.changelogFile) {
-      logger.info(`    File: ${chalk.cyan(changelogOptions.changelogFile)}`);
-      summary.projectConfig.changelogFile = changelogOptions.changelogFile;
+    if (changelogOptions['changelogFile']) {
+      logger.info(`    File: ${chalk.cyan(changelogOptions['changelogFile'] as string)}`);
+      summary.projectConfig.changelogFile = changelogOptions['changelogFile'];
     }
-    if (changelogOptions.preset) {
-      logger.info(`    Preset: ${chalk.cyan(changelogOptions.preset)}`);
-      summary.projectConfig.changelogPreset = changelogOptions.preset;
+    if (changelogOptions['preset']) {
+      logger.info(`    Preset: ${chalk.cyan(changelogOptions['preset'] as string)}`);
+      summary.projectConfig.changelogPreset = changelogOptions['preset'];
     }
   } else {
     logger.info(`  ${chalk.yellow('⚠')} Changelog Executor Not Configured`);
@@ -233,17 +256,17 @@ export default async function validateExecutor(
 
   // Publish target
   if (targets['publish']) {
-    const publishOptions = targets['publish'].options || {};
+    const publishOptions = (targets['publish'].options || {}) as Record<string, unknown>;
     logger.info(`  ${chalk.green('✓')} Publish Executor Configured`);
-    if (publishOptions.registryType) {
+    if (publishOptions['registryType']) {
       logger.info(
-        `    Registry Type: ${chalk.cyan(publishOptions.registryType)}`
+        `    Registry Type: ${chalk.cyan(publishOptions['registryType'] as string)}`
       );
-      summary.projectConfig.registryType = publishOptions.registryType;
+      summary.projectConfig.registryType = publishOptions['registryType'];
     }
-    if (publishOptions.registry) {
-      logger.info(`    Registry URL: ${chalk.cyan(publishOptions.registry)}`);
-      summary.projectConfig.registryUrl = publishOptions.registry;
+    if (publishOptions['registry']) {
+      logger.info(`    Registry URL: ${chalk.cyan(publishOptions['registry'] as string)}`);
+      summary.projectConfig.registryUrl = publishOptions['registry'];
     }
   } else {
     logger.info(`  ${chalk.yellow('⚠')} Publish Executor Not Configured`);
@@ -267,9 +290,9 @@ export default async function validateExecutor(
     }
 
     // Check for version files
-    const versionTargetOptions = targets['version']?.options || {};
+    const versionTargetOptions = (targets['version']?.options || {}) as Record<string, unknown>;
     const versionFiles =
-      versionTargetOptions.versionFiles || projectRelease.versionFiles || [];
+      (versionTargetOptions['versionFiles'] as string[] | undefined) || projectRelease.versionFiles || [];
     if (versionFiles.length === 0) {
       logger.warn(`  ${chalk.yellow('⚠')} No version files configured`);
       summary.health.warnings.push('No version files configured');
@@ -326,8 +349,8 @@ export default async function validateExecutor(
 }
 
 // Helper function to get all projects from workspace
-function getAllProjects(workspaceRoot: string): Map<string, any> {
-  const projects = new Map<string, any>();
+function getAllProjects(workspaceRoot: string): Map<string, { targets?: Record<string, { options?: Record<string, unknown> }> }> {
+  const projects = new Map<string, { targets?: Record<string, { options?: Record<string, unknown> }> }>();
 
   try {
     const projectsDir = join(workspaceRoot, 'projects');

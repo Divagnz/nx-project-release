@@ -1,4 +1,53 @@
-# Testing Auto-Detection Locally
+# Testing Guide
+
+## Automated Test Suite
+
+The plugin has a comprehensive automated test suite covering all executors and generators.
+
+### Run All Tests
+
+```bash
+# Run full test suite
+npx nx test project-release --run
+
+# Run with coverage report
+npx nx test project-release --run --coverage
+```
+
+### Test Coverage
+
+Current thresholds (enforced in CI):
+
+| Metric     | Threshold |
+| ---------- | --------- |
+| Statements | ≥70%      |
+| Branches   | ≥60%      |
+| Functions  | ≥70%      |
+| Lines      | ≥70%      |
+
+### Test Files
+
+| File | Description |
+|------|-------------|
+| `executors/version/index.spec.ts` | Token replacement, tag naming, git ops, file I/O, workspace versioning, semver property tests |
+| `executors/artifact/index.spec.ts` | Archive creation (zip/tgz/tar.gz), filtering, metadata, round-trip property tests |
+| `executors/release/index.spec.ts` | Tag creation, GitHub release, matchesProjectPattern regex safety |
+| `executors/validate/index.spec.ts` | Config health reporting, JSON output, excluded projects |
+| `executors/changelog/index.spec.ts` | Changelog generation from conventional commits |
+| `executors/publish/index.spec.ts` | NPM/Nexus/S3 publishing |
+| `executors/utils/ci-detection.spec.ts` | CI environment detection |
+| `executors/publish/lib/checksum.spec.ts` | Checksum generation |
+| `executors/changelog/commit-parser.spec.ts` | Conventional commit parsing |
+| `executors/changelog/markdown-generator.spec.ts` | Markdown generation |
+| `generators/init/generator.spec.ts` | Workspace init generator |
+| `generators/configure-version/generator.spec.ts` | Version target scaffolding |
+| `generators/configure-artifact/generator.spec.ts` | Artifact target scaffolding |
+| `generators/configure-changelog/generator.spec.ts` | Changelog target scaffolding |
+| `generators/configure-release/generator.spec.ts` | Release target scaffolding |
+
+---
+
+## Testing Auto-Detection Locally
 
 This guide shows how to test the automatic version bump detection from conventional commits.
 
@@ -198,7 +247,7 @@ git log ${LAST_TAG}..HEAD --oneline
 ### Check Affected Projects
 
 ```bash
-nx affected:projects --base=main
+nx show projects --affected --base=main
 ```
 
 ## Common Issues
@@ -258,7 +307,7 @@ nx run @nx-project-release:publish
 
 ```bash
 # 1. Check affected projects
-nx affected:projects --base=main
+nx show projects --affected --base=main
 
 # 2. Test affected version bumps
 ./test-workflow-simulation.sh --dryRun

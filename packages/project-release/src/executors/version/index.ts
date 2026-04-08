@@ -503,6 +503,14 @@ async function versionSingleProject(
     return { success: false, error: 'No project name specified' };
   }
 
+  // Emit deprecation warnings for legacy options
+  if (options.skipCommit !== undefined) {
+    logger.warn('⚠️  skipCommit is deprecated. Use gitCommit: false instead.');
+  }
+  if (options.skipTag !== undefined) {
+    logger.warn('⚠️  skipTag is deprecated. Use gitTag: false instead.');
+  }
+
   logger.info(`🔖 Versioning ${context.projectName}`);
 
   try {
@@ -512,13 +520,24 @@ async function versionSingleProject(
 
     let versionInfo: { version?: string; filePath?: string };
 
-    // Try to read version, but allow missing for firstRelease
+    // Try to read version, but allow missing for firstRelease or when no file exists
     try {
       versionInfo = await readVersionFromFile(context, projectRoot, options);
     } catch (error) {
       if (options.firstRelease) {
         versionInfo = { version: undefined, filePath: undefined };
       } else {
+        // No version file found and not firstRelease — skip gracefully (Req 6.6)
+        const errMsg = error instanceof Error ? error.message : String(error);
+        if (errMsg.includes('Version file not found') || errMsg.includes('No version files found')) {
+          logger.warn(
+            `⚠️  Skipping project '${context.projectName}': No version found`
+          );
+          logger.info(
+            '💡 To version this project, use --firstRelease flag or configure version in project files'
+          );
+          return { success: true, skipped: true, reason: 'No version found' };
+        }
         throw error;
       }
     }
@@ -737,13 +756,19 @@ async function versionSingleProject(
 
         // Commit changes
         if (shouldCommit) {
-          const commitMessage =
+          const rawCommitMessage =
             options.gitCommitMessage ||
             generateConventionalCommitMessage(
               context.projectName,
               newVersion,
               !versionInfo.version || versionInfo.version === '0.0.0'
             );
+
+          // Substitute {version}, {projectName}, etc. before passing to git
+          const commitMessage = replaceStringTokens(
+            rawCommitMessage,
+            getTokenValues(context, newVersion)
+          );
 
           // Escape message for shell safety
           const escapedMessage = commitMessage.replace(/"/g, '\\"');
@@ -761,14 +786,30 @@ async function versionSingleProject(
           const tagMessage = options.gitTagMessage || tag;
           const escapedTagMessage = tagMessage.replace(/"/g, '\\"');
           const tagArgs = options.gitTagArgs || '';
-          execSync(
-            `git tag -a ${tag} -m "${escapedTagMessage}" ${tagArgs}`.trim(),
-            {
-              cwd: context.root,
-              stdio: 'pipe',
+          try {
+            execSync(
+              `git tag -a ${tag} -m "${escapedTagMessage}" ${tagArgs}`.trim(),
+              {
+                cwd: context.root,
+                stdio: 'pipe',
+              }
+            );
+            logger.info(`🏷️  Created tag: ${tag}`);
+          } catch (tagError) {
+            const tagErrMsg =
+              tagError instanceof Error ? tagError.message : String(tagError);
+            // Git exits with an error when the tag already exists; treat as non-fatal
+            if (
+              tagErrMsg.includes('already exists') ||
+              tagErrMsg.includes('tag already exists')
+            ) {
+              logger.info(
+                `ℹ️  Tag '${tag}' already exists — skipping tag creation`
+              );
+            } else {
+              throw tagError;
             }
-          );
-          logger.info(`🏷️  Created tag: ${tag}`);
+          }
         }
 
         // Push changes and tags
@@ -796,6 +837,74 @@ async function versionSingleProject(
         const errorMsg = error instanceof Error ? error.message : String(error);
         logger.error(`❌ Git operation failed: ${errorMsg}`);
         throw new Error(`Git operation failed: ${errorMsg}`);
+      }
+    }
+
+    // Create release branch if requested (opt-in, disabled by default per Req 3.1)
+    if (options.createReleaseBranch) {
+      const branchName =
+        options.releaseBranchName || `release/v${newVersion}`;
+      const remote = options.gitRemote || 'origin';
+
+      // Check whether the branch already exists remotely (Req 3.2)
+      try {
+        const lsRemoteOutput = execSync(
+          `git ls-remote --heads ${remote} refs/heads/${branchName}`,
+          { cwd: context.root, encoding: 'utf8', stdio: 'pipe' }
+        ).trim();
+
+        if (lsRemoteOutput) {
+          logger.warn(
+            `⚠️  Release branch '${branchName}' already exists on remote '${remote}'. ` +
+              `It may have been merged already. Consider cleaning it up manually: ` +
+              `git push ${remote} --delete ${branchName}`
+          );
+        }
+      } catch {
+        // ls-remote failure is non-fatal; proceed with branch creation attempt
+      }
+
+      try {
+        execSync(`git checkout -b ${branchName}`, {
+          cwd: context.root,
+          stdio: 'pipe',
+        });
+        logger.info(`🌿 Created release branch: ${branchName}`);
+
+        execSync(`git push ${remote} ${branchName}`, {
+          cwd: context.root,
+          stdio: 'pipe',
+        });
+        logger.info(`📤 Pushed release branch '${branchName}' to ${remote}`);
+
+        if (options.createPR) {
+          await createPullRequest(context, branchName, newVersion, options);
+        }
+      } catch (branchError) {
+        const branchErrMsg =
+          branchError instanceof Error
+            ? branchError.message
+            : String(branchError);
+
+        // Detect push rejection due to existing remote branch (Req 3.3)
+        if (
+          branchErrMsg.includes('already exists') ||
+          branchErrMsg.includes('rejected') ||
+          branchErrMsg.includes('remote:')
+        ) {
+          logger.error(
+            `❌ Failed to push release branch '${branchName}' to remote '${remote}': ` +
+              `the remote branch '${remote}/${branchName}' already exists. ` +
+              `Delete it first with: git push ${remote} --delete ${branchName}`
+          );
+        } else {
+          logger.error(
+            `❌ Release branch operation failed for '${branchName}': ${branchErrMsg}`
+          );
+        }
+        throw new Error(
+          `Release branch operation failed for '${branchName}': ${branchErrMsg}`
+        );
       }
     }
 
@@ -2180,3 +2289,21 @@ function filterCommitsForProject(
 }
 
 export default runExecutor;
+
+export {
+  replaceStringTokens,
+  replaceTokens,
+  getTokenValues,
+  evaluateSimpleCondition,
+  generateTagName,
+  generateConventionalCommitMessage,
+  filterCommitsForProject,
+  analyzeConventionalCommits,
+  readVersionFromFile,
+  writeVersionToFile,
+  calculateNewVersionForProject,
+  getHighestVersionAcrossProjects,
+  getAffectedProjectsByDependencies,
+  versionSingleProject,
+  handleWorkspaceVersioning,
+};

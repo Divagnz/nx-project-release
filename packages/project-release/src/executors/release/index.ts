@@ -4,6 +4,7 @@ import { execSync } from 'child_process';
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { glob } from 'glob';
+import { generateTagName as versionGenerateTagName } from '../version/index.js';
 
 // Types for nx.json release configuration
 interface ReleaseGroup {
@@ -176,14 +177,21 @@ function getNxReleaseConfig(context: ExecutorContext): NxReleaseConfig {
   }
 }
 
+function escapeRegExp(string: string): string {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function matchesProjectPattern(
   projectName: string,
   patterns: string[]
 ): boolean {
   return patterns.some((pattern) => {
-    // Convert glob pattern to regex
-    const regexPattern = pattern.replace(/\*/g, '.*').replace(/\?/g, '.');
-    const regex = new RegExp(`^${regexPattern}$`);
+    // Escape special regex chars, then restore glob wildcards
+    const escaped = pattern
+      .split('*')
+      .map((segment) => escapeRegExp(segment))
+      .join('.*');
+    const regex = new RegExp(`^${escaped}$`);
     return regex.test(projectName);
   });
 }
@@ -208,7 +216,8 @@ function getReleaseGroupForProject(
   return {};
 }
 
-function generateTagName(
+// Re-export generateTagName from version executor for consistent tag naming (Req 2.6)
+export function generateTagName(
   projectName: string,
   version: string,
   options: {
@@ -222,37 +231,12 @@ function generateTagName(
   if (options.tagPrefix) {
     return `${options.tagPrefix}${version}`;
   }
-
-  const tagNaming = options.tagNaming || {};
-  const releaseGroupName = options.releaseGroup;
-
-  // Determine tag pattern based on projectsRelationship
-  let defaultFormat: string;
-  if (options.projectsRelationship === 'independent') {
-    // Independent: default to {projectName}@{version}
-    defaultFormat = '{projectName}@{version}';
-  } else if (releaseGroupName) {
-    // Fixed with release group: {releaseGroupName}-v{version}
-    defaultFormat = '{releaseGroupName}-v{version}';
-  } else {
-    // Fixed without release group: v{version}
-    defaultFormat = 'v{version}';
-  }
-
-  const prefix =
-    tagNaming.prefix ||
-    (tagNaming.includeProjectName !== false && !releaseGroupName
-      ? `${projectName}-v`
-      : '');
-  const suffix = tagNaming.suffix || '';
-  const format = tagNaming.format || defaultFormat;
-
-  return format
-    .replace('{prefix}', prefix)
-    .replace('{version}', version)
-    .replace('{suffix}', suffix)
-    .replace('{projectName}', projectName)
-    .replace('{releaseGroupName}', releaseGroupName || '');
+  // Delegate to version executor's generateTagName for identical logic
+  return versionGenerateTagName(projectName, version, {
+    tagNaming: options.tagNaming,
+    projectsRelationship: options.projectsRelationship,
+    releaseGroup: options.releaseGroup,
+  });
 }
 
 async function createTag(
@@ -505,3 +489,5 @@ async function createGitHubRelease(
     throw new Error(`Failed to create GitHub release: ${error.message}`);
   }
 }
+
+export { matchesProjectPattern, getReleaseNotes, collectAssets };

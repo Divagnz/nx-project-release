@@ -156,12 +156,12 @@
     "skipCommit": {
       "type": "boolean",
       "default": false,
-      "description": "DEPRECATED: Use gitCommit instead. Skip creating git commit"
+      "description": "DEPRECATED: Use 'gitCommit: false' instead. This option will be removed in a future version."
     },
     "skipTag": {
       "type": "boolean",
       "default": false,
-      "description": "DEPRECATED: Use gitTag instead. Skip creating git tag"
+      "description": "DEPRECATED: Use 'gitTag: false' instead. This option will be removed in a future version."
     },
     "versionFile": {
       "type": "string",
